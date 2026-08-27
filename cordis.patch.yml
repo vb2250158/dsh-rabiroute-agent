@@ -1,0 +1,3 @@
+- insert:
+    - id: rabiroute-agent
+      name: dsh-rabiroute-agent
