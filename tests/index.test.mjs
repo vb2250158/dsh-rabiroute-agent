@@ -34,7 +34,7 @@ test('reports the live RabiRoute plugin contract', () => {
   assert.deepEqual(status, {
     id: 'rabiroute-agent',
     name: 'RabiRoute Agent',
-    version: '0.1.2',
+    version: '0.1.4',
     active: false,
     managerBaseUrl: 'http://127.0.0.1:8790',
     enforceAgentCommunication: true,
@@ -44,6 +44,33 @@ test('reports the live RabiRoute plugin contract', () => {
   const state = harness()
   const active = apply(state.ctx, { managerBaseUrl: 'http://127.0.0.1:8790' })
   assert.equal(active.active, true)
+})
+
+test('publishes object-rooted JSON Schemas for every model-visible tool', () => {
+  const definitions = internals.toolDefinitions({ managerBaseUrl: 'http://127.0.0.1:8790', requestTimeoutMs: 30000 })
+  const schemas = Object.fromEntries(definitions.map(({ name, parameters }) => [name, parameters]))
+  assert.deepEqual(schemas.rabiroute_agent_threads, {
+    type: 'object',
+    properties: { requestJson: { type: 'string', description: 'Complete /api/agent/threads JSON request.' } },
+    required: ['requestJson'],
+    additionalProperties: false,
+  })
+  assert.deepEqual(schemas.rabiroute_agent_send, {
+    type: 'object',
+    properties: { requestJson: { type: 'string', description: 'Complete /api/agent/send JSON request.' } },
+    required: ['requestJson'],
+    additionalProperties: false,
+  })
+  assert.deepEqual(schemas.rabiroute_manager_api, {
+    type: 'object',
+    properties: {
+      method: { type: 'string', description: 'GET, POST, PUT, or PATCH.' },
+      path: { type: 'string', description: 'Manager API path beginning with an allowed prefix.' },
+      bodyJson: { type: 'string', description: 'Optional JSON object body.' },
+    },
+    required: ['method', 'path'],
+    additionalProperties: false,
+  })
 })
 
 test('thread tool emits the messageSource contract and forwards the authoritative response', async () => {
