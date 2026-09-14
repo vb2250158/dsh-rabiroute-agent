@@ -4,7 +4,7 @@ English | [简体中文](README.md)
 
 Connect DSH sessions to RabiRoute's managed task, messaging, plan and memory APIs. Business contracts align with Codex, while DSH retains its own sessions, tools and permissions. No fallback Runtime or automatic handoff to Codex is introduced.
 
-> Connection changes are **Unreleased**. Source tests, installation, running tools, Hooks and real delivery require separate acceptance. Build success is not deployment.
+> Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
 
 ## Installation
 

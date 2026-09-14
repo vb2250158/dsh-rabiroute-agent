@@ -8,7 +8,7 @@ test('packaging keeps compiled entry and bilingual guides without obsolete modul
   for (const name of ['README.md', 'README_en.md', 'CHANGELOG.md', 'CHANGELOG_en.md']) {
     assert.ok(pkg.files.includes(name))
     const content = await readFile(new URL(name, root), 'utf8')
-    assert.match(content, /Unreleased/)
+    assert.ok(content.includes(pkg.version), 'documentation must identify the current release')
     assert.match(content, /English/)
   }
   for (const dir of ['src', 'lib']) {
