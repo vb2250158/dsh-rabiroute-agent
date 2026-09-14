@@ -2,6 +2,12 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## Unreleased
+
+- Clarify Rabi shared business ownership and DSH local adaptation, with common contracts reusable by Codex and other Agents.
+- Add standalone envelope parser source and synthetic format tests without runtime registration; preserve original text, body whitespace and fallback without executing reply JSON.
+- Record the unreleased scope of sender headers, original-message viewing and session navigation. UI integration first evaluates public plugin replacement and ordinary-message compatibility without changing historical records; it is not connected or deployed.
+
 ## 0.1.5 — 2026-09-14
 
 - Align DSH tools with the current Codex/Manager contract using per-operation Host discovery, health and generation/instance checks; remove fixed-port defaults and prompt addresses.

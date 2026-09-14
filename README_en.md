@@ -6,6 +6,26 @@ Connect DSH sessions to RabiRoute's managed task, messaging, plan and memory API
 
 > Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
 
+## Purpose and development boundaries
+
+This plugin adapts DSH tool calls to Rabi; it is not a plan, memory, persona or messaging system inside DSH. Tool availability neither enables automatic Rabi scheduling nor proves that the separate lifecycle Hook is loaded.
+
+Follow Rabi's [shared Agent integration requirements](https://github.com/vb2250158/RabiRoute/blob/main/docs/agent-adapter-standard-requirements_en.md): business behavior and policies that Rabi can implement centrally belong in Rabi, for reuse by DSH, Codex and other Agents. When a Rabi API is missing, extend the shared API first rather than duplicating business rules, state stores or schedulers in DSH.
+
+This plugin owns only tool registration, request/result translation, connection checks and necessary communication constraints. Consider host enhancements only for DSH internal events, context injection, permission enforcement or UI that require host access, using supported extension points. Rabi business decisions cannot expand DSH local permissions. The separate `rabi-dsh-context` Hook owns lifecycle adaptation; do not duplicate it here.
+
+Each new requirement must identify why Rabi cannot perform it directly, DSH's minimum local responsibility, authoritative business state, the shared cross-Agent contract, behavior without optional enhancements and acceptance evidence. Shared capabilities must not require Codex to reproduce DSH UI or make this plugin's installation a prerequisite for Rabi base session discovery and delivery. Describe tool integration, Hook integration and real business acceptance separately; API names are not DSH-owned business features.
+
+## Chat message presentation (Unreleased, installed acceptance pending)
+
+The intended enhancement recognizes a leading `[消息源]` Agent envelope when chat loads or historical messages render, displays a clickable sending session above the body, and offers “View original message” and “Locate Agent” menu items. Recognition is display-only: session logs, model input, source identity and reply parameters remain unchanged, and the original stays accessible. Source text is a message claim, not authenticated sender evidence; reply JSON must never execute automatically.
+
+The standalone parser source is `src/message-envelope.js`; the current runtime entry does not load it. It recognizes Agent sources only, accepts current/legacy field names and LF/CRLF, preserves the original string and body whitespace, and separates only a valid terminal reply JSON block. Duplicate fields, unknown header fields, ambiguous reply JSON or conflicting delivery IDs return `null`; callers must display the original. Other source types and unknown context blocks receive no business interpretation.
+
+Unsupported or ambiguous formats remain unchanged. Locate sessions by full ID, never by guessed names or by creating replacements. Rabi owns resolution and opening contracts for external Agents; a Codex ID is not a local DSH ID. Unknown targets and unsupported hosts must produce explicit feedback.
+
+The public `conversation.chat.node` slot can replace an entire node kind but cannot conditionally fall back to the official renderer. First evaluate a plugin-only replacement through this public API, accepting responsibility for ordinary messages, attachments, copying, timestamps and history loading. A missing local decoration slot alone does not require official-source changes. Do not capture private registries, import internal components or modify the DOM. Propose a minimal official extension point and request authorization only if public replacement cannot reliably meet the requirements. This section defines unreleased work, not evidence that chat presentation, navigation or menus are available.
+
 ## Installation
 
 Use Settings → My Plugins or the official installer with an available pinned commit:
