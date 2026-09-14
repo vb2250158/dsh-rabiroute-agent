@@ -1,196 +1,115 @@
 import z from '@deepseek-ai/schemastery'
+import { cleanBaseUrl, managerRequest, timeoutBudget } from './connection.js'
 
 export const Config = z.object({
-  managerBaseUrl: z.string().default('http://127.0.0.1:8790'),
+  managerBaseUrl: z.string().default(''),
+  hostExecutable: z.string().default(''),
   enforceAgentCommunication: z.boolean().default(true),
   requestTimeoutMs: z.number().default(30000),
 })
-
+export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
+export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.1.5'
+export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
 const SHELL_TOOLS = new Set(['bash', 'pwsh', 'powershell', 'terminal'])
-export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
-export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.1.4'
-export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze([
-  'rabiroute_agent_threads',
-  'rabiroute_agent_send',
-  'rabiroute_manager_api',
-])
-
-const ALLOWED_MANAGER_PREFIXES = [
-  '/api/roles/',
-  '/api/message-processing/',
-  '/api/agent/requests',
-  '/api/memory/',
-]
-
-function cleanBaseUrl(value) {
-  const text = String(value || 'http://127.0.0.1:8790').trim().replace(/\/+$/, '')
-  if (!/^https?:\/\//i.test(text)) throw new Error('managerBaseUrl must be an http or https URL.')
-  return text
-}
 
 export function createRabiRouteAgentRuntimeStatus(config = {}) {
-  return {
-    id: RABIROUTE_AGENT_PLUGIN_ID,
-    name: RABIROUTE_AGENT_PLUGIN_NAME,
-    version: RABIROUTE_AGENT_PLUGIN_VERSION,
-    active: false,
-    managerBaseUrl: cleanBaseUrl(config.managerBaseUrl),
-    enforceAgentCommunication: config.enforceAgentCommunication !== false,
-    requestTimeoutMs: Math.max(1000, Math.floor(Number(config.requestTimeoutMs) || 30000)),
-    tools: [...RABIROUTE_AGENT_TOOL_NAMES],
-  }
+  return { id: RABIROUTE_AGENT_PLUGIN_ID, name: RABIROUTE_AGENT_PLUGIN_NAME, version: RABIROUTE_AGENT_PLUGIN_VERSION, active: false,
+    managerBaseUrl: cleanBaseUrl(config.managerBaseUrl), enforceAgentCommunication: config.enforceAgentCommunication !== false,
+    requestTimeoutMs: timeoutBudget(config.requestTimeoutMs), tools: [...RABIROUTE_AGENT_TOOL_NAMES] }
 }
-
 function parseJsonObject(value, field) {
   let parsed
   try { parsed = JSON.parse(String(value || '')) } catch { throw new Error(field + ' must be valid JSON.') }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(field + ' must contain a JSON object.')
   return parsed
 }
-
-function agentSourceFromRequest(request) {
-  const source = request.messageSource && typeof request.messageSource === 'object'
-    ? request.messageSource
-    : request.deliverySource && typeof request.deliverySource === 'object'
-      ? request.deliverySource
-      : undefined
-  if (!source) return undefined
-  const agentAdapter = String(source.agentAdapter || '').trim()
-  const sessionId = String(source.sessionId || '').trim()
-  const sessionName = String(source.sessionName || sessionId).trim()
-  if (!agentAdapter || !sessionId || !sessionName) throw new Error('Agent source requires agentAdapter, sessionId, and sessionName.')
-  return {
-    type: 'agent',
-    agentAdapter,
-    agentType: String(source.agentType || request.sourceAgentType || 'agent').trim(),
-    sessionId,
-    sessionName,
-    ...(source.workspace ? { workspace: String(source.workspace) } : {}),
-  }
-}
-
 function normalizeThreadRequest(request) {
-  const source = agentSourceFromRequest(request)
-  if (!source) return request
-  const { deliverySource: _legacyDeliverySource, ...rest } = request
-  return {
-    ...rest,
-    messageSource: source,
-  }
+  const raw = request.messageSource || request.deliverySource
+  if (!raw) return request
+  if (request.messageSource && request.deliverySource && request.messageSource.sessionId !== request.deliverySource.sessionId) throw new Error('Conflicting messageSource and legacy deliverySource sessionId.')
+  const agentAdapter = String(raw.agentAdapter || '').trim()
+  const sessionId = String(raw.sessionId || '').trim()
+  if (!agentAdapter || !sessionId) throw new Error('Agent source requires agentAdapter and sessionId.')
+  if (request.sourceThreadId && request.sourceThreadId !== sessionId) throw new Error('messageSource.sessionId must match sourceThreadId.')
+  const { deliverySource: _legacy, ...rest } = request
+  return { ...rest, messageSource: { type: 'agent', agentAdapter, sessionId, sessionName: String(raw.sessionName || sessionId).trim(), agentType: String(raw.agentType || request.sourceAgentType || 'agent').trim(), ...(raw.workspace ? { workspace: String(raw.workspace) } : {}) } }
 }
 
-async function managerRequest(baseUrl, requestTimeoutMs, pathname, init, signal) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(new Error('Rabi Manager request timed out.')), requestTimeoutMs)
-  const abort = () => controller.abort(signal.reason)
-  signal?.addEventListener('abort', abort, { once: true })
-  try {
-    const response = await fetch(baseUrl + pathname, {
-      ...init,
-      signal: controller.signal,
-      headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
-    })
-    const body = await response.text()
-    if (!response.ok) throw new Error('Rabi Manager HTTP ' + response.status + ': ' + body)
-    let parsed
-    try { parsed = body ? JSON.parse(body) : {} } catch { parsed = { text: body } }
-    if (parsed && typeof parsed === 'object' && parsed.code === -1) {
-      throw new Error(String(parsed.message || parsed.error?.message || 'Rabi Manager rejected the request.'))
-    }
-    return { statusCode: response.status, ok: true, body: JSON.stringify(parsed) }
-  } finally {
-    clearTimeout(timer)
-    signal?.removeEventListener('abort', abort)
+function validatePath(value, method) {
+  const pathname = String(value || '').trim()
+  if (!pathname.startsWith('/') || pathname.startsWith('//') || /[\\#\s\u0000-\u001f]/u.test(pathname)) throw new Error('Manager API path is outside the allowlist.')
+  const raw = pathname.split('?')[0]
+  let decoded
+  try { decoded = decodeURIComponent(raw) } catch { throw new Error('Invalid Manager path encoding.') }
+  // Reject encoded separators, repeated encoding and traversal before URL normalization.
+  if (/[\\%?#\u0000-\u0020]/u.test(decoded) || /%2f/i.test(raw) || decoded.split('/').some(part => part === '.' || part === '..')) throw new Error('Manager path traversal or encoded separator is not allowed.')
+  const health = decoded === '/meta'
+  const receipt = /^\/api\/agent\/send\/receipts\/[^/]+$/.test(decoded) || decoded === '/api/agent/send/traces'
+  if ((health || receipt) && method !== 'GET') throw new Error('Health and receipt endpoints are GET-only.')
+  const allowed = /^\/api\/(?:roles|message-processing|memory)\/[^/]+(?:\/.*)?$/.test(decoded) || /^\/api\/agent\/requests(?:\/[^/]+)*$/.test(decoded)
+  if (!health && !receipt && !allowed) throw new Error('Manager API path is outside the RabiRoute plugin allowlist; use dedicated delivery tools for sending.')
+  return { pathname, decoded }
+}
+function requestHeaders(value) {
+  const input = value ? parseJsonObject(value, 'requestHeadersJson') : {}
+  const headers = {}
+  for (const [key, val] of Object.entries(input)) {
+    const name = key.toLowerCase()
+    if (!['if-match', 'idempotency-key'].includes(name) || typeof val !== 'string' || !val.trim() || /[\r\n]/.test(val) || Object.hasOwn(headers, name)) throw new Error('Only unique nonempty If-Match and Idempotency-Key headers are allowed.')
+    if (name === 'if-match' && !/^"[^"\r\n]+"$/.test(val)) throw new Error('If-Match must contain one strong ETag from the authoritative GET.')
+    headers[name] = val
   }
+  return headers
+}
+function validateStorageHeaders(method, pathname, headers) {
+  const create = method === 'POST' && /^\/api\/roles\/[^/]+\/(?:plans|memory\/recent|memory\/consolidation-requests)$/.test(pathname)
+  const versioned = (method === 'PATCH' && /^\/api\/roles\/[^/]+\/(?:plans|memory\/recent)\/[^/]+$/.test(pathname))
+    || (method === 'POST' && /^\/api\/roles\/[^/]+\/(?:plans\/[^/]+\/feedback|memory\/consolidation-runs\/[^/]+\/result|plan-(?:marker-)?statuses)$/.test(pathname))
+    || (['PATCH', 'DELETE'].includes(method) && /^\/api\/roles\/[^/]+\/plan-(?:marker-)?statuses\/[^/]+$/.test(pathname))
+  if ((create || versioned) && !headers['idempotency-key']) throw new Error('This storage write requires a stable Idempotency-Key.')
+  if (versioned && !headers['if-match']) throw new Error('This versioned storage write requires If-Match from the authoritative GET.')
 }
 
 const output = {
-  schema: {
-    type: 'object',
-    properties: {
-      statusCode: { type: 'number' },
-      ok: { type: 'boolean' },
-      body: { type: 'string' },
-    },
-    required: ['statusCode', 'ok', 'body'],
-    additionalProperties: false,
-  },
-  render: (_args, value) => [{ type: 'text', text: value.body }],
+  schema: { type: 'object', properties: {
+    statusCode: { type: 'number' }, ok: { type: 'boolean' }, body: { type: 'string' }, etag: { type: 'string' }, uncertain: { type: 'boolean' },
+    headers: { type: 'object', properties: { etag: { type: 'string' }, 'idempotency-key': { type: 'string' }, 'retry-after': { type: 'string' } }, additionalProperties: false },
+    identity: { type: 'object', properties: { applicationGenerationId: { type: 'string' }, managerInstanceId: { type: 'string' } }, required: ['applicationGenerationId', 'managerInstanceId'], additionalProperties: false },
+    error: { type: 'object', properties: { kind: { type: 'string' }, message: { type: 'string' } }, required: ['kind', 'message'], additionalProperties: false },
+  }, required: ['statusCode', 'ok', 'body'], additionalProperties: false },
+  render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
 }
-
-function toolDefinitions(config) {
-  const baseUrl = cleanBaseUrl(config.managerBaseUrl)
-  const requestTimeoutMs = Math.max(1000, Math.floor(Number(config.requestTimeoutMs) || 30000))
-  return [
-    {
-      name: 'rabiroute_agent_threads',
-      description: 'Use the RabiRoute Manager thread bridge to list, read, resolve, create, rename, or send Agent sessions. Required for formal Agent-to-Agent delivery and replies.',
-      parameters: {
-        type: 'object',
-        properties: { requestJson: { type: 'string', description: 'Complete /api/agent/threads JSON request.' } },
-        required: ['requestJson'],
-        additionalProperties: false,
-      },
-      output,
-      timeoutMs: requestTimeoutMs,
-      async execute(args, exec) {
-        const request = normalizeThreadRequest(parseJsonObject(args.requestJson, 'requestJson'))
-        return managerRequest(baseUrl, requestTimeoutMs, THREADS_PATH, { method: 'POST', body: JSON.stringify(request) }, exec.signal)
-      },
-    },
-    {
-      name: 'rabiroute_agent_send',
-      description: 'Send a message through a configured RabiRoute message adapter. A successful Manager and channel receipt is the only proof that the message was sent.',
-      parameters: {
-        type: 'object',
-        properties: { requestJson: { type: 'string', description: 'Complete /api/agent/send JSON request.' } },
-        required: ['requestJson'],
-        additionalProperties: false,
-      },
-      output,
-      timeoutMs: requestTimeoutMs,
-      async execute(args, exec) {
-        const request = parseJsonObject(args.requestJson, 'requestJson')
-        return managerRequest(baseUrl, requestTimeoutMs, SEND_PATH, { method: 'POST', body: JSON.stringify(request) }, exec.signal)
-      },
-    },
-    {
-      name: 'rabiroute_manager_api',
-      description: 'Read or update RabiRoute plans, message-processing requirements, Agent reply requests, and memory-control endpoints through an allowlisted Manager path.',
-      parameters: {
-        type: 'object',
-        properties: {
-          method: { type: 'string', description: 'GET, POST, PUT, or PATCH.' },
-          path: { type: 'string', description: 'Manager API path beginning with an allowed prefix.' },
-          bodyJson: { type: 'string', description: 'Optional JSON object body.' },
-        },
-        required: ['method', 'path'],
-        additionalProperties: false,
-      },
-      output,
-      timeoutMs: requestTimeoutMs,
+function toolDefinitions(config, dependencies = {}) {
+  const timeoutMs = timeoutBudget(config.requestTimeoutMs) + 1000
+  const definitions = [
+    { name: 'rabiroute_agent_threads', description: 'Use the RabiRoute Manager thread bridge to list, read, resolve, create, rename, or send Agent sessions. Required for formal Agent-to-Agent delivery and replies.',
+      parameters: { type: 'object', properties: { requestJson: { type: 'string', description: 'Complete /api/agent/threads JSON request.' } }, required: ['requestJson'], additionalProperties: false },
+      async execute(args, exec) { const request = normalizeThreadRequest(parseJsonObject(args.requestJson, 'requestJson')); return managerRequest(config, THREADS_PATH, { method: 'POST', body: JSON.stringify(request) }, exec.signal, dependencies) } },
+    { name: 'rabiroute_agent_send', description: 'Send a message through a configured RabiRoute message adapter. A successful Manager and channel receipt is the only proof that the message was sent.',
+      parameters: { type: 'object', properties: { requestJson: { type: 'string', description: 'Complete /api/agent/send JSON request.' } }, required: ['requestJson'], additionalProperties: false },
+      async execute(args, exec) { return managerRequest(config, SEND_PATH, { method: 'POST', body: JSON.stringify(parseJsonObject(args.requestJson, 'requestJson')) }, exec.signal, dependencies) } },
+    { name: 'rabiroute_manager_api', description: 'Read or update allowlisted RabiRoute plans, memory and processing APIs. GET /meta checks health. Pass version/idempotency headers for storage writes; inspect full receipts and uncertainty before retrying.',
+      parameters: { type: 'object', properties: {
+        method: { type: 'string', description: 'GET, POST, PUT, PATCH, or DELETE.' }, path: { type: 'string', description: 'Allowlisted Manager path; health and sending receipts are GET-only.' },
+        bodyJson: { type: 'string', description: 'Optional JSON object body.' }, requestHeadersJson: { type: 'string', description: 'Optional JSON object containing only If-Match and Idempotency-Key.' },
+      }, required: ['method', 'path'], additionalProperties: false },
       async execute(args, exec) {
         const method = String(args.method || '').trim().toUpperCase()
-        if (!['GET', 'POST', 'PUT', 'PATCH'].includes(method)) throw new Error('Unsupported Manager API method.')
-        const pathname = String(args.path || '').trim()
-        if (!pathname.startsWith('/') || !ALLOWED_MANAGER_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
-          throw new Error('Manager API path is outside the RabiRoute plugin allowlist.')
-        }
-        if (pathname.startsWith(THREADS_PATH) || pathname.startsWith(SEND_PATH)) {
-          throw new Error('Use rabiroute_agent_threads or rabiroute_agent_send for this endpoint.')
-        }
+        if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) throw new Error('Unsupported Manager API method.')
+        const { pathname, decoded } = validatePath(args.path, method)
+        const headers = requestHeaders(args.requestHeadersJson)
+        validateStorageHeaders(method, decoded, headers)
+        if (method === 'GET' && args.bodyJson) throw new Error('GET requests cannot carry a body.')
         const body = args.bodyJson ? JSON.stringify(parseJsonObject(args.bodyJson, 'bodyJson')) : undefined
-        return managerRequest(baseUrl, requestTimeoutMs, pathname, { method, ...(body ? { body } : {}) }, exec.signal)
-      },
-    },
+        return managerRequest(config, pathname, { method, headers, ...(body ? { body } : {}) }, exec.signal, dependencies)
+      } },
   ]
+  return definitions.map(definition => ({ ...definition, output, timeoutMs }))
 }
-
 function promptText(config) {
-  const baseUrl = cleanBaseUrl(config.managerBaseUrl)
   return [
     '[RabiRoute DSH 主 Agent]',
     '当前 DSH 会话可以作为 RabiRoute 的主人格、计划秘书、消息处理 Agent、记忆整理 Agent 或独立业务 Agent。',
@@ -201,33 +120,25 @@ function promptText(config) {
     '向 QQ、语音、飞书、RabiLink 等消息端发送内容时使用 rabiroute_agent_send，并取得 Manager 与渠道回执。最终文本不算已发送。',
     '计划、消息处理、回复请求和记忆控制使用 rabiroute_manager_api。secretaryBinding 只记录秘书，taskBinding 只记录独立业务任务。',
     'DSH 投递失败时报告失败，不改投 Codex，也不创建另一套任务。',
-    'Rabi Manager：' + baseUrl,
+    config.managerBaseUrl ? 'Rabi Manager 使用插件显式配置的完整地址并逐次核对身份。' : 'Rabi Manager 每项操作从 Host 动态发现并核对 /meta，不使用历史端口。',
+    '可用 GET /meta 只读核对连接。旧地址失败不代表 Manager 离线；不要用读取近期记忆作为无副作用健康探针。',
+    '存储写入先读现行接口合同。requestHeadersJson 传稳定 Idempotency-Key 和适用的强 ETag If-Match；检查完整输出的 HTTP 状态、回显键、ETag、资源身份和 uncertain。',
+    '超时、503、写后切代或回执不确定时保留原键和原正文，先权威读回，不自动重发。412 重新读后确认原意再用新键与新 ETag。',
   ].join('\n')
 }
-
 export function apply(ctx, config = {}) {
   const status = createRabiRouteAgentRuntimeStatus(config)
-  const resolved = {
-    managerBaseUrl: status.managerBaseUrl,
-    enforceAgentCommunication: status.enforceAgentCommunication,
-    requestTimeoutMs: status.requestTimeoutMs,
-  }
+  const resolved = { ...config, managerBaseUrl: status.managerBaseUrl, enforceAgentCommunication: status.enforceAgentCommunication, requestTimeoutMs: status.requestTimeoutMs }
   ctx.inject(['tools', 'systemPrompt'], runtime => {
     runtime.systemPrompt.section({ name: 'rabiroute:agent-contract', order: 25, text: promptText(resolved) })
     for (const definition of toolDefinitions(resolved)) runtime.tools.register(definition)
-    if (resolved.enforceAgentCommunication) {
-      runtime.on('tools/pre-execute', (exec, next) => {
-        if (!SHELL_TOOLS.has(exec.name)) return next()
-        const text = JSON.stringify(exec.arguments || {})
-        if (/\/api\/agent\/(?:threads|send)|session\.prompt/i.test(text)) {
-          return Promise.resolve({ kind: 'deny', reason: 'Use the RabiRoute plugin tools for Agent communication and external sending.' })
-        }
-        return next()
-      })
-    }
+    if (resolved.enforceAgentCommunication) runtime.on('tools/pre-execute', (exec, next) => {
+      if (!SHELL_TOOLS.has(exec.name)) return next()
+      if (/\/api\/agent\/(?:threads|send)|session\.prompt/i.test(JSON.stringify(exec.arguments || {}))) return Promise.resolve({ kind: 'deny', reason: 'Use the RabiRoute plugin tools for Agent communication and external sending.' })
+      return next()
+    })
     status.active = true
   })
   return status
 }
-
-export const internals = { normalizeThreadRequest, promptText, toolDefinitions }
+export const internals = { normalizeThreadRequest, promptText, toolDefinitions, validatePath, requestHeaders, validateStorageHeaders }

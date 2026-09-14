@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -11,6 +11,9 @@
     "lib",
     "src",
     "README.md",
+    "README_en.md",
+    "CHANGELOG.md",
+    "CHANGELOG_en.md",
     "tests",
     "cordis.patch.yml",
     "LICENSE"
@@ -38,6 +41,7 @@
     }
   },
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "build": "node tests/build.mjs",
+    "test": "node tests/build.mjs && node --test tests/*.test.mjs"
   }
 }
