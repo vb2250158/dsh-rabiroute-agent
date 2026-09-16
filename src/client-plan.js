@@ -2,6 +2,7 @@
 import * as React from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import { RABI_PLAN_NS, rabiPlanLocales } from './client-plan-locales.js'
+import { RABI_PLAN_ICON_DATA_URI } from './plan-icon.js'
 import { rabiClientStyles } from './client-styles.js'
 
 /**
@@ -118,8 +119,15 @@ export function RabiPlanBody({ sessionId, t }) {
 }
 
 /**
- * The session-header entry: shown only while the session is bound to a Rabi
- * persona, and it opens the panel the first time that binding is seen.
+ * The session-header entry: shown while the session is bound to a Rabi persona, and it
+ * opens the panel the first time that binding is seen.
+ *
+ * Visibility turns on the **binding**, not on a plan already existing. Gating it on
+ * availability hid the entry in exactly the case it was asked for, because a bound
+ * session whose plan has not been recorded yet is the normal state between "Rabi bound
+ * this session" and "Rabi attached a plan"; the panel is where that gets explained.
+ * Auto-opening still requires a plan, so a bound-but-empty session does not open a
+ * column that has nothing to show.
  * @param props - framework props plus the panel-opening callback from `inject`.
  */
 export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab }) {
@@ -132,9 +140,11 @@ export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab }) {
     let active = true
     readRabiPlanPanelState(sessionId, controller.signal)
       .then(data => {
-        if (!active || !data.available) return
+        if (!active) return
+        // A roleId is what "this session is bound to a Rabi persona" looks like from here.
+        if (!data.roleId) return
         setState({ phase: 'ready' })
-        if (rabiPlanAutoOpened.has(sessionId)) return
+        if (!data.available || rabiPlanAutoOpened.has(sessionId)) return
         try {
           open.current()
           // Only a successful open counts: a column that was not mounted yet must
@@ -150,5 +160,16 @@ export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab }) {
   }, [sessionId])
 
   if (state.phase !== 'ready') return null
-  return React.createElement(Button, { size: 'sm', variant: 'ghost', title: t('launcherHint'), onClick: () => { try { open.current() } catch { /* the sidebar reports its own refusal */ } } }, t('launcher'))
+  // Rabi's own mark, carried in the bundle: the entry is the way back to a panel the
+  // user closed, so it has to be recognisable at a glance and must not depend on a
+  // fetch that could fail or flash.
+  return React.createElement(Button, {
+    size: 'sm', variant: 'ghost', style: rabiClientStyles.planLauncherButton,
+    icon: React.createElement('img', {
+      src: RABI_PLAN_ICON_DATA_URI, alt: '', width: 16, height: 16,
+      style: rabiClientStyles.planLauncherIcon,
+    }),
+    'aria-label': t('launcherHint'), title: t('launcherHint'),
+    onClick: () => { try { open.current() } catch { /* the sidebar reports its own refusal */ } },
+  })
 }

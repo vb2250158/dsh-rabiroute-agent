@@ -16,4 +16,8 @@ export const rabiClientStyles = {
   planFrame: { flex: '1 1 auto', width: '100%', minHeight: '70vh', border: 'none', background: 'var(--dsw-alias-bg-layer-1)' },
   planNotice: { display: 'grid', gap: '8px', padding: '12px', color: 'var(--dsw-alias-label-primary)', fontSize: '13px', overflowWrap: 'anywhere' },
   planActions: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  // The header entry is Rabi's own mark, so it drops the button's text padding for the
+  // 28x28 icon form the primitives keep for icon-only controls.
+  planLauncherButton: { padding: 0, width: '28px' },
+  planLauncherIcon: { display: 'block', width: '16px', height: '16px', borderRadius: '3px' },
 }

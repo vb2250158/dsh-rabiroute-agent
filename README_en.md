@@ -4,7 +4,7 @@ English | [简体中文](README.md)
 
 Connect DSH sessions to RabiRoute's managed task, messaging, plan and memory APIs. Business contracts align with Codex, while DSH retains its own sessions, tools and permissions. No fallback Runtime or automatic handoff to Codex is introduced.
 
-> Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. **0.2.0** adds the right-Sidebar Rabi plan panel, covered by source tests and a read-only probe against a real Manager. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
+> Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. **0.2.0** adds the right-Sidebar Rabi plan panel; **0.2.1** turns its entry into Rabi's icon button and shows it as soon as a persona binding exists. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
 
 ## Purpose and development boundaries
 
@@ -28,7 +28,19 @@ The public `conversation.chat.node` slot can replace an entire node kind but can
 
 ## Rabi plan panel (0.2.0)
 
-When a session is bound to a Rabi plan, the right Sidebar gains a "Rabi plan" page: entering that session opens it once, and the "Plan" button beside the session title reopens it later. The panel does not re-draw a plan — it frames **Rabi's own single-plan view** (`#/routes/<route>/plan/<plan id>`); steps, feedback, approvals and attachments are presented and driven entirely by Rabi, and DSH keeps no second copy.
+When a session is bound to a Rabi **persona**, the right Sidebar gains a "Rabi plan" page: entering that session opens it once, and **Rabi's icon button** beside the session title reopens it later. The panel does not re-draw a plan — it frames **Rabi's own single-plan view** (`#/routes/<route>/plan/<plan id>`); steps, feedback, approvals and attachments are presented and driven entirely by Rabi, and DSH keeps no second copy.
+
+### Entry and closing (0.2.1)
+
+| Behaviour | Rule |
+| --- | --- |
+| Entry | **Rabi's icon** beside the session title (shipped in this plugin, inlined at 64px, no runtime request). It appears once the session has a Rabi **persona binding**; with no `roleId` (unbound, or Manager unreachable) it stays hidden. |
+| Why "a plan exists" is no longer the condition | 0.2.0 gated the entry on availability, which hid it in the normal interval between "the session is bound" and "Rabi has recorded a plan" — exactly when an entry is wanted. The entry now follows the binding; the panel explains an empty state. |
+| Auto-open | Only when a plan really is bound, once per session. A bound session with no plan yet does not auto-open, so no empty column appears. |
+| Closing | Closing and collapsing belong to DSH's own right column (each page has a close, the column collapses). A manual close is not undone by switching sessions: auto-open happens once per session. |
+| Reopening | The icon button calls `sidebarRight.openTab`, the same path auto-open uses. |
+
+**Icon source**: `RabiRoute/assets/rabiroute-icon.png`, downscaled to 64px and inlined into the client bundle (`src/plan-icon.js`, ~4 KB). It is not fetched at runtime: the DSH client has no dependable URL for Rabi's static assets, and a fetch would blink an empty button.
 
 **The panel shows exactly one plan — the one bound to that session.** The criterion is not DSH's: `plan.taskBinding.sessionId` (and the secretary binding) is the only session↔plan link in Rabi, and Rabi's own Stop path matches on it. When a session is bound to more than one plan, Rabi treats that as a state to settle (`multiple_plan_task_bindings`), so the panel **reports rather than chooses**, naming the plans instead of picking one.
 

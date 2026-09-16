@@ -4,7 +4,7 @@ export const RABI_PLAN_NS = 'rabiroute-agent-plan'
 export const rabiPlanLocales = {
   zh: {
     tab: 'Rabi 计划',
-    launcher: '计划', launcherHint: '打开 Rabi 计划面板（当前会话已绑定 Rabi 人格）',
+    launcherHint: '打开 Rabi 计划面板（当前会话已绑定 Rabi 人格）',
     frameTitle: 'Rabi 计划面板',
     loading: '正在读取 Rabi 绑定…',
     reload: '重新加载', openExternal: '在浏览器打开',
@@ -18,7 +18,7 @@ export const rabiPlanLocales = {
   },
   en: {
     tab: 'Rabi plan',
-    launcher: 'Plan', launcherHint: 'Open the Rabi plan panel (this session is bound to a Rabi persona)',
+    launcherHint: 'Open the Rabi plan panel (this session is bound to a Rabi persona)',
     frameTitle: 'Rabi plan panel',
     loading: 'Reading the Rabi binding…',
     reload: 'Reload', openExternal: 'Open in browser',

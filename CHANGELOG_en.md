@@ -8,6 +8,14 @@ English | [简体中文](CHANGELOG.md)
 - Add standalone envelope parser source and synthetic format tests without runtime registration; preserve original text, body whitespace and fallback without executing reply JSON.
 - Record the unreleased scope of sender headers, original-message viewing and session navigation. UI integration first evaluates public plugin replacement and ordinary-message compatibility without changing historical records; it is not connected or deployed.
 
+## 0.2.1 — 2026-09-16
+
+- **Correct the entry's visibility condition.** 0.2.0 gated the button on availability (a plan already bound), which hid the entry during the ordinary interval when a session is persona-bound but Rabi has not recorded a plan yet — precisely when an entry is wanted. It now appears whenever the session has a Rabi persona binding (the Host route returns a non-empty `roleId`), and stays hidden when `roleId` is empty (unbound, or Manager unreachable).
+- **The entry is Rabi's icon button.** Taken from `RabiRoute/assets/rabiroute-icon.png`, downscaled to 64px and inlined into the client bundle (new `src/plan-icon.js`, ~4 KB) rather than fetched: the DSH client has no dependable URL for Rabi's static assets, and a fetch would blink an empty button. The icon-only control uses the button's 28×28 form, with `launcherHint` as both title and accessible name.
+- **Auto-open still requires a bound plan**, so a bound session without one does not open an empty column; a manual click is not restricted.
+- Closing is unchanged and now documented: closing and collapsing belong to DSH's right column, and a manual close is not undone by switching sessions because auto-open is deduplicated per session.
+- Acceptance: 46 source tests pass (including new assertions for the icon and for a bound session with no plan still showing the entry); the DSH bundle is confirmed to carry the entry registration and the icon. Display in the running instance remains to be accepted.
+
 ## 0.2.0 — 2026-09-16
 
 - Add a right-Sidebar "Rabi plan" panel: it opens once for a session bound to a Rabi plan, and the entry beside the session title reopens it at any time; the panel shows **the one plan bound to that session**, with no catalog, paging or memory panels.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
 
-const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'client-plan', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
+const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'plan-icon', 'client-plan', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
 const code = sources.map(source => source.replace(/^import [^\r\n]*\r?\n/gmu, '').replace(/^export /gmu, '')).join('\n')
 const raw = '[消息源]\r\n类型：Agent｜处理端：DSH\r\n会话：Test sender\r\n会话 ID：exact-id\r\n投递时间：2026-01-01\r\n\r\n[消息内容]\r\n  body @reference /skill\n\n[回传参数]\n{"deliveryId":"test","responsePolicy":"none"}'
 
@@ -15,7 +15,7 @@ function harness() {
   const React = { Fragment: 'Fragment', createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] }, useRef: initial => { const index = cursor++; return states[index] ?? (states[index] = { current: initial }) }, useCallback: fn => fn, useEffect: fn => { const index = cursor++; if (!(index in states)) { states[index] = true; effects.push(fn()) } } }
   const context = { React, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController }
   vm.createContext(context)
-  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH }`, context)
+  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
   const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
   const render = (content, kind = 'user', extras = {}) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderMessageImages: args => { images.push(args); return { type: 'image', props: args, children: [] } } }) }
@@ -208,10 +208,10 @@ test('an unbound session, a session without a bound plan and several bound plans
   assert.ok(JSON.stringify(unreachable).includes(other.planT('planUnreachableHint')))
 })
 
-test('launcher appears only for a bound session and auto-opens its panel exactly once', async () => {
+test('launcher appears for any Rabi-bound session and auto-opens only when a plan exists', async () => {
   const h = harness()
   let opens = 0
-  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: true, reason: 'bound', roleId: 'Rabi', routeId: 'main', url: 'http://127.0.0.1:1728/#/routes/main/knowledge' } }) }))
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: true, reason: 'bound', roleId: 'Rabi', routeId: 'main', planId: 'plan-1', url: 'http://127.0.0.1:1728/#/routes/main/plan/plan-1' } }) }))
   assert.equal(h.renderPlanLauncher('session-3', () => { opens++ }), null)
   await flush()
   const button = h.renderPlanLauncher('session-3', () => { opens++ })
@@ -221,6 +221,23 @@ test('launcher appears only for a bound session and auto-opens its panel exactly
   assert.equal(opens, 1)
   button.props.onClick()
   assert.equal(opens, 2)
+
+  // The entry carries Rabi's own mark, not a text label: an icon-only control still
+  // needs an accessible name, and the image itself is decorative.
+  assert.equal(button.props.icon.type, 'img')
+  assert.match(button.props.icon.props.src, /^data:image\/png;base64,[A-Za-z0-9+/=]+$/)
+  assert.equal(button.props.icon.props.alt, '')
+  assert.equal(button.props['aria-label'], h.planT('launcherHint'))
+  assert.equal(button.props.title, h.planT('launcherHint'))
+
+  // Bound but no plan recorded yet: the entry stays (that is how the panel gets
+  // reached), while auto-opening is withheld so no empty column appears.
+  const boundNoPlan = harness()
+  boundNoPlan.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: false, reason: 'no-plan', roleId: 'Rabi' } }) }))
+  boundNoPlan.renderPlanLauncher('session-5', () => { opens++ })
+  await flush()
+  assert.equal(boundNoPlan.renderPlanLauncher('session-5', () => { opens++ }).type, 'Button')
+  assert.equal(opens, 2, 'a bound session without a plan must not auto-open')
 
   const unbound = harness()
   assert.equal(unbound.renderPlanLauncher('session-4', () => { opens++ }), null)
