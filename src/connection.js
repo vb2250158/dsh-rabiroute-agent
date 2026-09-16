@@ -28,6 +28,38 @@ function identity(meta) {
 }
 function same(a, b) { return a.applicationGenerationId === b.applicationGenerationId && a.managerInstanceId === b.managerInstanceId }
 
+/**
+ * Resolve the Manager origin once for read-only UI work: the explicit config wins,
+ * otherwise the Host reports it, and either way `/meta` must agree on identity.
+ * This is the same authority `managerRequest` enforces per operation; it exists
+ * separately so one panel read can make two requests after a single discovery.
+ */
+export async function resolveManagerBase(config, callerSignal, dependencies = {}) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(new Error('RabiRoute Manager discovery timed out.')), 3000)
+  const abort = () => controller.abort(callerSignal?.reason)
+  if (callerSignal?.aborted) abort()
+  else callerSignal?.addEventListener('abort', abort, { once: true })
+  try {
+    const fetcher = dependencies.fetch || globalThis.fetch
+    const explicit = cleanBaseUrl(config.managerBaseUrl)
+    const descriptor = explicit ? null : await (dependencies.hostStatus || hostStatus)(config, controller.signal)
+    const base = explicit || cleanBaseUrl(descriptor?.managerBaseUrl)
+    if (!base) throw new Error('Host has no active Manager URL.')
+    const response = await fetcher(base + '/meta', { signal: controller.signal, redirect: 'error', headers: { accept: 'application/json' } })
+    const text = await response.text()
+    if (!response.ok) throw new Error('Manager /meta HTTP ' + response.status)
+    let meta
+    try { meta = JSON.parse(text) } catch { throw new Error('Manager /meta returned invalid JSON.') }
+    const observed = identity(meta)
+    if (descriptor && !same(observed, descriptor)) throw new Error('Host and Manager generation/instance identities do not match.')
+    return base
+  } finally {
+    clearTimeout(timer)
+    callerSignal?.removeEventListener('abort', abort)
+  }
+}
+
 export async function managerRequest(config, pathname, init = {}, callerSignal, dependencies = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(new Error('RabiRoute operation timed out.')), timeoutBudget(config.requestTimeoutMs))

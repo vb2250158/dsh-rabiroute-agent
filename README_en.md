@@ -4,7 +4,7 @@ English | [简体中文](README.md)
 
 Connect DSH sessions to RabiRoute's managed task, messaging, plan and memory APIs. Business contracts align with Codex, while DSH retains its own sessions, tools and permissions. No fallback Runtime or automatic handoff to Codex is introduced.
 
-> Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
+> Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. **0.2.0** adds the right-Sidebar Rabi plan panel, covered by source tests and a read-only probe against a real Manager. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
 
 ## Purpose and development boundaries
 
@@ -25,6 +25,31 @@ The standalone parser source is `src/message-envelope.js`; the current runtime e
 Unsupported or ambiguous formats remain unchanged. Locate sessions by full ID, never by guessed names or by creating replacements. Rabi owns resolution and opening contracts for external Agents; a Codex ID is not a local DSH ID. Unknown targets and unsupported hosts must produce explicit feedback.
 
 The public `conversation.chat.node` slot can replace an entire node kind but cannot conditionally fall back to the official renderer. First evaluate a plugin-only replacement through this public API, accepting responsibility for ordinary messages, attachments, copying, timestamps and history loading. A missing local decoration slot alone does not require official-source changes. Do not capture private registries, import internal components or modify the DOM. Propose a minimal official extension point and request authorization only if public replacement cannot reliably meet the requirements. This section defines unreleased work, not evidence that chat presentation, navigation or menus are available.
+
+## Rabi plan panel (0.2.0)
+
+When a session is bound to a Rabi plan, the right Sidebar gains a "Rabi plan" page: entering that session opens it once, and the "Plan" button beside the session title reopens it later. The panel does not re-draw a plan — it frames **Rabi's own single-plan view** (`#/routes/<route>/plan/<plan id>`); steps, feedback, approvals and attachments are presented and driven entirely by Rabi, and DSH keeps no second copy.
+
+**The panel shows exactly one plan — the one bound to that session.** The criterion is not DSH's: `plan.taskBinding.sessionId` (and the secretary binding) is the only session↔plan link in Rabi, and Rabi's own Stop path matches on it. When a session is bound to more than one plan, Rabi treats that as a state to settle (`multiple_plan_task_bindings`), so the panel **reports rather than chooses**, naming the plans instead of picking one.
+
+There is exactly one data path. The browser calls the same-origin read-only route `GET /rabiroute/plan-panel?sessionId=<DSH session id>`; the Host discovers Manager, verifies `/meta` identity, then reads — `GET /api/codex-hook/sessions/<session>` for the bound role, paged reads of that role's **current plan summaries** matched against Rabi's binding criterion (`view=current`, 200 summaries per page, at most 8 pages), and `GET /api/gateways?summary=1` to map the role to a route — before returning the page address. No plan body is read, the full catalog is never pulled (hundreds of plans, hundreds of kilobytes per page), no state is written, and no binding is cached.
+
+The panel therefore has exactly three outcomes: available (with a single-plan address), empty with a reason, or loading. The reasons are `unbound`, `no-plan`, `multiple-plans`, `unrouted` (the role owns no route), `no-session`, and `unreachable` (Manager is down). **An unreachable Manager never produces a cached or inferred plan**: when Rabi is absent, the panel reports the absence.
+
+The plan tab registers under this plugin's own id (`dsh-rabiroute-agent/plan`) as an independent page type and takes over no existing type. It contributes no guide entry either, so the Sidebar behaves exactly as before in sessions that hold no bound plan.
+
+### Cross-repository dependency (Rabi front end must carry the single-plan address)
+
+The single-plan view lives in Rabi's front end: the `ribiwebgui` plan page gains the focus address `/routes/:id/plan/:planId`, reusing the same plan rendering while narrowing what is loaded and shown (no directory, no paging, no memory panels, plan opened by default). That is a **front-end-only** change, so the Web hot-patch channel publishes it — no Manager backend change and no release reinstall is required.
+
+Without that address the panel reports unreachable or not-found rather than degrading into the full catalog page.
+
+Known limits in this version:
+
+- The panel is an iframe, so it still carries Rabi WebGUI's page shell (top bar and navigation); only its content narrows to a single plan.
+- The browser must be able to reach Manager. On the same machine that holds: loopback requests need no token, and if Rabi has LAN WebGUI access enabled the page redirects itself to the LAN address with an access token, leaving the panel unaffected (verified). Reached from another machine, the frame points at that machine's own `127.0.0.1` and the panel is unusable; cross-machine access is not handled yet.
+- The Electron client loads its UI over `file://`, where the relative same-origin route is unavailable; the panel then reports the unreachable reason.
+- Auto-opening happens once per session; after a manual close it does not keep reopening.
 
 ## Installation
 

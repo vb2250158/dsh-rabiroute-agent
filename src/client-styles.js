@@ -10,4 +10,10 @@ export const rabiClientStyles = {
   muted: { color: 'var(--dsw-alias-label-secondary)', fontSize: '12px', overflowWrap: 'anywhere' },
   actions: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' },
   raw: { margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: '65vh', overflow: 'auto', color: 'var(--dsw-alias-label-primary)' },
+  planFrameBox: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 },
+  // The frame fills the panel when the panel has a height, and never collapses to a
+  // sliver when it does not: Rabi's own page needs a usable viewport either way.
+  planFrame: { flex: '1 1 auto', width: '100%', minHeight: '70vh', border: 'none', background: 'var(--dsw-alias-bg-layer-1)' },
+  planNotice: { display: 'grid', gap: '8px', padding: '12px', color: 'var(--dsw-alias-label-primary)', fontSize: '13px', overflowWrap: 'anywhere' },
+  planActions: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
 }

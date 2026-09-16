@@ -3,27 +3,33 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
 
-const sources = await Promise.all(['message-envelope', 'client-locales', 'client-styles', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
+const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'client-plan', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
 const code = sources.map(source => source.replace(/^import [^\r\n]*\r?\n/gmu, '').replace(/^export /gmu, '')).join('\n')
 const raw = '[消息源]\r\n类型：Agent｜处理端：DSH\r\n会话：Test sender\r\n会话 ID：exact-id\r\n投递时间：2026-01-01\r\n\r\n[消息内容]\r\n  body @reference /skill\n\n[回传参数]\n{"deliveryId":"test","responsePolicy":"none"}'
 
 function harness() {
   let states = [], cursor = 0
-  const effects = [], projections = [], images = [], copied = [], opened = []
+  const effects = [], projections = [], images = [], copied = [], opened = [], panelCalls = []
+  let panelResponse = async () => ({ ok: true, json: async () => ({ code: 0, data: { available: false, reason: 'unbound', roleId: '', routeId: '', url: '' } }) })
   const sessions = { refresh: async () => {}, list: { getSnapshot: () => ({ phase: 'ready', ids: ['exact-id'], byId: { 'exact-id': { id: 'exact-id' } } }) }, open: id => opened.push(id) }
-  const React = { Fragment: 'Fragment', createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] }, useRef: initial => { const index = cursor++; return states[index] ?? (states[index] = { current: initial }) }, useEffect: fn => { const index = cursor++; if (!(index in states)) { states[index] = true; effects.push(fn()) } } }
-  const context = { React, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true } }
+  const React = { Fragment: 'Fragment', createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] }, useRef: initial => { const index = cursor++; return states[index] ?? (states[index] = { current: initial }) }, useCallback: fn => fn, useEffect: fn => { const index = cursor++; if (!(index in states)) { states[index] = true; effects.push(fn()) } } }
+  const context = { React, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController }
   vm.createContext(context)
-  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales }`, context)
+  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
+  const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
   const render = (content, kind = 'user', extras = {}) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderMessageImages: args => { images.push(args); return { type: 'image', props: args, children: [] } } }) }
-  return { ...context.api, sessions, render, t, effects, projections, images, copied, opened }
+  const renderPlanBody = (sessionId = 'session-1') => { cursor = 0; return context.api.RabiPlanBody({ sessionId, t: planT }) }
+  const renderPlanLauncher = (sessionId = 'session-1', openRabiPlanTab = () => {}) => { cursor = 0; return context.api.RabiPlanLauncher({ sessionId, t: planT, openRabiPlanTab }) }
+  return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, setPanelResponse: fn => { panelResponse = fn } }
 }
 function nodes(tree, type) {
   if (!tree || typeof tree !== 'object') return []
   if (Array.isArray(tree)) return tree.flatMap(item => nodes(item, type))
   return [...(tree.type === type ? [tree] : []), ...nodes(tree.children, type)]
 }
+/** Let the panel's fetch-then-setState chain settle before asserting on the next render. */
+const flush = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)) }
 
 test('ordinary user and steering preserve text, refs, skills, attachments, unknown JSON, clock and copy', async () => {
   for (const kind of ['user', 'steering']) {
@@ -106,21 +112,119 @@ test('navigation and copy errors are visible; unmount cancels navigation after r
   assert.deepEqual(h.opened, [])
 })
 
-test('locale and public keyed registrations dispose and remount without private registry access', () => {
-  const h = harness(), registrations = [], cleanups = []
+test('locale, tab type, body and launcher registrations dispose and remount without private registry access', () => {
+  const h = harness(), registrations = [], cleanups = [], definitions = [], openedTabs = []
   let locales = 0
-  const ctx = { sessions: h.sessions, effect: fn => cleanups.push(fn()), locale: { register: (namespace, dictionaries) => { assert.equal(namespace, 'rabiroute-agent-messages'); assert.ok(dictionaries.zh.raw); assert.ok(dictionaries.en.raw); locales++; return () => locales-- } }, slots: { inject: (name, fn) => { assert.equal(name, 'conversation.chat.node'); cleanups.push(fn()) }, register: (spec, view) => { const row = { spec, view }; registrations.push(row); return () => registrations.splice(registrations.indexOf(row), 1) } } }
+  const ctx = {
+    sessions: h.sessions,
+    effect: fn => cleanups.push(fn()),
+    locale: {
+      register: (namespace, dictionaries) => {
+        if (namespace === 'rabiroute-agent-messages') { assert.ok(dictionaries.zh.raw); assert.ok(dictionaries.en.raw) }
+        else { assert.equal(namespace, 'rabiroute-agent-plan'); assert.ok(dictionaries.zh.tab); assert.ok(dictionaries.en.tab) }
+        locales++
+        return () => locales--
+      },
+      bind: namespace => { assert.equal(namespace, 'rabiroute-agent-plan'); return h.planT },
+    },
+    sidebarRight: { openTab: kind => openedTabs.push(kind) },
+    sidebarRightTabs: { register: definition => { definitions.push(definition); return () => definitions.splice(definitions.indexOf(definition), 1) } },
+    slots: {
+      inject: (name, fn) => { const dispose = fn(); cleanups.push(dispose); return dispose },
+      register: (spec, view) => { const row = { spec, view }; registrations.push(row); return () => registrations.splice(registrations.indexOf(row), 1) },
+    },
+  }
   for (let round = 0; round < 2; round++) {
     h.apply(ctx)
-    assert.equal(locales, 1)
-    assert.deepEqual(registrations.map(row => row.spec.key), ['user', 'steering'])
-    for (const row of registrations) {
+    assert.equal(locales, 2)
+    const messages = registrations.filter(row => row.spec.name === 'conversation.chat.node')
+    assert.deepEqual(messages.map(row => row.spec.key), ['user', 'steering'])
+    for (const row of messages) {
       assert.equal(row.spec.priority, -10)
       assert.equal(row.spec.locale, 'rabiroute-agent-messages')
       assert.equal(row.spec.inject().rabiSessions, h.sessions)
     }
+    // The plan panel is this plugin's own page type; it takes no other type's kind over.
+    assert.deepEqual(definitions.map(definition => [definition.id, definition.kind]), [[h.RABI_PLAN_TAB_ID, h.RABI_PLAN_KIND]])
+    const body = registrations.find(row => row.spec.name === 'sidebar.right.pane.tab')
+    assert.equal(body.spec.key, h.RABI_PLAN_TAB_ID)
+    assert.equal(body.spec.locale, 'rabiroute-agent-plan')
+    const launcher = registrations.find(row => row.spec.name === 'conversation.session.header.actions')
+    assert.equal(launcher.spec.id, 'rabiroute-agent-plan')
+    // The launcher receives one callback and nothing else: no store, no observable.
+    assert.deepEqual(Object.keys(launcher.spec.inject()), ['openRabiPlanTab'])
+    launcher.spec.inject().openRabiPlanTab()
+    assert.deepEqual(openedTabs, [h.RABI_PLAN_KIND])
+    openedTabs.length = 0
     cleanups.splice(0).reverse().forEach(dispose => dispose())
     assert.equal(locales, 0)
     assert.equal(registrations.length, 0)
+    assert.equal(definitions.length, 0)
   }
+})
+
+test('plan panel frames Rabi for a bound session and asks the Host for the target', async () => {
+  const h = harness()
+  const url = 'http://127.0.0.1:1728/#/routes/XinghaiBuilder-main/plan/plan-abc'
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: true, reason: 'bound', roleId: 'XinghaiBuilder', routeId: 'XinghaiBuilder-main', planId: 'plan-abc', planTitle: 'Example', url } }) }))
+  h.renderPlanBody('session-1')
+  assert.equal(h.panelCalls[0].url, '/rabiroute/plan-panel?sessionId=session-1')
+  await flush()
+  const frame = nodes(h.renderPlanBody('session-1'), 'iframe')[0]
+  assert.equal(frame.props.src, url)
+  assert.equal(frame.props.title, h.planT('frameTitle'))
+})
+
+test('an unbound session, a session without a bound plan and several bound plans each report their own reason', async () => {
+  const h = harness()
+  h.renderPlanBody('session-2')
+  await flush()
+  const unbound = h.renderPlanBody('session-2')
+  assert.equal(nodes(unbound, 'iframe').length, 0)
+  assert.ok(JSON.stringify(unbound).includes(h.planT('planUnbound')))
+
+  const withoutPlan = harness()
+  withoutPlan.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: false, reason: 'no-plan', roleId: 'Rabi' } }) }))
+  withoutPlan.renderPlanBody('session-2')
+  await flush()
+  assert.ok(JSON.stringify(withoutPlan.renderPlanBody('session-2')).includes(withoutPlan.planT('planNoPlan')))
+
+  // Several bound plans is Rabi's own error state: the panel names them and frames nothing.
+  const many = harness()
+  many.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: false, reason: 'multiple-plans', planCount: 2, planTitles: ['First', 'Second'] } }) }))
+  many.renderPlanBody('session-2')
+  await flush()
+  const text = JSON.stringify(many.renderPlanBody('session-2'))
+  assert.equal(nodes(many.renderPlanBody('session-2'), 'iframe').length, 0)
+  assert.ok(text.includes('2') && text.includes('First') && text.includes('Second'))
+
+  const other = harness()
+  other.setPanelResponse(async () => { throw new Error('offline') })
+  other.renderPlanBody('session-2')
+  await flush()
+  const unreachable = other.renderPlanBody('session-2')
+  assert.equal(nodes(unreachable, 'iframe').length, 0)
+  assert.ok(JSON.stringify(unreachable).includes('offline'))
+  assert.ok(JSON.stringify(unreachable).includes(other.planT('planUnreachableHint')))
+})
+
+test('launcher appears only for a bound session and auto-opens its panel exactly once', async () => {
+  const h = harness()
+  let opens = 0
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: true, reason: 'bound', roleId: 'Rabi', routeId: 'main', url: 'http://127.0.0.1:1728/#/routes/main/knowledge' } }) }))
+  assert.equal(h.renderPlanLauncher('session-3', () => { opens++ }), null)
+  await flush()
+  const button = h.renderPlanLauncher('session-3', () => { opens++ })
+  assert.equal(button.type, 'Button')
+  assert.equal(opens, 1)
+  h.renderPlanLauncher('session-3', () => { opens++ })
+  assert.equal(opens, 1)
+  button.props.onClick()
+  assert.equal(opens, 2)
+
+  const unbound = harness()
+  assert.equal(unbound.renderPlanLauncher('session-4', () => { opens++ }), null)
+  await flush()
+  assert.equal(unbound.renderPlanLauncher('session-4', () => { opens++ }), null)
+  assert.equal(opens, 2)
 })

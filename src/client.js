@@ -3,6 +3,8 @@ import * as React from 'react'
 import { Button, Menu, Modal, JsonBlock, projectUserText, fileSizeText, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import { parseRabiMessageEnvelope } from './message-envelope.js'
 import { rabiClientLocales } from './client-locales.js'
+import { RABI_PLAN_NS, rabiPlanLocales } from './client-plan-locales.js'
+import { RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition } from './client-plan.js'
 import { rabiClientStyles } from './client-styles.js'
 
 /** Split the public content array without losing unknown blocks or text whitespace. */
@@ -91,7 +93,7 @@ export function RabiMessageNodeView({ node, renderMessageImages, t, rabiSessions
       React.createElement('pre', { style: rabiClientStyles.raw }, envelope.raw)))
 }
 
-export const inject = ['slots', 'sessions', 'locale']
+export const inject = ['slots', 'sessions', 'locale', 'sidebarRight', 'sidebarRightTabs']
 
 /** Register reversible, explicitly ranked replacements; nonmatching rows do not delegate. */
 export function apply(ctx) {
@@ -102,4 +104,19 @@ export function apply(ctx) {
       inject: () => ({ rabiSessions: ctx.sessions }),
     }, props => React.createElement(RabiMessageNodeView, { ...props, key: `${props.sessionId}:${props.node.id ?? props.node.key ?? key}` })))
   }
+  // The plan panel: a page type whose body frames Rabi's own WebGUI page. The type
+  // is this plugin's own id in the tab system, so it composes with every other
+  // type instead of taking one over.
+  const planCopy = ctx.locale.bind(RABI_PLAN_NS)
+  ctx.effect(() => ctx.locale.register(RABI_PLAN_NS, rabiPlanLocales), 'dsh-rabiroute-agent: plan copy')
+  ctx.effect(() => ctx.sidebarRightTabs.register(rabiPlanTabDefinition(planCopy)), 'dsh-rabiroute-agent: plan tab type')
+  ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+    name: 'sidebar.right.pane.tab', key: RABI_PLAN_TAB_ID, locale: RABI_PLAN_NS,
+  }, RabiPlanBody)), 'dsh-rabiroute-agent: plan body')
+  // The entry appears only where a Rabi binding exists, and opens the panel once
+  // for that session; both decisions come from the Host route, not from local state.
+  ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
+    name: 'conversation.session.header.actions', id: 'rabiroute-agent-plan', order: 30, locale: RABI_PLAN_NS,
+    inject: () => ({ openRabiPlanTab: () => { ctx.sidebarRight.openTab(RABI_PLAN_KIND) } }),
+  }, RabiPlanLauncher)), 'dsh-rabiroute-agent: plan launcher')
 }
