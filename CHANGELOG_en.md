@@ -2,11 +2,18 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.2.2 — 2026-09-16
+
+- **Parse `plan` and `system` sources too.** Only `类型：Agent｜…` was recognized before; every other kind fell back to flat raw text, which left system events such as `agent_request_reminder` spread across the conversation. Each kind is now parsed from its own identity fields — a plan from its name and id, a system event from its name, type and id plus any optional actor and route values.
+- **Plan and system rows fold by default.** Their header states what they describe (`计划 · name (id)` / `系统 · event name · event type`) and the body sits behind an inline toggle. Neither names a locatable session, so neither offers "Locate Agent"; Agent rows keep their existing always-visible body and navigation.
+- A folded body is not rendered and `projectUserText` does not run; expanding or "View original message" still returns the complete original.
+- Strictness is unchanged and now more explicit: fields mixed from another source kind, a half-written source identity, `消息端` and any unknown spelling still fall back to raw text.
+- Acceptance: 53 source tests pass (18 envelope, 11 client). Deployed-instance acceptance is pending.
+
 ## Unreleased
 
 - Clarify Rabi shared business ownership and DSH local adaptation, with common contracts reusable by Codex and other Agents.
-- Add standalone envelope parser source and synthetic format tests without runtime registration; preserve original text, body whitespace and fallback without executing reply JSON.
-- Record the unreleased scope of sender headers, original-message viewing and session navigation. UI integration first evaluates public plugin replacement and ordinary-message compatibility without changing historical records; it is not connected or deployed.
+- Record the scope of sender headers, original-message viewing and session navigation. UI integration first evaluates public plugin replacement and ordinary-message compatibility without changing historical records.
 
 ## 0.2.1 — 2026-09-16
 

@@ -6,6 +6,8 @@ import vm from 'node:vm'
 const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'plan-icon', 'client-plan', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
 const code = sources.map(source => source.replace(/^import [^\r\n]*\r?\n/gmu, '').replace(/^export /gmu, '')).join('\n')
 const raw = '[消息源]\r\n类型：Agent｜处理端：DSH\r\n会话：Test sender\r\n会话 ID：exact-id\r\n投递时间：2026-01-01\r\n\r\n[消息内容]\r\n  body @reference /skill\n\n[回传参数]\n{"deliveryId":"test","responsePolicy":"none"}'
+const systemRaw = ['[消息源]', '消息源类型：系统', '事件类型：agent_request_reminder', '事件名称：Agent 回复提醒', '事件 ID：ev-1', '消息包发送时间：2026/9/16 22:15:17', '投递 ID：d-1', '', '[消息内容]', 'MARKER_BODY_TEXT'].join('\n')
+const planRaw = ['[消息源]', '消息源类型：计划', '计划名称：示例计划', '计划 ID：plan-abc', '消息包发送时间：2026/9/16 22:15:17', '', '[消息内容]', 'MARKER_BODY_TEXT'].join('\n')
 
 function harness() {
   let states = [], cursor = 0
@@ -76,6 +78,51 @@ test('render-time envelope projection shows body only; menu opens exact raw moda
   assert.equal(h.copied[0], raw)
 })
 
+test('a parsed envelope folds by default and toggles its body without a menu', () => {
+  for (const [source, kind, label] of [[systemRaw, 'system', '系统 · Agent 回复提醒 · agent_request_reminder'], [planRaw, 'plan', '计划 · 示例计划（plan-abc）']]) {
+    const h = harness(), content = [{ type: 'text', text: source }]
+    const folded = h.render(content)
+    assert.equal(folded.props['data-rabi-message'], kind)
+    // Folded: the body is not projected, so nothing model-facing is on screen,
+    // and no locate control is offered because neither kind names an openable
+    // session. Only the folded header labels plus copy remain.
+    assert.equal(h.projections.length, 0)
+    assert.deepEqual(Array.from(nodes(folded, 'Menu')[0].props.items, item => item.label), ['查看原始消息内容'])
+    const headerButton = nodes(folded, 'header')[0].children[0]
+    assert.equal(headerButton.children[0], label)
+    assert.equal(headerButton.props['aria-expanded'], false)
+    // `nodes` walks children only, and the overflow control rides the Menu's
+    // anchor prop, so the ordered buttons here are header, toggle and copy.
+    assert.deepEqual(nodes(folded, 'Button').map(button => button.children[0]), [label, '展开内容', '复制消息'])
+
+    headerButton.props.onClick()
+    const expanded = h.render(content)
+    assert.equal(nodes(expanded, 'header')[0].children[0].props['aria-expanded'], true)
+    assert.equal(h.projections.at(-1)[0], 'MARKER_BODY_TEXT')
+    assert.deepEqual(nodes(expanded, 'Button').map(button => button.children[0]), [label, '收起内容', '复制消息'])
+    // Collapsing again must return to the folded projection, so the toggle is
+    // reversible rather than a one-way reveal. `projections` accumulates across
+    // renders, so the count is what proves the second fold projected nothing.
+    const projected = h.projections.length
+    nodes(expanded, 'header')[0].children[0].props.onClick()
+    const refolded = h.render(content)
+    assert.equal(nodes(refolded, 'header')[0].children[0].props['aria-expanded'], false)
+    assert.equal(h.projections.length, projected)
+    // The overflow menu still reaches the exact raw text while folded, so the
+    // hidden body stays recoverable without expanding.
+    assert.equal(nodes(refolded, 'Menu')[0].props.items[0].id, 'raw')
+  }
+})
+
+test('an unparsed envelope stays expanded rather than folding behind a nameless header', () => {
+  for (const text of ['prefix\n' + raw, raw.replace('类型：Agent', '类型：User'), systemRaw.replace('事件名称：Agent 回复提醒', '事件名称：Agent 回复提醒\r\n事件名称：other')]) {
+    const h = harness(), tree = h.render([{ type: 'text', text }])
+    assert.equal(tree.props['data-rabi-message'], 'ordinary')
+    assert.equal(nodes(tree, 'header').length, 0)
+    assert.equal(h.projections[0][0], text)
+  }
+})
+
 test('malformed/non-leading envelopes and long history text remain verbatim', () => {
   for (const text of ['prefix\n' + raw, raw.replace('类型：Agent', '类型：User'), raw.replace('会话 ID：exact-id', '会话 ID：exact-id\r\n会话 ID：other'), 'long '.repeat(10000)]) {
     const h = harness(), tree = h.render([{ type: 'text', text }])
@@ -83,7 +130,6 @@ test('malformed/non-leading envelopes and long history text remain verbatim', ()
     assert.equal(h.projections[0][0], text)
   }
 })
-
 test('navigation rejects external, missing, incomplete and refreshed-away IDs without opening', async () => {
   const h = harness()
   let refreshes = 0

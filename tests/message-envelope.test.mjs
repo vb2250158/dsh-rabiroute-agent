@@ -14,10 +14,11 @@ test('current envelope projects sender, exact raw, body and inert reply JSON', (
   const result = parse(raw)
   assert.equal(result.raw, raw)
   assert.equal(result.body, body)
+  assert.equal(result.sourceType, 'agent')
   assert.deepEqual(result.sender, { type: 'agent', agentAdapter: 'dsh', agentType: 'example-role', sessionName: 'example-session', sessionId: 'example-session-id', workspace: '/synthetic/workspace' })
   assert.equal(result.sentAt, '2000-01-02 03:04:05')
   assert.deepEqual(result.replyParameters, reply)
-  assert.deepEqual(Object.keys(result).sort(), ['body', 'raw', 'replyParameters', 'sender', 'sentAt'])
+  assert.deepEqual(Object.keys(result).sort(), ['body', 'raw', 'replyParameters', 'sender', 'sentAt', 'sourceType'])
 })
 
 test('legacy aliases, ASCII delimiters and CRLF preserve exact body', () => {
@@ -80,9 +81,93 @@ test('missing, blank, malformed, unknown and duplicate header fields fail closed
   assert.equal(parse(envelope('body', current.map(line => line.replace('｜', '｜unknown：value｜')))), null)
 })
 
-test('other message source types always fall back to raw rendering', () => {
-  for (const type of ['计划', '消息端', '系统', 'agent', 'Unknown']) {
+test('unknown or unsupported message source types still fall back to raw rendering', () => {
+  // `消息端` is a real producer kind this renderer has no presentation for yet,
+  // and every unrecognized spelling must stay conservative. `系统` and `计划`
+  // are projected, so they are asserted by their own tests below.
+  for (const type of ['消息端', 'agent', 'Unknown', '', ' ']) {
     assert.equal(parse(envelope('body', legacy.map(line => line.replace('消息源类型：Agent', '消息源类型：' + type)))), null)
+  }
+})
+
+test('system envelope projects the event with no sender and no navigation target', () => {
+  const header = [
+    '消息源类型：系统',
+    '事件类型：agent_request_reminder',
+    '事件名称：Agent 回复提醒',
+    '事件 ID：035c7d05-83c9-478d-ad9f-b7a15ffd4c31',
+    '消息包发送时间：2026/9/16 22:15:17',
+    '投递 ID：72f9f8d-46f9-41dd-bacf-8a9fc19d0cd9',
+  ]
+  const body = '[Rabi Agent 请求回复提醒]\n原请求时间：2026-09-16T12:48:36.023Z'
+  const result = parse(envelope(body, header))
+  assert.equal(result.sourceType, 'system')
+  assert.equal(result.sender, null)
+  assert.deepEqual(result.event, { eventType: 'agent_request_reminder', eventName: 'Agent 回复提醒', eventId: '035c7d05-83c9-478d-ad9f-b7a15ffd4c31' })
+  assert.equal(result.body, body)
+  assert.equal(result.deliveryId, '72f9f8d-46f9-41dd-bacf-8a9fc19d0cd9')
+  // A route is optional metadata; a system envelope that names no session keeps
+  // every identity field absent rather than defaulting to a guessable target.
+  assert.deepEqual(Object.keys(result).sort(), ['body', 'deliveryId', 'event', 'raw', 'replyParameters', 'sender', 'sentAt', 'sourceType'])
+})
+
+test('system envelope accepts optional actor and route fields', () => {
+  const header = [
+    '消息源类型：系统', '事件类型：agent_request_reminder', '事件名称：Agent 回复提醒', '事件 ID：event-id',
+    '触发方类型：agent', '触发方名称：sender-session', '触发方 ID：sender-id',
+    '消息路线：main', '消息路线 ID：route-id', '消息包发送时间：2000-01-02 03:04:05',
+  ]
+  const result = parse(envelope('body', header))
+  assert.equal(result.sender, null)
+  assert.deepEqual(result.event, {
+    eventType: 'agent_request_reminder', eventName: 'Agent 回复提醒', eventId: 'event-id',
+    actorType: 'agent', actorName: 'sender-session', actorId: 'sender-id',
+    routeName: 'main', routeId: 'route-id',
+  })
+})
+
+test('system envelope requires its own fields and rejects a partial or mixed header', () => {
+  const system = ['消息源类型：系统', '事件类型：agent_request_reminder', '事件名称：Agent 回复提醒', '事件 ID：event-id', '消息包发送时间：2000-01-02 03:04:05']
+  for (const required of ['事件类型', '事件名称', '事件 ID', '消息包发送时间']) {
+    assert.equal(parse(envelope('body', system.filter(line => !line.startsWith(required + '：')))), null, required)
+  }
+  // A field from another kind on a system header is not a shape the producer
+  // writes, so it must not silently pick a label from ambiguous data.
+  for (const foreign of ['会话：example-session', '会话 ID：example-session-id', '处理端：dsh', '计划名称：plan', '计划 ID：plan-id', '发送者名称：someone']) {
+    assert.equal(parse(envelope('body', [...system, foreign])), null, foreign)
+  }
+})
+
+test('plan envelope projects the plan, keeping any appended source agent locatable', () => {
+  const bare = parse(envelope('body', ['消息源类型：计划', '计划名称：示例计划', '计划 ID：plan-abc', '消息包发送时间：2000-01-02 03:04:05']))
+  assert.equal(bare.sourceType, 'plan')
+  assert.equal(bare.sender, null)
+  assert.deepEqual(bare.plan, { planName: '示例计划', planId: 'plan-abc' })
+
+  const withSource = parse(envelope('body', [
+    '消息源类型：计划', '计划名称：示例计划', '计划 ID：plan-abc',
+    '处理端：dsh', '会话：example-session', '会话 ID：example-session-id', '工作目录：/synthetic/workspace',
+    '消息包发送时间：2000-01-02 03:04:05',
+  ]))
+  assert.equal(withSource.sender, null)
+  assert.deepEqual(withSource.plan, {
+    planName: '示例计划', planId: 'plan-abc',
+    sourceAgent: { type: 'agent', agentAdapter: 'dsh', sessionName: 'example-session', sessionId: 'example-session-id', workspace: '/synthetic/workspace' },
+  })
+})
+
+test('plan envelope requires its own fields and rejects a half-written source identity', () => {
+  const plan = ['消息源类型：计划', '计划名称：示例计划', '计划 ID：plan-abc', '消息包发送时间：2000-01-02 03:04:05']
+  for (const required of ['计划名称', '计划 ID', '消息包发送时间']) {
+    assert.equal(parse(envelope('body', plan.filter(line => !line.startsWith(required + '：')))), null, required)
+  }
+  // Half an identity is a malformed record, not a partial one: the producer
+  // either appends the complete source agent or omits it entirely.
+  for (const partial of [['处理端：dsh'], ['会话：example-session'], ['会话 ID：example-session-id'], ['处理端：dsh', '会话：example-session']]) {
+    assert.equal(parse(envelope('body', [...plan, ...partial])), null, partial.join('+'))
+  }
+  for (const foreign of ['事件类型：x', '事件名称：x', '事件 ID：x', '发送者名称：x', '消息端：x']) {
+    assert.equal(parse(envelope('body', [...plan, foreign])), null, foreign)
   }
 })
 

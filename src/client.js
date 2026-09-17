@@ -32,18 +32,46 @@ export async function openRabiSender(sessions, sender, t, isActive = () => true)
   sessions.open(sender.sessionId)
 }
 
+/**
+ * The folded row's own header label for one envelope.
+ *
+ * An `agent` envelope names a locatable session, so the row offers navigation.
+ * A `plan` or `system` envelope names no session at all — those rows state what
+ * the message is about instead, and must never render a locate control, because
+ * there is nothing to locate and a dead control would read as a broken link.
+ * @param {object} envelope - The parsed projection.
+ * @param {Function} t - The locale seat.
+ * @returns {{label: string, locate: boolean}} Folded-row label and whether navigation applies.
+ */
+export function rabiEnvelopeHeader(envelope, t) {
+  if (envelope.sourceType === 'agent') {
+    return { label: t('fromAgent', { name: envelope.sender.sessionName, adapter: envelope.sender.agentAdapter }), locate: true }
+  }
+  if (envelope.sourceType === 'plan') {
+    const source = envelope.plan.sourceAgent
+    const name = t('planTitle', { name: envelope.plan.planName, id: envelope.plan.planId })
+    return { label: source ? `${t('fromPlan')} · ${name} · ${t('fromAgent', { name: source.sessionName, adapter: source.agentAdapter })}` : `${t('fromPlan')} · ${name}`, locate: false }
+  }
+  return { label: `${t('fromSystem')} · ${t('eventTitle', { name: envelope.event.eventName })} · ${t('eventKind', { type: envelope.event.eventType })}`, locate: false }
+}
+
 /** Render historical or live user/steering data with public primitives and owner image presentation. */
 export function RabiMessageNodeView({ node, renderMessageImages, t, rabiSessions }) {
   const { text, attachments, rest } = rabiContentParts(node.data.content)
   const envelope = parseRabiMessageEnvelope(text)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [rawOpen, setRawOpen] = React.useState(false)
+  // A parsed envelope folds by default: the body is model-facing text, not
+  // something the reader asked to see. Unparsed text has no folded form, so it
+  // stays expanded rather than hiding content behind a header that says nothing.
+  const [expanded, setExpanded] = React.useState(false)
   const [notice, setNotice] = React.useState(null)
   const [busy, setBusy] = React.useState(false)
   const rabiActive = React.useRef(true)
   React.useEffect(() => { rabiActive.current = true; return () => { rabiActive.current = false } }, [])
+  const header = envelope && rabiEnvelopeHeader(envelope, t)
   const locate = async () => {
-    if (busy || !envelope) return
+    if (busy || !envelope || !header?.locate) return
     setBusy(true)
     setNotice(null)
     try { await openRabiSender(rabiSessions, envelope.sender, t, () => rabiActive.current) }
@@ -64,14 +92,33 @@ export function RabiMessageNodeView({ node, renderMessageImages, t, rabiSessions
   const displayedText = envelope ? envelope.body : text
   const timestampCandidate = typeof node.data.time === 'number' && Number.isFinite(node.data.time) ? new Date(node.data.time) : null
   const timestamp = timestampCandidate !== null && Number.isFinite(timestampCandidate.getTime()) ? timestampCandidate : null
-  return React.createElement('section', { style: rabiClientStyles.row, 'data-rabi-message': envelope ? 'agent' : 'ordinary' },
+  const sourceKind = envelope ? envelope.sourceType : 'ordinary'
+  const menuItems = header?.locate
+    ? [{ id: 'raw', label: t('raw') }, { id: 'locate', label: t('locate'), disabled: busy }]
+    : [{ id: 'raw', label: t('raw') }]
+  // Built lazily: a folded row must not run the model-facing projection, which
+  // is the expensive part and whose output is not on screen anyway.
+  const body = () => React.createElement(React.Fragment, null,
+    (displayedText !== '' || rest.length > 0) && React.createElement('div', { style: rabiClientStyles.bubble },
+      projectUserText(displayedText, referenceLabels, skillNames),
+      rest.map((block, index) => React.createElement(JsonBlock, { key: index, payload: block, label: t('extra'), truncatedLabel: total => t('truncated', { total }) }))),
+    referenceLabels.length > 0 && React.createElement('div', { style: rabiClientStyles.muted }, t('references', { labels: referenceLabels.join(t('separator')) })))
+  // An `agent` envelope keeps its body visible: that row's header is a locate
+  // control, not a disclosure, and folding it would hide content this renderer
+  // has always shown. A `plan` or `system` envelope has no such control, so it
+  // folds — which is the whole point of parsing them.
+  const folds = envelope !== null && envelope.sourceType !== 'agent'
+  const bodyVisible = !folds || expanded
+  return React.createElement('section', { style: rabiClientStyles.row, 'data-rabi-message': sourceKind },
     React.createElement('div', { style: rabiClientStyles.stack },
       envelope && React.createElement('header', { style: rabiClientStyles.header },
-        React.createElement(Button, { size: 'sm', variant: 'ghost', style: rabiClientStyles.sender, title: t('senderHint'), disabled: busy, onClick: locate }, t('sender', { name: envelope.sender.sessionName, adapter: envelope.sender.agentAdapter })), 
+        header.locate
+          ? React.createElement(Button, { size: 'sm', variant: 'ghost', style: rabiClientStyles.sender, title: t('senderHint'), disabled: busy, onClick: locate }, header.label)
+          : React.createElement(Button, { size: 'sm', variant: 'ghost', style: rabiClientStyles.sender, 'aria-expanded': expanded, onClick: () => setExpanded(value => !value) }, header.label),
         React.createElement(Menu, {
           open: menuOpen, portal: true, align: 'end',
           anchor: React.createElement(Button, { size: 'sm', variant: 'ghost', 'aria-label': t('more'), 'aria-haspopup': 'menu', 'aria-expanded': menuOpen, onClick: () => setMenuOpen(value => !value) }, '…'),
-          items: [{ id: 'raw', label: t('raw') }, { id: 'locate', label: t('locate'), disabled: busy }],
+          items: menuItems,
           onClose: () => setMenuOpen(false),
           onSelect: id => { setMenuOpen(false); if (id === 'raw') setRawOpen(true); else if (id === 'locate') void locate() },
         })),
@@ -81,12 +128,10 @@ export function RabiMessageNodeView({ node, renderMessageImages, t, rabiSessions
           : React.createElement('span', { key: `file:${index}`, style: rabiClientStyles.file, title: attachment.file.name },
             React.createElement('span', null, attachment.file.name),
             React.createElement('span', { style: rabiClientStyles.muted }, [attachment.file.mediaType, fileSizeText(attachment.file.bytes)].filter(Boolean).join(' · '))))),
-      (displayedText !== '' || rest.length > 0) && React.createElement('div', { style: rabiClientStyles.bubble },
-        projectUserText(displayedText, referenceLabels, skillNames),
-        rest.map((block, index) => React.createElement(JsonBlock, { key: index, payload: block, label: t('extra'), truncatedLabel: total => t('truncated', { total }) }))),
-      referenceLabels.length > 0 && React.createElement('div', { style: rabiClientStyles.muted }, t('references', { labels: referenceLabels.join(t('separator')) }))),
+      bodyVisible && body()),
     React.createElement('div', { style: rabiClientStyles.actions },
       timestamp && React.createElement('time', { dateTime: timestamp.toISOString(), title: timestamp.toLocaleString(), style: rabiClientStyles.muted }, timestamp.toLocaleString()),
+      folds && React.createElement(Button, { size: 'sm', variant: 'ghost', onClick: () => setExpanded(value => !value) }, t(expanded ? 'collapse' : 'expand')),
       React.createElement(Button, { size: 'sm', variant: 'ghost', onClick: copy }, t('copy'))),
     notice && React.createElement('div', { role: notice.error ? 'alert' : 'status', style: rabiClientStyles.muted }, notice.text),
     envelope && React.createElement(Modal, { open: rawOpen, title: t('raw'), closeLabel: t('close'), onClose: () => setRawOpen(false) },

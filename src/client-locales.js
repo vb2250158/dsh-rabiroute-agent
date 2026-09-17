@@ -1,4 +1,4 @@
-/** Locale-owned copy for the display-only Agent message renderer. */
+/** Locale-owned copy for the display-only Rabi message renderer. */
 export const rabiClientLocales = {
   zh: {
     sender: '由 {name}（{adapter}）发送', raw: '查看原始消息内容', locate: '定位到Agent', more: '消息操作', close: '关闭',
@@ -9,6 +9,14 @@ export const rabiClientLocales = {
     navigationFailed: '定位失败：{error}', copy: '复制消息', copied: '已复制', copyFailed: '复制失败，请重试。',
     extra: '其他消息内容', truncated: '内容已截断（共 {total} 个字符）',
     references: '引用：{labels}', separator: '、',
+    // Folded-row copy for the two source kinds that carry no session identity.
+    // `plan`/`system` are labelled by what they describe, and the source kind
+    // itself is stated so a reader can tell them apart at a glance.
+    fromSystem: '系统', fromPlan: '计划',
+    eventTitle: '{name}', eventKind: '{type}',
+    planTitle: '{name}（{id}）',
+    fromAgent: '{name}（{adapter}）',
+    expand: '展开内容', collapse: '收起内容',
   },
   en: {
     sender: 'Sent by {name} ({adapter})', raw: 'View original message', locate: 'Locate Agent', more: 'Message actions', close: 'Close',
@@ -19,5 +27,10 @@ export const rabiClientLocales = {
     navigationFailed: 'Navigation failed: {error}', copy: 'Copy message', copied: 'Copied', copyFailed: 'Copy failed. Please try again.',
     extra: 'Additional message content', truncated: 'Content truncated ({total} characters total)',
     references: 'References: {labels}', separator: ', ',
+    fromSystem: 'System', fromPlan: 'Plan',
+    eventTitle: '{name}', eventKind: '{type}',
+    planTitle: '{name} ({id})',
+    fromAgent: '{name} ({adapter})',
+    expand: 'Show content', collapse: 'Hide content',
   },
 }
