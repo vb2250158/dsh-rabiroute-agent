@@ -2,6 +2,14 @@
 
 [English](CHANGELOG_en.md) | 简体中文
 
+## 0.3.0 — 2026-09-17
+
+- **非 DSH 来源的「定位到Agent」现在可用**：此前 `agentAdapter` 不是 `dsh` 时直接抛「暂不支持定位此外部 Agent 处理端」，于是 `codex` 来源虽然标题渲染成了按钮，点下去只会报错。现在 `codex` 等处理端交给 RabiRoute 唤起对应客户端窗口——本地 DSH 客户端根本没有那个会话，自己判断只会猜错。
+- 新增同源路由 `POST /rabiroute/locate-agent`，请求体只有 `{ agentAdapter, threadId }`。Rabi 没有为 DSH 源站声明 CORS，浏览器不能直接调 Manager，所以由 Host 代答：核对 `/meta` 身份后调 `POST /api/agent/threads`（`action=open`）。只转发这两个字段，不代理消息正文与凭据。
+- `dsh` 来源行为不变：仍在本地会话目录里按完整 ID 精确匹配后就地切换，不绕远路。`agentAdapter` 不在 Rabi 支持范围内时在发请求前就拒绝，Rabi 自己的拒绝原因则原样返回，不替它改写成更含糊的说法。
+- 折叠行的定位提示文案更新，说明 DSH 直接切换、其它处理端交给 RabiRoute。
+- 验收：源码测试 68 项通过（新增 `locate-agent` 13 项，含一条**用真实 HTTP 服务且不注入测试缝**的用例）。对运行中的 Manager 实测：截图里那个 codex 会话返回 `opened`、`owner=codex_desktop`、标题正确；伪造 ID、未支持处理端、缺 ID、非法请求体、错误方法各自返回精确原因。
+
 ## 0.2.2 — 2026-09-16
 
 - **解析扩到「计划」与「系统」两类来源**：此前只认 `类型：Agent｜…`，其余一律回退原文平铺，于是系统事件（如 `agent_request_reminder`）整段铺在对话里。现在按来源类型各自的身份字段解析——计划取计划名称与计划 ID，系统取事件名称/类型/ID 及可选的触发方与消息路线。

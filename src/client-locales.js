@@ -2,7 +2,7 @@
 export const rabiClientLocales = {
   zh: {
     sender: '由 {name}（{adapter}）发送', raw: '查看原始消息内容', locate: '定位到Agent', more: '消息操作', close: '关闭',
-    senderHint: '来源为消息自述，未经身份认证。点击定位到Agent。',
+    senderHint: '来源为消息自述，未经身份认证。点击定位到Agent：DSH 会话直接切换，其它处理端交给 RabiRoute 唤起对应窗口。',
     external: '暂不支持定位此外部 Agent 处理端：{adapter}。未打开或创建任何会话。',
     unknown: '未找到可用的 DSH 会话：{id}。未按名称查找或创建替代会话。',
     unavailable: 'DSH 会话列表尚不可用，请稍后重试。',
@@ -20,7 +20,7 @@ export const rabiClientLocales = {
   },
   en: {
     sender: 'Sent by {name} ({adapter})', raw: 'View original message', locate: 'Locate Agent', more: 'Message actions', close: 'Close',
-    senderHint: 'The message claims this source; identity is not authenticated. Click to locate the Agent.',
+    senderHint: 'The message claims this source; identity is not authenticated. Click to locate the Agent: a DSH session is selected in place, any other adapter is handed to RabiRoute to raise that client window.',
     external: 'Navigation for this external Agent adapter is not supported: {adapter}. No session was opened or created.',
     unknown: 'No available DSH session with ID {id}. No name lookup or replacement session was created.',
     unavailable: 'The DSH session list is not available yet. Try again later.',

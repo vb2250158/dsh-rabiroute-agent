@@ -12,21 +12,25 @@ const tools = deps => internals.toolDefinitions(config, deps)
 const general = deps => tools(deps).find(t => t.name === 'rabiroute_manager_api')
 
 test('src and packaged lib match and have no fixed retired address', async () => {
-  for (const name of ['index.js', 'connection.js', 'plan-panel.js']) {
+  for (const name of ['index.js', 'connection.js', 'plan-panel.js', 'locate-agent.js']) {
     const src = await readFile(new URL('../src/' + name, import.meta.url), 'utf8')
     assert.equal(src, await readFile(new URL('../lib/' + name, import.meta.url), 'utf8'))
     assert.doesNotMatch(src, /8790/)
   }
 })
-test('registers all tools and the plan route without contacting Host at registration', () => {
+test('registers all tools and the two same-origin routes without contacting Host at registration', () => {
   const list = [], sections = [], routes = []
   const webServer = { register: route => { routes.push(route); return () => {} } }
   const ctx = { tools: { register: t => list.push(t) }, systemPrompt: { section: s => sections.push(s) }, webServer, inject: (_, fn) => fn(ctx), on() {} }
   assert.equal(apply(ctx).active, true)
   assert.equal(list.length, 3)
-  // The panel route is the only browser-facing surface this plugin adds, and it is
-  // registered the same way any other feature plugin claims a route.
-  assert.deepEqual(routes.map(route => [route.kind, route.path]), [['exact', '/rabiroute/plan-panel']])
+  // Both routes exist for the same reason: the browser cannot reach Rabi itself. One
+  // answers which plan a session is bound to, the other asks Rabi to raise another
+  // client's window. They are registered the way any feature plugin claims a route.
+  assert.deepEqual(routes.map(route => [route.kind, route.path]), [
+    ['exact', '/rabiroute/plan-panel'],
+    ['exact', '/rabiroute/locate-agent'],
+  ])
   assert.equal(createRabiRouteAgentRuntimeStatus().managerBaseUrl, '')
   assert.match(sections[0].text, /动态发现/)
   assert.doesNotMatch(sections[0].text, /8790/)

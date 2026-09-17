@@ -2,6 +2,14 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.3.0 — 2026-09-17
+
+- **"Locate Agent" now works for non-DSH sources.** A non-`dsh` `agentAdapter` used to throw "Navigation for this external Agent adapter is not supported", so a `codex` row rendered its header as a button that only reported an error when clicked. Adapters such as `codex` are now handed to RabiRoute to raise that client's window — the local DSH client does not hold that session at all, so deciding it here could only guess.
+- Adds the same-origin route `POST /rabiroute/locate-agent`, carrying only `{ agentAdapter, threadId }`. Rabi declares no CORS policy for the DSH origin, so the browser cannot reach the Manager directly and the Host answers for it: it verifies `/meta` identity, then calls `POST /api/agent/threads` (`action=open`). Only those two fields travel; no message body and no credentials are proxied.
+- A `dsh` source is unchanged: matched by full ID in the local catalog and selected in place, with no detour. An `agentAdapter` outside Rabi's supported set is refused before any request is sent, while Rabi's own rejection reason travels back verbatim instead of being rewritten into something vaguer.
+- The folded row's locate hint now explains that DSH switches in place and other adapters are handed to RabiRoute.
+- Acceptance: 68 source tests pass (13 new `locate-agent` tests, including one **over a real HTTP server with no injected test seams**). Measured against the running Manager: the codex session from the reported screenshot returns `opened` with `owner=codex_desktop` and the correct title; a forged id, an unsupported adapter, a missing id, a malformed body and a wrong method each return their own precise reason.
+
 ## 0.2.2 — 2026-09-16
 
 - **Parse `plan` and `system` sources too.** Only `类型：Agent｜…` was recognized before; every other kind fell back to flat raw text, which left system events such as `agent_request_reminder` spread across the conversation. Each kind is now parsed from its own identity fields — a plan from its name and id, a system event from its name, type and id plus any optional actor and route values.

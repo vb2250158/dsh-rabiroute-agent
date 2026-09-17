@@ -4,7 +4,7 @@ English | [简体中文](README.md)
 
 Connect DSH sessions to RabiRoute's managed task, messaging, plan and memory APIs. Business contracts align with Codex, while DSH retains its own sessions, tools and permissions. No fallback Runtime or automatic handoff to Codex is introduced.
 
-> Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. **0.2.0** adds the right-Sidebar Rabi plan panel; **0.2.1** turns its entry into Rabi's icon button and shows it as soon as a persona binding exists; **0.2.2** extends message parsing to `plan` and `system` sources and folds their bodies by default. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
+> Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. **0.2.0** adds the right-Sidebar Rabi plan panel; **0.2.1** turns its entry into Rabi's icon button and shows it as soon as a persona binding exists; **0.2.2** extends message parsing to `plan` and `system` sources and folds their bodies by default; **0.3.0** makes "Locate Agent" work for non-DSH sources such as `codex` by handing the session to RabiRoute to raise that client's window. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
 
 ## Purpose and development boundaries
 
@@ -24,9 +24,15 @@ Three source kinds are presented by their own identity fields. An **Agent** row 
 
 The parser source is `src/message-envelope.js`, bundled by the browser build; the Host tool entry does not load it. It accepts current/legacy field names and LF/CRLF, preserves the original string and body whitespace, and separates only a valid terminal reply JSON block. Duplicate fields, unknown header fields, fields mixed from another source kind, a half-written source identity, ambiguous reply JSON or conflicting delivery IDs return `null`; callers must display the original. `消息端` has no presentation yet and, like unknown context blocks, receives no business interpretation.
 
-Unsupported or ambiguous formats remain unchanged. Locate sessions by full ID, never by guessed names or by creating replacements. Rabi owns resolution and opening contracts for external Agents; a Codex ID is not a local DSH ID. Unknown targets and unsupported hosts must produce explicit feedback. Plan and system rows offer no locate entry point: they name no locatable session, and a control that cannot act reads as a broken link.
+Unsupported or ambiguous formats remain unchanged. Locate sessions by full ID, never by guessed names or by creating replacements. A **DSH** source is matched by full ID in the local catalog and selected in place; **any other adapter** (currently `codex`) is handed to RabiRoute's Agent-thread bridge (`action=open`) to raise that client's window — the local client does not hold the session, so deciding it here would only guess. Unknown targets and Rabi's own rejection reasons are reported as stated. Plan and system rows offer no locate entry point: they name no locatable session, and a control that cannot act reads as a broken link.
 
 Folding is display-only: a folded body is not rendered and the `projectUserText` projection does not run, while expanding or "View original message" still returns the complete content.
+
+### Locating an external adapter (0.3.0)
+
+The browser calls the same-origin route `POST /rabiroute/locate-agent` with only `{ agentAdapter, threadId }`. Rabi declares no CORS policy for the DSH origin, so the browser cannot reach the Manager directly and the Host answers for it: it verifies `/meta` identity, calls `POST /api/agent/threads` (`action=open`), and turns Rabi's receipt into the result. Only those two fields travel — no message body and no credentials are proxied.
+
+A `dsh` source does not take this path; it is selected in place from the local session catalog. When `agentAdapter` is outside the adapters Rabi supports, the plugin refuses before sending anything rather than letting Rabi reject it with a vaguer reason. Rabi's own rejection reason travels back verbatim.
 
 The public `conversation.chat.node` slot can replace an entire node kind but cannot conditionally fall back to the official renderer. First evaluate a plugin-only replacement through this public API, accepting responsibility for ordinary messages, attachments, copying, timestamps and history loading. A missing local decoration slot alone does not require official-source changes. Do not capture private registries, import internal components or modify the DOM. Propose a minimal official extension point and request authorization only if public replacement cannot reliably meet the requirements. This section defines unreleased work, not evidence that chat presentation, navigation or menus are available.
 

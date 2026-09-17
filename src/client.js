@@ -19,9 +19,46 @@ export function rabiContentParts(content) {
   return { text: texts.join(''), attachments, rest }
 }
 
+/** The Host route that asks Rabi to bring another client's session forward. */
+export const RABI_LOCATE_AGENT_PATH = '/rabiroute/locate-agent'
+
+/**
+ * Ask the Host to bring a non-DSH sender forward.
+ *
+ * A `codex` row names a session in the Codex desktop window, which this client cannot
+ * open: the Host forwards the request to Rabi's own Agent-thread bridge, and Rabi decides
+ * whether that window exists and can be raised. A failure is Rabi's own stated reason,
+ * never a silently treated success.
+ * @param sender - the envelope's sender identity.
+ * @param signal - aborts the request when the row unmounts.
+ * @returns Rabi's outcome, or a stated reason the Host could not be asked.
+ */
+export async function locateExternalRabiSender(sender, signal) {
+  const response = await fetch(RABI_LOCATE_AGENT_PATH, {
+    method: 'POST',
+    signal,
+    cache: 'no-store',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify({ agentAdapter: sender.agentAdapter, threadId: sender.sessionId }),
+  })
+  if (!response.ok) throw new Error('HTTP ' + response.status)
+  const payload = await response.json()
+  const data = payload?.data
+  if (!data || typeof data !== 'object') throw new Error('The locate route returned no outcome.')
+  return data
+}
+
 /** Resolve an exact host-listed DSH identity only; never create, guess, or route external IDs. */
-export async function openRabiSender(sessions, sender, t, isActive = () => true) {
-  if (sender.agentAdapter.toLowerCase() !== 'dsh') throw new Error(t('external', { adapter: sender.agentAdapter }))
+export async function openRabiSender(sessions, sender, t, isActive = () => true, signal) {
+  // A DSH session lives in the client that is already open, so it is selected in place.
+  // Any other adapter belongs to another window and only Rabi can say whether it can be
+  // raised, so it goes through the Host route rather than being refused here.
+  if (sender.agentAdapter.toLowerCase() !== 'dsh') {
+    const outcome = await locateExternalRabiSender(sender, signal)
+    if (!isActive()) return
+    if (!outcome.ok) throw new Error(outcome.message || t('external', { adapter: sender.agentAdapter }))
+    return
+  }
   await sessions.refresh()
   if (!isActive()) return
   const snapshot = sessions.list.getSnapshot()
@@ -68,15 +105,23 @@ export function RabiMessageNodeView({ node, renderMessageImages, t, rabiSessions
   const [notice, setNotice] = React.useState(null)
   const [busy, setBusy] = React.useState(false)
   const rabiActive = React.useRef(true)
-  React.useEffect(() => { rabiActive.current = true; return () => { rabiActive.current = false } }, [])
+  const rabiLocateAbort = React.useRef(null)
+  React.useEffect(() => () => {
+    rabiActive.current = false
+    // A locate that outlives its row would raise another client's window for a message
+    // the reader has already navigated away from.
+    rabiLocateAbort.current?.abort()
+  }, [])
   const header = envelope && rabiEnvelopeHeader(envelope, t)
   const locate = async () => {
     if (busy || !envelope || !header?.locate) return
     setBusy(true)
     setNotice(null)
-    try { await openRabiSender(rabiSessions, envelope.sender, t, () => rabiActive.current) }
+    const controller = new AbortController()
+    rabiLocateAbort.current = controller
+    try { await openRabiSender(rabiSessions, envelope.sender, t, () => rabiActive.current, controller.signal) }
     catch (error) { if (rabiActive.current) setNotice({ error: true, text: t('navigationFailed', { error: error instanceof Error ? error.message : String(error) }) }) }
-    finally { if (rabiActive.current) setBusy(false) }
+    finally { if (rabiActive.current) setBusy(false); if (rabiLocateAbort.current === controller) rabiLocateAbort.current = null }
   }
   const copy = async () => {
     try {

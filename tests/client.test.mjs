@@ -130,18 +130,41 @@ test('malformed/non-leading envelopes and long history text remain verbatim', ()
     assert.equal(h.projections[0][0], text)
   }
 })
-test('navigation rejects external, missing, incomplete and refreshed-away IDs without opening', async () => {
+test('navigation rejects missing, incomplete and refreshed-away DSH IDs without opening', async () => {
   const h = harness()
   let refreshes = 0
   h.sessions.refresh = async () => { refreshes++ }
-  await assert.rejects(h.openRabiSender(h.sessions, { agentAdapter: 'Codex', sessionId: 'exact-id' }, h.t), /暂不支持/)
-  assert.equal(refreshes, 0)
   await assert.rejects(h.openRabiSender(h.sessions, { agentAdapter: 'DSH', sessionId: 'exact' }, h.t), /未找到/)
   h.sessions.list.getSnapshot = () => ({ phase: 'pending', ids: ['exact-id'], byId: { 'exact-id': { id: 'exact-id' } } })
   await assert.rejects(h.openRabiSender(h.sessions, { agentAdapter: 'DSH', sessionId: 'exact-id' }, h.t), /尚不可用/)
   h.sessions.list.getSnapshot = () => ({ phase: 'ready', ids: [], byId: { 'exact-id': { id: 'exact-id' } } })
   await assert.rejects(h.openRabiSender(h.sessions, { agentAdapter: 'DSH', sessionId: 'exact-id' }, h.t), /未找到/)
   assert.deepEqual(h.opened, [])
+})
+
+test('a non-DSH sender is handed to the Host locate route instead of being refused', async () => {
+  const h = harness()
+  // A codex row names a session in another window; this client must not open one itself,
+  // and must not claim it moved anything the Host did not confirm.
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { ok: true, reason: 'opened', owner: 'codex_desktop' } }) }))
+  let refreshes = 0
+  h.sessions.refresh = async () => { refreshes++ }
+  await h.openRabiSender(h.sessions, { agentAdapter: 'Codex', sessionId: 'task-abc' }, h.t)
+  assert.equal(refreshes, 0)
+  assert.deepEqual(h.opened, [])
+  assert.equal(h.panelCalls.length, 1)
+  assert.equal(h.panelCalls[0].url, '/rabiroute/locate-agent')
+  assert.equal(h.panelCalls[0].init.method, 'POST')
+  assert.deepEqual(JSON.parse(h.panelCalls[0].init.body), { agentAdapter: 'Codex', threadId: 'task-abc' })
+})
+
+test('a refused locate surfaces Rabi own reason rather than a generic one', async () => {
+  const h = harness()
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { ok: false, reason: 'manager-rejected', message: 'Agent task could not be read by exact ID: task-gone' } }) }))
+  await assert.rejects(h.openRabiSender(h.sessions, { agentAdapter: 'codex', sessionId: 'task-gone' }, h.t), /Agent task could not be read by exact ID: task-gone/)
+  // An unreachable Host is a failure to ask, not a claimed success.
+  h.setPanelResponse(async () => ({ ok: false, status: 502, json: async () => ({}) }))
+  await assert.rejects(h.openRabiSender(h.sessions, { agentAdapter: 'codex', sessionId: 'task-abc' }, h.t), /HTTP 502/)
 })
 
 test('navigation and copy errors are visible; unmount cancels navigation after refresh', async () => {
