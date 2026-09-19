@@ -84,24 +84,44 @@ function noticeFor(result, t) {
   return `${t(reason)}${result?.message ? `: ${result.message}` : ''}`
 }
 
+function micIcon(recording) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('width', '16')
+  svg.setAttribute('height', '16')
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('fill', 'none')
+  svg.setAttribute('stroke', 'currentColor')
+  svg.setAttribute('stroke-width', '1.8')
+  svg.setAttribute('stroke-linecap', 'round')
+  svg.setAttribute('stroke-linejoin', 'round')
+  svg.setAttribute('aria-hidden', 'true')
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  path.setAttribute('d', recording ? 'M8 8h8v8H8z' : 'M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm5 8a5 5 0 0 1-10 0M12 16v4M8 21h8')
+  svg.append(path)
+  return svg
+}
+
 function enhanceCustomField(field, { sessionId, t }) {
   if (field.dataset.rabiQuestionEnhanced === 'true') return () => {}
   field.dataset.rabiQuestionEnhanced = 'true'
-  const toolbar = document.createElement('div')
-  toolbar.dataset.rabiQuestionBranch = 'true'
-  toolbar.style.cssText = 'display:flex;align-items:center;gap:8px;margin:8px 0 4px;color:var(--dsw-alias-label-secondary);font-size:12px'
-  const label = document.createElement('span')
-  label.textContent = t('branch')
+  const box = field.parentNode
+  if (!box) return () => {}
+  const previousPosition = box.style.position
+  const previousPadding = field.style.paddingRight
+  if (!previousPosition || previousPosition === 'static') box.style.position = 'relative'
+  field.style.paddingRight = '36px'
   const button = document.createElement('button')
   button.type = 'button'
-  button.style.cssText = 'border:1px solid var(--dsw-alias-line-primary);border-radius:7px;padding:4px 8px;background:var(--dsw-alias-bg-elevated);color:inherit;cursor:pointer'
-  const status = document.createElement('span')
-  status.setAttribute('role', 'status')
-  toolbar.append(label, button, status)
-  field.parentNode?.insertBefore(toolbar, field)
+  button.dataset.rabiQuestionMic = 'true'
+  button.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:5;width:28px;height:28px;border:0;border-radius:999px;padding:0;background:transparent;color:inherit;cursor:pointer;pointer-events:auto;display:inline-flex;align-items:center;justify-content:center'
+  box.append(button)
   let recorder = null
-  const setLabel = key => { button.textContent = t(key); button.setAttribute('aria-label', t(key)) }
-  setLabel('record')
+  const setState = key => {
+    button.replaceChildren(micIcon(key === 'stop'))
+    button.title = t(key)
+    button.setAttribute('aria-label', `${t('branch')} · ${t(key)}`)
+  }
+  setState('record')
   const stopTracks = stream => { for (const track of stream.getTracks()) track.stop() }
   const finish = async (stream, context, samples, rate) => {
     stopTracks(stream)
@@ -111,20 +131,21 @@ function enhanceCustomField(field, { sessionId, t }) {
     let offset = 0
     for (const chunk of samples) { pcm.set(chunk, offset); offset += chunk.length }
     const wav = encodePcmWav(pcm, rate)
-    if (!wav) { status.textContent = t('bad-request'); setLabel('record'); return }
-    status.textContent = t('busy')
+    if (!wav) { setState('record'); button.title = t('bad-request'); return }
+    setState('busy')
     const response = await fetch('/rabiroute/speech/asr', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ sessionId, mimeType: 'audio/wav', audio: bytesToBase64(wav) }),
     })
     const result = await response.json()
-    if (!result?.ok) { status.textContent = noticeFor(result, t); setLabel('record'); return }
+    if (!result?.ok) { setState('record'); button.title = noticeFor(result, t); return }
     fillOfficialTextarea(field, result.text)
-    status.textContent = ''
-    setLabel('record')
+    setState('record')
   }
-  button.onclick = async () => {
+  button.onclick = async event => {
+    event.preventDefault()
+    event.stopPropagation()
     if (recorder) {
       recorder.processor.disconnect()
       recorder.source.disconnect()
@@ -134,14 +155,13 @@ function enhanceCustomField(field, { sessionId, t }) {
       await finish(current.stream, current.context, current.samples, current.rate)
       return
     }
-    status.textContent = ''
     if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext) {
-      status.textContent = t('unsupported')
+      button.title = t('unsupported')
       return
     }
     let stream
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
-    catch { status.textContent = t('denied'); return }
+    catch { button.title = t('denied'); return }
     const context = new AudioContext({ sampleRate: 16000 })
     const source = context.createMediaStreamSource(stream)
     const processor = context.createScriptProcessor(4096, 1, 1)
@@ -153,7 +173,7 @@ function enhanceCustomField(field, { sessionId, t }) {
     processor.connect(mute)
     mute.connect(context.destination)
     recorder = { stream, context, source, processor, mute, samples, rate: context.sampleRate || 16000 }
-    setLabel('stop')
+    setState('stop')
     window.setTimeout(() => { if (recorder && button.isConnected) button.click() }, 20000)
   }
   return () => {
@@ -166,7 +186,9 @@ function enhanceCustomField(field, { sessionId, t }) {
       recorder.context.close().catch(() => {})
       recorder = null
     }
-    toolbar.remove()
+    button.remove()
+    box.style.position = previousPosition
+    field.style.paddingRight = previousPadding
     delete field.dataset.rabiQuestionEnhanced
   }
 }

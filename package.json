@@ -1,11 +1,12 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
+    "./message-mode": "./lib/message-mode.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -16,6 +17,7 @@
     "CHANGELOG.md",
     "CHANGELOG_en.md",
     "tests",
+    "presets",
     "cordis.patch.yml",
     "LICENSE"
   ],

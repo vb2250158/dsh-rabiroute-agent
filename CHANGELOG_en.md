@@ -2,6 +2,10 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.6.2 — 2026-09-20
+
+- Move voice input to a clickable microphone icon at the right edge of the official custom-answer field so the textarea no longer intercepts clicks.
+
 ## 0.6.1 — 2026-09-20
 
 - Wait for the official question composer before wrapping, so the custom-branch label and microphone are not dropped by plugin order.

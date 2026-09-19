@@ -14,7 +14,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.6.1'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.6.2'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -53,9 +53,13 @@ function validatePath(value, method) {
   if (/[\\%?#\u0000-\u0020]/u.test(decoded) || /%2f/i.test(raw) || decoded.split('/').some(part => part === '.' || part === '..')) throw new Error('Manager path traversal or encoded separator is not allowed.')
   const health = decoded === '/meta'
   const receipt = /^\/api\/agent\/send\/receipts\/[^/]+$/.test(decoded) || decoded === '/api/agent/send/traces'
+  const personaRead = /^\/api\/personas(?:\/[^/]+)?$/.test(decoded) || /^\/api\/personas\/messages\/receipts\/[^/]+$/.test(decoded)
+  const personaSend = /^\/api\/personas\/[^/]+\/messages$/.test(decoded)
+  if (personaRead && method !== 'GET') throw new Error('Persona discovery and receipts are GET-only.')
+  if (personaSend && method !== 'POST') throw new Error('Persona messages require POST.')
   if ((health || receipt) && method !== 'GET') throw new Error('Health and receipt endpoints are GET-only.')
   const allowed = /^\/api\/(?:roles|message-processing|memory)\/[^/]+(?:\/.*)?$/.test(decoded) || /^\/api\/agent\/requests(?:\/[^/]+)*$/.test(decoded)
-  if (!health && !receipt && !allowed) throw new Error('Manager API path is outside the RabiRoute plugin allowlist; use dedicated delivery tools for sending.')
+  if (!health && !receipt && !allowed && !personaRead && !personaSend) throw new Error('Manager API path is outside the RabiRoute plugin allowlist; use dedicated delivery tools for sending.')
   return { pathname, decoded }
 }
 function requestHeaders(value) {
