@@ -1,19 +1,18 @@
-# dsh-rabiroute-agent
-
-## Reply speech (0.4.1)
-
-A speaker icon in the public `conversation.chat.assistant-actions` slot reads the selected finalized reply's text blocks, excluding reasoning, tools and other messages. Empty replies have no button; replies over Rabi's 10000-character limit are rejected without truncation. Markdown text is forwarded unchanged.
-
-The same-origin `POST /rabiroute/speech` adapter verifies Manager discovery, reads `/api/speech/status`, and only calls `/api/speech/tts` when the service is online and the provider selected by `defaults.tts` is enabled with a configured model. It passes that provider/model pair, reply text, session ID and `play: true`; RabiSpeech resolves omitted voice and synthesis defaults and owns host playback. The adapter does not start services or maintain speech settings. Submission disables the button. A playback job header confirms queuing, not completion; missing receipts and transport failures remain uncertain and are never retried automatically. The existing `requestTimeoutMs` budget applies. Leaving the message cancels the wait, but Rabi still owns any submitted playback.
-
-Only DSH can contribute this footer action and resolve its selected reply. The plugin adapts these host concerns without duplicating Rabi speech policy. Source tests and build cover the adapter; installed UI and audible playback require separate acceptance.
-
 English | [简体中文](README.md)
 
-Connect DSH sessions to RabiRoute's managed task, messaging, plan and memory APIs. Business contracts align with Codex, while DSH retains its own sessions, tools and permissions. No fallback Runtime or automatic handoff to Codex is introduced.
+# dsh-rabiroute-agent
 
-> Connection changes shipped in **0.1.5**, with isolated installation through the official installer and read-only connectivity verified. **0.2.0** adds the right-Sidebar Rabi plan panel; **0.2.1** turns its entry into Rabi's icon button and shows it as soon as a persona binding exists; **0.2.2** extends message parsing to `plan` and `system` sources and folds their bodies by default; **0.3.0** makes "Locate Agent" work for non-DSH sources such as `codex` by handing the session to RabiRoute to raise that client's window. Source tests, production-profile installation, running tools, Hooks and real delivery require separate acceptance. Isolated verification does not prove production deployment.
+## Reply mini player (0.5.0)
 
+The footer speaker reads only the clicked reply body, excluding reasoning, tools and other messages. Empty replies hide the action; replies above 10000 characters are rejected. Generation disables duplicate clicks and displays an indeterminate progress indicator. The current Rabi TTS endpoint does not expose generation percentages.
+
+Completed audio plays in the current browser. If autoplay is blocked, press play again. The 24px-high player provides play/pause, elapsed/total time and a seek slider. Seeking and replay reuse the audio without another synthesis request. Audio remains in page memory and is stopped and released when the message unmounts; it is neither persisted by DSH nor submitted to the Rabi host queue.
+
+The public assistant-actions slot calls same-origin `POST /rabiroute/speech`. The adapter verifies Manager identity and service state and uses Rabi's default provider/model and voice with `play: false` and WAV output. Successful responses contain at most 32 MiB of `audio/wav`; failures contain JSON. Client and server must be updated together: restart DSH after installation and refresh the page. The plugin does not start services, keep separate TTS settings or retry automatically.
+
+`speechTimeoutMs` separately controls generation waiting (default 300000 ms, bounded to 1000–900000); normal tools retain `requestTimeoutMs`. Disconnecting cancels waiting; computation already started by Rabi may continue without host playback. Errors appear beside the icon with a readable tooltip and accessible label.
+
+Rabi owns synthesis and defaults; this plugin owns reply extraction, same-origin audio transport and the DSH mini player. Tests cover duplicate clicks, body isolation, seeking, pause/resume and cleanup. Installation, runtime loading and visual acceptance are reported separately.
 ## Purpose and development boundaries
 
 This plugin adapts DSH tool calls to Rabi; it is not a plan, memory, persona or messaging system inside DSH. Tool availability neither enables automatic Rabi scheduling nor proves that the separate lifecycle Hook is loaded.

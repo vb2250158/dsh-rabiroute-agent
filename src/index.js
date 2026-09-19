@@ -9,10 +9,11 @@ export const Config = z.object({
   hostExecutable: z.string().default(''),
   enforceAgentCommunication: z.boolean().default(true),
   requestTimeoutMs: z.number().default(30000),
+  speechTimeoutMs: z.number().default(300000),
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.4.1'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.5.0'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'

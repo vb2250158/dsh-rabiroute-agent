@@ -2,6 +2,11 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.5.0 — 2026-09-19
+
+- Replace queued host playback with a 24px browser mini player: indeterminate generation state, duplicate-click protection, play/pause, seeking and timestamps.
+- Generate WAV with Rabi defaults, retain audio only in page memory and release it on unmount. Add speechTimeoutMs; restart DSH and refresh the page to update both endpoints.
+
 ## 0.4.1 — 2026-09-19
 
 - Correct default TTS selection using the live service contract: `defaults.tts` identifies a provider; its `providers.tts` entry supplies the model. Send the provider/model pair and preserve concrete rejection details.
