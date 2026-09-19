@@ -14,7 +14,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.6.2'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.7.0'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -55,11 +55,13 @@ function validatePath(value, method) {
   const receipt = /^\/api\/agent\/send\/receipts\/[^/]+$/.test(decoded) || decoded === '/api/agent/send/traces'
   const personaRead = /^\/api\/personas(?:\/[^/]+)?$/.test(decoded) || /^\/api\/personas\/messages\/receipts\/[^/]+$/.test(decoded)
   const personaSend = /^\/api\/personas\/[^/]+\/messages$/.test(decoded)
+  const sessionBinding = /^\/api\/codex-hook\/sessions\/[^/]+$/.test(decoded)
+  if (sessionBinding && method !== 'GET') throw new Error('Session persona binding discovery is GET-only.')
   if (personaRead && method !== 'GET') throw new Error('Persona discovery and receipts are GET-only.')
   if (personaSend && method !== 'POST') throw new Error('Persona messages require POST.')
   if ((health || receipt) && method !== 'GET') throw new Error('Health and receipt endpoints are GET-only.')
   const allowed = /^\/api\/(?:roles|message-processing|memory)\/[^/]+(?:\/.*)?$/.test(decoded) || /^\/api\/agent\/requests(?:\/[^/]+)*$/.test(decoded)
-  if (!health && !receipt && !allowed && !personaRead && !personaSend) throw new Error('Manager API path is outside the RabiRoute plugin allowlist; use dedicated delivery tools for sending.')
+  if (!health && !receipt && !allowed && !personaRead && !personaSend && !sessionBinding) throw new Error('Manager API path is outside the RabiRoute plugin allowlist; use dedicated delivery tools for sending.')
   return { pathname, decoded }
 }
 function requestHeaders(value) {

@@ -1,7 +1,7 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 await mkdir(new URL('lib/', root), { recursive: true })
-for (const name of ['index.js', 'connection.js', 'plan-panel.js', 'locate-agent.js', 'speech.js', 'speech-asr.js']) await copyFile(new URL('src/' + name, root), new URL('lib/' + name, root))
+for (const name of ['index.js', 'connection.js', 'plan-panel.js', 'locate-agent.js', 'speech.js', 'speech-asr.js', 'message-mode.js']) await copyFile(new URL('src/' + name, root), new URL('lib/' + name, root))
 
 // These dependency-free JS modules use the same loader envelope as the client bundle.
 // Order matters: imports are stripped, so a module must precede its consumers.

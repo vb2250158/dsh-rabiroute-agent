@@ -97,7 +97,7 @@ test('mini player disables generation, excludes reasoning, seeks without resynth
     useEffect: callback => { if (!cleanup) cleanup = callback() },
   } }
   vm.createContext(context)
-  const source = (await readFile(new URL('../src/client-speech.js', import.meta.url), 'utf8')).replace(/^import .*\n/gm, '').replace(/^export /gm, '')
+  const source = (await readFile(new URL('../src/client-speech.js', import.meta.url), 'utf8')).replace(/^import [^\r\n]*\r?\n/gm, '').replace(/^export /gm, '')
   vm.runInContext(source + '\nthis.render = RabiSpeechAction', context)
   const snapshot = { eventNodes: [{ kind: 'assistant', messageId: 'wanted', blocks: [{ kind: 'reasoning', text: 'Private reasoning' }, { kind: 'text', text: 'The reply' }, { kind: 'tool-call', name: 'test' }] }] }
   const render = () => { cursor = 0; return context.render({ ...input, messageId: 'wanted', useTrajectory: select => select(snapshot), t: key => key }) }

@@ -2,6 +2,12 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.7.0 — 2026-09-20
+
+- Add a message-processing session preset limited to Rabi messaging, Agent sessions/task coordination and plan management; deny command/file access and other tool execution.
+- Extend the Manager tool with persona discovery, persona messages and receipts; deny attachment reads/writes in message mode.
+- Define a dedicated coordinator that delegates research, design and execution; include memory, plan, persona-skill and collaboration guidance with the current session identity while preserving Rabi business reads and memory maintenance.
+
 ## 0.6.2 — 2026-09-20
 
 - Move voice input to a clickable microphone icon at the right edge of the official custom-answer field so the textarea no longer intercepts clicks.
