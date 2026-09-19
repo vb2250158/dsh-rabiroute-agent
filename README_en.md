@@ -182,6 +182,6 @@ For old-version `fetch failed`, compare effective tool configuration with curren
 
 MIT
 
-## Automatic voice input (0.7.1)
+## Automatic voice input (0.7.2)
 
 The question card switch follows live Rabi microphone segmentation, ASR and auto-submit settings. Cancellation, draft edits or navigation stop capture. Recognition success turns the switch off. See [Automatic voice input](AUTO-VOICE.md).

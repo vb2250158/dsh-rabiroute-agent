@@ -2,6 +2,10 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.7.2 — 2026-09-20
+
+- Mount the microphone as a flex item on the official custom-answer row, outside the overlapping `.field` grid cell, with a visible bordered icon.
+
 ## 0.7.0 — 2026-09-20
 
 - Add a message-processing session preset limited to Rabi messaging, Agent sessions/task coordination and plan management; deny command/file access and other tool execution.
