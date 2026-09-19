@@ -180,7 +180,15 @@ function enhanceCustomField(field, { sessionId, t }) {
   toggle.append(thumb)
   const label = document.createElement('span'); label.textContent = t('auto')
   const status = document.createElement('span'); status.setAttribute('role', 'status')
-  panel.append(toggle, label, status); box.after(panel)
+  panel.style.gridArea = '2 / 1'
+  panel.style.whiteSpace = 'normal'
+  panel.append(toggle, label, status); box.append(panel)
+  button.style.position = 'relative'
+  button.style.gridArea = '1 / 1'
+  button.style.alignSelf = 'center'
+  button.style.justifySelf = 'end'
+  button.style.top = 'auto'
+  button.style.transform = 'none'
   let recorder = null, enabled = false, disposed = false, busy = false, generation = 0, abort = null, policyTimer = null
   const setState = key => { button.replaceChildren(micIcon(key === 'stop')); button.title = t(key); button.setAttribute('aria-label', `${t('branch')} · ${t(key)}`) }
   const paint = () => {
