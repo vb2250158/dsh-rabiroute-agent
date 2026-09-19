@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -19,15 +19,16 @@
     "tests",
     "presets",
     "cordis.patch.yml",
-    "LICENSE"
+    "LICENSE",
+    "AUTO-VOICE.md"
   ],
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.1",
-    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.7",
-    "@deepseek-ai/dsh-system-prompt": ">=0.1.0-rc.7"
+    "@deepseek-ai/dsh-system-prompt": ">=0.1.0-rc.7",
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.7"
   },
   "license": "MIT",
   "repository": {
@@ -59,5 +60,8 @@
   "scripts": {
     "build": "node tests/build.mjs",
     "test": "node tests/build.mjs && node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
   }
 }

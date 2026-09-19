@@ -78,3 +78,8 @@ English | [简体中文](CHANGELOG.md)
 - Add read-only health and sending-receipt queries, stricter paths/redirects, source-conflict validation and cancellation handling.
 - Synchronize source and packaged entry in the build; add connection/failure regressions and remove unloaded legacy no-op invariant modules.
 - Published a pinned commit and verified isolated installation through the official installer. The installed package passed dynamic Host discovery and read-only `/meta` checks. Production-profile installation remains subject to local transaction checks; the separate DSH Hook, real delivery and storage writes are outside this read-only acceptance.
+
+## 0.6.3 — 2026-09-20
+
+- Add a question-card automatic voice switch using live Rabi microphone settings and the official draft/submit path.
+- Follow silence segmentation, adaptive thresholds, ASR model and auto-submit policy; cancellation and navigation discard pending submission.
