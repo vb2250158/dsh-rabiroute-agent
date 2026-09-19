@@ -1,0 +1,8 @@
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    prefix: 你是负责消息处理和任务协调的 Agent。
+    includeRuntimeContext: false
+
+- id: rabi-message-mode
+  name: dsh-rabiroute-agent/message-mode

@@ -2,6 +2,22 @@ English | [简体中文](README.md)
 
 # dsh-rabiroute-agent
 
+## Message processing mode (0.7.0)
+
+The `message-processing` preset adds **消息处理模式** to the session mode picker. It handles incoming messages, Rabi channel/persona delivery, reading and creating Agent sessions, task delegation and progress, and plan creation, queries, updates, deletion, bindings, statuses and feedback.
+
+Only `rabiroute_agent_threads`, `rabiroute_agent_send` and `rabiroute_manager_api` remain available. The preset mounts no shell, general filesystem/skill, web, subagent or workflow tools. An inherited-tool allowlist, native presentation and a monotonic `tools.guard` deny other execution, including tools registered later and PTC. Other presets are unaffected. General file searching, enumeration, reads, writes and attachment uploads/downloads are prohibited, including file payloads sent through Rabi; session workspace metadata remains valid routing information. Rabi-managed persona documents, skills, plans and memory remain readable through their business APIs.
+
+The coordinator delegates investigation, research, solution design, implementation, testing and acceptance, even when the work could be answered without tools. It reads relevant memory, plans and skills first, assigns work, tracks replies, checks reported evidence, and maintains plans and confirmed memories. Rabi/persona skills use `/api/roles/<roleId>/skills` and its item endpoint; their operational work is delegated and never expands tool permissions. Tool restrictions are enforced by the runtime; the division of reasoning work is a prompt instruction.
+
+The mode includes API and request-field guidance, current session identity from each prompt assembly, reply/receipt handling, idempotency and ETag rules. It can discover the current persona binding via read-only `/api/codex-hook/sessions/<sessionId>` without local document access. Missing identity, binding or cross-persona capability must never be fabricated. Recent memories support creation and updates; consolidated memories remain read-only under the Manager contract, with corrections recorded as recent memory and consolidation delegated.
+
+Rabi owns messages, sessions and plans. DSH owns the picker and local tool enforcement, which Rabi cannot implement inside the host. No business queue or plan store is added. Manager failure never enables shell/file fallbacks. Rabi persistence, DSH session logging and Host discovery are infrastructure, not model file permissions; existing input and independent lifecycle hooks remain owned by their providers.
+
+After installing a fixed Git revision, copy the installed package's two `presets/message-processing/` YAML files into the actual DSH Home's `.agent-presets/message-processing/`. Inspect an existing preset before changing it; do not overwrite user configuration. The preset references the package export `dsh-rabiroute-agent/message-mode` without copying runtime code. Alternatively append the installed package's `presets/` directory to `agent-presets.config.roots`, preserving existing roots and the default. Official discovery supplies the picker; select the mode for a new session. Sessions with recorded messages cannot switch presets. Missing Rabi tools or missing `tools.guard`, `tools.restrict` or `tools.presentAs` support fail mounting explicitly.
+
+Run `npm test`, then set `DSH_SOURCE_ROOT` to a built official checkout and run `node --test tests/message-mode.integration.mjs` for real tool-runtime scope, denial, Rabi forwarding and disposal checks. Manager receipts in that test are simulated; installation, visible UI and real business delivery require separate acceptance.
+
 ## Reply mini player (0.5.0)
 
 The footer speaker reads only the clicked reply body, excluding reasoning, tools and other messages. Empty replies hide the action; replies above 10000 characters are rejected. Generation disables duplicate clicks and displays an indeterminate progress indicator. The current Rabi TTS endpoint does not expose generation percentages.
@@ -166,6 +182,6 @@ For old-version `fetch failed`, compare effective tool configuration with curren
 
 MIT
 
-## Automatic voice input (0.6.3)
+## Automatic voice input (0.7.1)
 
 The question card switch follows live Rabi microphone segmentation, ASR and auto-submit settings. Cancellation, draft edits or navigation stop capture. Recognition success turns the switch off. See [Automatic voice input](AUTO-VOICE.md).

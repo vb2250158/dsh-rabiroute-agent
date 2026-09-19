@@ -2,6 +2,12 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.7.0 — 2026-09-20
+
+- Add a message-processing session preset limited to Rabi messaging, Agent sessions/task coordination and plan management; deny command/file access and other tool execution.
+- Extend the Manager tool with persona discovery, persona messages and receipts; deny attachment reads/writes in message mode.
+- Define a dedicated coordinator that delegates research, design and execution; include memory, plan, persona-skill and collaboration guidance with the current session identity while preserving Rabi business reads and memory maintenance.
+
 ## 0.6.2 — 2026-09-20
 
 - Move voice input to a clickable microphone icon at the right edge of the official custom-answer field so the textarea no longer intercepts clicks.
@@ -79,7 +85,7 @@ English | [简体中文](CHANGELOG.md)
 - Synchronize source and packaged entry in the build; add connection/failure regressions and remove unloaded legacy no-op invariant modules.
 - Published a pinned commit and verified isolated installation through the official installer. The installed package passed dynamic Host discovery and read-only `/meta` checks. Production-profile installation remains subject to local transaction checks; the separate DSH Hook, real delivery and storage writes are outside this read-only acceptance.
 
-## 0.6.3 — 2026-09-20
+## 0.7.1 — 2026-09-20
 
 - Add a question-card automatic voice switch using live Rabi microphone settings and the official draft/submit path.
 - Follow silence segmentation, adaptive thresholds, ASR model and auto-submit policy; cancellation and navigation discard pending submission.

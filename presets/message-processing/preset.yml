@@ -1,0 +1,3 @@
+name: 消息处理模式
+description: 专注收发消息、委派与跟进任务，使用 Rabi 计划、记忆和人格 Skill；调查、方案与实施交给其他 Agent。
+order: 50
