@@ -2,6 +2,11 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.6.1 — 2026-09-20
+
+- Wait for the official question composer before wrapping, so the custom-branch label and microphone are not dropped by plugin order.
+- Attach extras after the official textarea appears; only the official custom-answer field is enhanced.
+
 ## 0.6.0 — 2026-09-19
 
 - Wrap the official `ask_user_question` card: label free text as "Your own branch" and add Rabi default-ASR voice input on that field.

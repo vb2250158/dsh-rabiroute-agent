@@ -332,8 +332,8 @@ test('question wrapper reuses the official composer and keeps its answer path', 
     locale: { register() {}, bind: ns => key => `${ns}:${key}` },
     slots: {
       entries: () => [original],
-      inject: (name, factory) => { if (name === 'conversation.composer') registered.push(factory()) },
-      register: (options, component) => ({ options, component }),
+      inject: (name, factory) => { if (name === 'conversation.composer') factory() },
+      register: (options, component) => { registered.push({ options, component }); return () => {} },
     },
   }
   h.registerRabiQuestionComposer(ctx)

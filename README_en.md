@@ -14,7 +14,7 @@ The public assistant-actions slot calls same-origin `POST /rabiroute/speech`. Th
 
 Rabi owns synthesis and defaults; this plugin owns reply extraction, same-origin audio transport and the DSH mini player. Tests cover duplicate clicks, body isolation, seeking, pause/resume and cleanup. Installation, runtime loading and visual acceptance are reported separately.
 
-## Official question card (0.6.0)
+## Official question card (0.6.1)
 
 `ask_user_question` still answers through the official `conversation.composer` card. Options, skip, cancel and drafts are unchanged. This plugin wraps that card at a higher priority only to label free text as "Your own branch" and add a microphone on that field.
 
