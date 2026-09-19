@@ -13,6 +13,13 @@ The public assistant-actions slot calls same-origin `POST /rabiroute/speech`. Th
 `speechTimeoutMs` separately controls generation waiting (default 300000 ms, bounded to 1000–900000); normal tools retain `requestTimeoutMs`. Disconnecting cancels waiting; computation already started by Rabi may continue without host playback. Errors appear beside the icon with a readable tooltip and accessible label.
 
 Rabi owns synthesis and defaults; this plugin owns reply extraction, same-origin audio transport and the DSH mini player. Tests cover duplicate clicks, body isolation, seeking, pause/resume and cleanup. Installation, runtime loading and visual acceptance are reported separately.
+
+## Official question card (0.6.0)
+
+`ask_user_question` still answers through the official `conversation.composer` card. Options, skip, cancel and drafts are unchanged. This plugin wraps that card at a higher priority only to label free text as "Your own branch" and add a microphone on that field.
+
+Voice input posts to same-origin `POST /rabiroute/speech/asr`. After Manager identity checks, Host transcribes the browser WAV with Rabi's **current default ASR** (the preloaded `faster-whisper/small`, ~0.5 s hot, faster than Qwen3-ASR 0.6B) and writes the text back into the official controlled field. DSH does not store ASR settings, pick a model, start speech services or fake option clicks. Failures are shown as stated; empty transcripts are not submitted. Restart DSH and refresh the page.
+
 ## Purpose and development boundaries
 
 This plugin adapts DSH tool calls to Rabi; it is not a plan, memory, persona or messaging system inside DSH. Tool availability neither enables automatic Rabi scheduling nor proves that the separate lifecycle Hook is loaded.

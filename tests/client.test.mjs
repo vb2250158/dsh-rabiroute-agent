@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
 
-const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'plan-icon', 'client-plan', 'client-speech', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
+const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'plan-icon', 'client-plan', 'client-speech', 'client-question', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
 const code = sources.map(source => source.replace(/^import [^\r\n]*\r?\n/gmu, '').replace(/^export /gmu, '')).join('\n')
 const raw = '[消息源]\r\n类型：Agent｜处理端：DSH\r\n会话：Test sender\r\n会话 ID：exact-id\r\n投递时间：2026-01-01\r\n\r\n[消息内容]\r\n  body @reference /skill\n\n[回传参数]\n{"deliveryId":"test","responsePolicy":"none"}'
 const systemRaw = ['[消息源]', '消息源类型：系统', '事件类型：agent_request_reminder', '事件名称：Agent 回复提醒', '事件 ID：ev-1', '消息包发送时间：2026/9/16 22:15:17', '投递 ID：d-1', '', '[消息内容]', 'MARKER_BODY_TEXT'].join('\n')
@@ -17,7 +17,7 @@ function harness() {
   const React = { Fragment: 'Fragment', createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] }, useRef: initial => { const index = cursor++; return states[index] ?? (states[index] = { current: initial }) }, useCallback: fn => fn, useEffect: fn => { const index = cursor++; if (!(index in states)) { states[index] = true; effects.push(fn()) } } }
   const context = { React, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController }
   vm.createContext(context)
-  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI }`, context)
+  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
   const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
   const render = (content, kind = 'user', extras = {}) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderMessageImages: args => { images.push(args); return { type: 'image', props: args, children: [] } } }) }
@@ -191,22 +191,24 @@ test('locale, tab type, body and launcher registrations dispose and remount with
       register: (namespace, dictionaries) => {
         if (namespace === 'rabiroute-agent-messages') { assert.ok(dictionaries.zh.raw); assert.ok(dictionaries.en.raw) }
         else if (namespace === 'rabiroute-speech') { assert.ok(dictionaries.zh.play); assert.ok(dictionaries.en.play) }
+        else if (namespace === 'rabiroute-question') { assert.ok(dictionaries.zh.branch); assert.ok(dictionaries.en.branch) }
         else { assert.equal(namespace, 'rabiroute-agent-plan'); assert.ok(dictionaries.zh.tab); assert.ok(dictionaries.en.tab) }
         locales++
         return () => locales--
       },
-      bind: namespace => { assert.equal(namespace, 'rabiroute-agent-plan'); return h.planT },
+      bind: namespace => namespace === 'rabiroute-question' ? (key => key) : (assert.equal(namespace, 'rabiroute-agent-plan'), h.planT),
     },
     sidebarRight: { openTab: kind => openedTabs.push(kind) },
     sidebarRightTabs: { register: definition => { definitions.push(definition); return () => definitions.splice(definitions.indexOf(definition), 1) } },
     slots: {
+      entries: () => [{ options: { locale: 'question', select: () => null, store: { name: 'drafts' } }, inject: () => ({}), component: 'Official' }],
       inject: (name, fn) => { const dispose = fn(); cleanups.push(dispose); return dispose },
       register: (spec, view) => { const row = { spec, view }; registrations.push(row); return () => registrations.splice(registrations.indexOf(row), 1) },
     },
   }
   for (let round = 0; round < 2; round++) {
     h.apply(ctx)
-    assert.equal(locales, 3)
+    assert.equal(locales, 4)
     assert.equal(registrations.filter(row => row.spec.name === 'conversation.chat.assistant-actions' && row.spec.id === 'rabiroute-speech').length, 1)
     const messages = registrations.filter(row => row.spec.name === 'conversation.chat.node')
     assert.deepEqual(messages.map(row => row.spec.key), ['user', 'steering'])
@@ -315,4 +317,34 @@ test('launcher appears for any Rabi-bound session and auto-opens only when a pla
   await flush()
   assert.equal(unbound.renderPlanLauncher('session-4', () => { opens++ }), null)
   assert.equal(opens, 2)
+})
+
+test('question wrapper reuses the official composer and keeps its answer path', () => {
+  const h = harness()
+  const original = {
+    options: { locale: 'question', select: owner => owner.pendingInteraction, store: { name: 'drafts' } },
+    inject: () => ({ official: true }),
+    component: 'Official',
+  }
+  const registered = []
+  const ctx = {
+    effect: fn => fn(),
+    locale: { register() {}, bind: ns => key => `${ns}:${key}` },
+    slots: {
+      entries: () => [original],
+      inject: (name, factory) => { if (name === 'conversation.composer') registered.push(factory()) },
+      register: (options, component) => ({ options, component }),
+    },
+  }
+  h.registerRabiQuestionComposer(ctx)
+  assert.equal(registered[0].options.locale, 'question')
+  assert.equal(registered[0].options.priority, -10)
+  assert.equal(registered[0].options.select, original.options.select)
+  assert.equal(registered[0].options.store, original.options.store)
+  const tree = registered[0].component({ sessionId: 'session-one', matched: { key: 'question:1' } })
+  assert.equal(tree.type, h.RabiQuestionComposer)
+  assert.equal(tree.props.Official, 'Official')
+  const inner = h.RabiQuestionComposer(tree.props)
+  assert.equal(inner.props['data-rabi-question'], true)
+  assert.equal(inner.children[0].type, 'Official')
 })

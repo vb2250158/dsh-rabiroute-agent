@@ -2,6 +2,12 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.6.0 — 2026-09-19
+
+- Wrap the official `ask_user_question` card: label free text as "Your own branch" and add Rabi default-ASR voice input on that field.
+- Add same-origin `POST /rabiroute/speech/asr` using the current default ASR (preloaded `faster-whisper/small` here) to transcribe browser WAV into the official controlled field. No model override, service start, or fake option clicks.
+- Tests cover defaults, offline/missing ASR, invalid audio, cross-origin rejection and textarea fill. Live recording remains an installed-page check.
+
 ## 0.5.0 — 2026-09-19
 
 - Replace queued host playback with a 24px browser mini player: indeterminate generation state, duplicate-click protection, play/pause, seeking and timestamps.

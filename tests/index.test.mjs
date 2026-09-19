@@ -12,7 +12,7 @@ const tools = deps => internals.toolDefinitions(config, deps)
 const general = deps => tools(deps).find(t => t.name === 'rabiroute_manager_api')
 
 test('src and packaged lib match and have no fixed retired address', async () => {
-  for (const name of ['index.js', 'connection.js', 'plan-panel.js', 'locate-agent.js', 'speech.js']) {
+  for (const name of ['index.js', 'connection.js', 'plan-panel.js', 'locate-agent.js', 'speech.js', 'speech-asr.js']) {
     const src = await readFile(new URL('../src/' + name, import.meta.url), 'utf8')
     assert.equal(src, await readFile(new URL('../lib/' + name, import.meta.url), 'utf8'))
     assert.doesNotMatch(src, /8790/)
@@ -31,6 +31,7 @@ test('registers all tools and same-origin routes without contacting Host at regi
     ['exact', '/rabiroute/plan-panel'],
     ['exact', '/rabiroute/locate-agent'],
     ['exact', '/rabiroute/speech'],
+    ['exact', '/rabiroute/speech/asr'],
   ])
   assert.equal(createRabiRouteAgentRuntimeStatus().managerBaseUrl, '')
   assert.match(sections[0].text, /动态发现/)
