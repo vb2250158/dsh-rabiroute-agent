@@ -2,6 +2,12 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.4.0 — 2026-09-19
+
+- Adds a speaker action to read one finalized reply using Rabi's current default TTS. Offline services are reported without automatic startup; missing playback receipts remain uncertain without retries.
+- Adds the same-origin speech adapter and tests for defaults, offline services, request validation, duplicate clicks and uncertain outcomes. Installed UI and audible playback acceptance remain pending.
+- Speech accepts a live degraded Manager only when required capabilities and instance identity are verified, then checks TTS readiness separately. Other tools and plan interfaces retain full health requirements.
+
 ## 0.3.0 — 2026-09-17
 
 - **"Locate Agent" now works for non-DSH sources.** A non-`dsh` `agentAdapter` used to throw "Navigation for this external Agent adapter is not supported", so a `codex` row rendered its header as a button that only reported an error when clicked. Adapters such as `codex` are now handed to RabiRoute to raise that client's window — the local DSH client does not hold that session at all, so deciding it here could only guess.
@@ -18,7 +24,7 @@ English | [简体中文](CHANGELOG.md)
 - Strictness is unchanged and now more explicit: fields mixed from another source kind, a half-written source identity, `消息端` and any unknown spelling still fall back to raw text.
 - Acceptance: 53 source tests pass (18 envelope, 11 client). Deployed-instance acceptance is pending.
 
-## Unreleased
+## 0.4.0 — 2026-09-19
 
 - Clarify Rabi shared business ownership and DSH local adaptation, with common contracts reusable by Codex and other Agents.
 - Record the scope of sender headers, original-message viewing and session navigation. UI integration first evaluates public plugin replacement and ordinary-message compatibility without changing historical records.

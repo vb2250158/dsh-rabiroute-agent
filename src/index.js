@@ -2,6 +2,7 @@ import z from '@deepseek-ai/schemastery'
 import { cleanBaseUrl, managerRequest, timeoutBudget } from './connection.js'
 import { createPlanPanelHandler, PLAN_PANEL_PATH } from './plan-panel.js'
 import { createLocateAgentHandler, LOCATE_AGENT_PATH } from './locate-agent.js'
+import { createSpeechHandler, SPEECH_PATH } from './speech.js'
 
 export const Config = z.object({
   managerBaseUrl: z.string().default(''),
@@ -11,7 +12,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.3.0'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.4.0'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -131,13 +132,12 @@ function promptText(config) {
 export function apply(ctx, config = {}) {
   const status = createRabiRouteAgentRuntimeStatus(config)
   const resolved = { ...config, managerBaseUrl: status.managerBaseUrl, enforceAgentCommunication: status.enforceAgentCommunication, requestTimeoutMs: status.requestTimeoutMs }
-  // Same-origin Host routes for the two things the browser cannot do for itself:
-  // read which plan this session is bound to, and ask Rabi to bring another client's
-  // session forward. Rabi declares no CORS policy for the DSH origin, so the Host answers
-  // for it. A composition without an HTTP carrier simply never registers these routes.
+  // Rabi has no DSH CORS policy. Optional same-origin routes adapt its plan,
+  // window navigation and speech APIs for the browser.
   ctx.inject(['webServer'], web => {
     web.webServer.register({ kind: 'exact', path: PLAN_PANEL_PATH, handler: createPlanPanelHandler(resolved) })
     web.webServer.register({ kind: 'exact', path: LOCATE_AGENT_PATH, handler: createLocateAgentHandler(resolved) })
+    web.webServer.register({ kind: 'exact', path: SPEECH_PATH, handler: createSpeechHandler(resolved) })
   })
   ctx.inject(['tools', 'systemPrompt'], runtime => {
     runtime.systemPrompt.section({ name: 'rabiroute:agent-contract', order: 25, text: promptText(resolved) })

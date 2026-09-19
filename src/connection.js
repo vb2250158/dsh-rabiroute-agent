@@ -22,8 +22,9 @@ async function hostStatus(config, signal) {
   }))
 }
 
-function identity(meta) {
-  if (meta?.health?.state !== 'healthy' || meta?.health?.requiredReady !== true || typeof meta.applicationGenerationId !== 'string' || !meta.applicationGenerationId.trim() || typeof meta.managerInstanceId !== 'string' || !meta.managerInstanceId.trim()) throw new Error('RabiRoute Manager is not ready or has no generation/instance identity.')
+function identity(meta, allowDegraded = false) {
+  const ready = meta?.health?.state === 'healthy' || (allowDegraded && meta?.health?.state === 'degraded' && meta?.health?.live === true)
+  if (!ready || meta?.health?.requiredReady !== true || typeof meta.applicationGenerationId !== 'string' || !meta.applicationGenerationId.trim() || typeof meta.managerInstanceId !== 'string' || !meta.managerInstanceId.trim()) throw new Error('RabiRoute Manager is not ready or has no generation/instance identity.')
   return { applicationGenerationId: meta.applicationGenerationId, managerInstanceId: meta.managerInstanceId }
 }
 function same(a, b) { return a.applicationGenerationId === b.applicationGenerationId && a.managerInstanceId === b.managerInstanceId }
@@ -33,8 +34,10 @@ function same(a, b) { return a.applicationGenerationId === b.applicationGenerati
  * otherwise the Host reports it, and either way `/meta` must agree on identity.
  * This is the same authority `managerRequest` enforces per operation; it exists
  * separately so one panel read can make two requests after a single discovery.
+ * Speech may opt into a live degraded Manager with required capabilities ready;
+ * it separately checks speech readiness and does not depend on plan storage.
  */
-export async function resolveManagerBase(config, callerSignal, dependencies = {}) {
+export async function resolveManagerBase(config, callerSignal, dependencies = {}, { allowDegraded = false } = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(new Error('RabiRoute Manager discovery timed out.')), 3000)
   const abort = () => controller.abort(callerSignal?.reason)
@@ -51,7 +54,7 @@ export async function resolveManagerBase(config, callerSignal, dependencies = {}
     if (!response.ok) throw new Error('Manager /meta HTTP ' + response.status)
     let meta
     try { meta = JSON.parse(text) } catch { throw new Error('Manager /meta returned invalid JSON.') }
-    const observed = identity(meta)
+    const observed = identity(meta, allowDegraded)
     if (descriptor && !same(observed, descriptor)) throw new Error('Host and Manager generation/instance identities do not match.')
     return base
   } finally {

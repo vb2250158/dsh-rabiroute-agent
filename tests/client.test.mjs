@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
 
-const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'plan-icon', 'client-plan', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
+const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'plan-icon', 'client-plan', 'client-speech', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
 const code = sources.map(source => source.replace(/^import [^\r\n]*\r?\n/gmu, '').replace(/^export /gmu, '')).join('\n')
 const raw = '[消息源]\r\n类型：Agent｜处理端：DSH\r\n会话：Test sender\r\n会话 ID：exact-id\r\n投递时间：2026-01-01\r\n\r\n[消息内容]\r\n  body @reference /skill\n\n[回传参数]\n{"deliveryId":"test","responsePolicy":"none"}'
 const systemRaw = ['[消息源]', '消息源类型：系统', '事件类型：agent_request_reminder', '事件名称：Agent 回复提醒', '事件 ID：ev-1', '消息包发送时间：2026/9/16 22:15:17', '投递 ID：d-1', '', '[消息内容]', 'MARKER_BODY_TEXT'].join('\n')
@@ -190,6 +190,7 @@ test('locale, tab type, body and launcher registrations dispose and remount with
     locale: {
       register: (namespace, dictionaries) => {
         if (namespace === 'rabiroute-agent-messages') { assert.ok(dictionaries.zh.raw); assert.ok(dictionaries.en.raw) }
+        else if (namespace === 'rabiroute-speech') { assert.ok(dictionaries.zh.play); assert.ok(dictionaries.en.play) }
         else { assert.equal(namespace, 'rabiroute-agent-plan'); assert.ok(dictionaries.zh.tab); assert.ok(dictionaries.en.tab) }
         locales++
         return () => locales--
@@ -205,7 +206,8 @@ test('locale, tab type, body and launcher registrations dispose and remount with
   }
   for (let round = 0; round < 2; round++) {
     h.apply(ctx)
-    assert.equal(locales, 2)
+    assert.equal(locales, 3)
+    assert.equal(registrations.filter(row => row.spec.name === 'conversation.chat.assistant-actions' && row.spec.id === 'rabiroute-speech').length, 1)
     const messages = registrations.filter(row => row.spec.name === 'conversation.chat.node')
     assert.deepEqual(messages.map(row => row.spec.key), ['user', 'steering'])
     for (const row of messages) {

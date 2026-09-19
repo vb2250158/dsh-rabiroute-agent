@@ -1,5 +1,6 @@
 /** Public user/steering renderer replacement; durable content is never rewritten. */
 import * as React from 'react'
+import { RabiSpeechAction, rabiSpeechLocales } from './client-speech.js'
 import { Button, Menu, Modal, JsonBlock, projectUserText, fileSizeText, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import { parseRabiMessageEnvelope } from './message-envelope.js'
 import { rabiClientLocales } from './client-locales.js'
@@ -187,6 +188,10 @@ export const inject = ['slots', 'sessions', 'locale', 'sidebarRight', 'sidebarRi
 
 /** Register reversible, explicitly ranked replacements; nonmatching rows do not delegate. */
 export function apply(ctx) {
+  ctx.effect(() => ctx.locale.register('rabiroute-speech', rabiSpeechLocales))
+  ctx.slots.inject('conversation.chat.assistant-actions', () => ctx.slots.register({
+    name: 'conversation.chat.assistant-actions', id: 'rabiroute-speech', order: 30, locale: 'rabiroute-speech',
+  }, props => React.createElement(RabiSpeechAction, { ...props, key: `${props.sessionId}:${props.messageId}` })))
   ctx.effect(() => ctx.locale.register('rabiroute-agent-messages', rabiClientLocales))
   for (const key of ['user', 'steering']) {
     ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
