@@ -7,7 +7,7 @@ import { playRabiSpeech, createSpeechHandler } from '../src/speech.js'
 import { resolveManagerBase } from '../src/connection.js'
 
 const input = { text: 'A reply', sessionId: 'session-one' }
-const status = { code: 0, data: { state: 'online', defaults: { tts: 'configured-default' } } }
+const status = { code: 0, data: { state: 'online', defaults: { tts: 'configured-provider' }, providers: { tts: [{ id: 'configured-provider', enabled: true, model: 'configured-default' }] } } }
 function backend(reply = status, synth = () => new Response('', { headers: { 'x-rabispeech-playback-job': 'job-one' } })) {
   const calls = []
   return { calls, resolveManagerBase: async () => 'http://rabi.test', fetch: async (url, init) => {
@@ -34,7 +34,7 @@ test('playback checks service and uses its current default without overriding vo
   const deps = backend()
   assert.deepEqual(await play(deps), { ok: true, playbackJob: 'job-one' })
   assert.deepEqual(deps.calls.map(call => call.url), ['http://rabi.test/api/speech/status', 'http://rabi.test/api/speech/tts'])
-  assert.deepEqual(JSON.parse(deps.calls[1].init.body), { input: input.text, model: 'configured-default', play: true, sessionId: input.sessionId })
+  assert.deepEqual(JSON.parse(deps.calls[1].init.body), { input: input.text, model: 'configured-provider/configured-default', play: true, sessionId: input.sessionId })
 })
 test('offline or missing default never sends synthesis', async () => {
   for (const [data, reason] of [[{ state: 'offline' }, 'offline'], [{ state: 'online', defaults: {} }, 'no-default']]) {

@@ -1,10 +1,10 @@
 # dsh-rabiroute-agent
 
-## Reply speech (0.4.0)
+## Reply speech (0.4.1)
 
 A speaker icon in the public `conversation.chat.assistant-actions` slot reads the selected finalized reply's text blocks, excluding reasoning, tools and other messages. Empty replies have no button; replies over Rabi's 10000-character limit are rejected without truncation. Markdown text is forwarded unchanged.
 
-The same-origin `POST /rabiroute/speech` adapter verifies Manager discovery, reads `/api/speech/status`, and only calls `/api/speech/tts` when the service is online and reports `defaults.tts`. It passes that current model, reply text, session ID and `play: true`; RabiSpeech resolves omitted voice and synthesis defaults and owns host playback. The adapter does not start services or maintain speech settings. Submission disables the button. A playback job header confirms queuing, not completion; missing receipts and transport failures remain uncertain and are never retried automatically. The existing `requestTimeoutMs` budget applies. Leaving the message cancels the wait, but Rabi still owns any submitted playback.
+The same-origin `POST /rabiroute/speech` adapter verifies Manager discovery, reads `/api/speech/status`, and only calls `/api/speech/tts` when the service is online and the provider selected by `defaults.tts` is enabled with a configured model. It passes that provider/model pair, reply text, session ID and `play: true`; RabiSpeech resolves omitted voice and synthesis defaults and owns host playback. The adapter does not start services or maintain speech settings. Submission disables the button. A playback job header confirms queuing, not completion; missing receipts and transport failures remain uncertain and are never retried automatically. The existing `requestTimeoutMs` budget applies. Leaving the message cancels the wait, but Rabi still owns any submitted playback.
 
 Only DSH can contribute this footer action and resolve its selected reply. The plugin adapts these host concerns without duplicating Rabi speech policy. Source tests and build cover the adapter; installed UI and audible playback require separate acceptance.
 

@@ -2,6 +2,10 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.4.1 — 2026-09-19
+
+- Correct default TTS selection using the live service contract: `defaults.tts` identifies a provider; its `providers.tts` entry supplies the model. Send the provider/model pair and preserve concrete rejection details.
+
 ## 0.4.0 — 2026-09-19
 
 - Adds a speaker action to read one finalized reply using Rabi's current default TTS. Offline services are reported without automatic startup; missing playback receipts remain uncertain without retries.

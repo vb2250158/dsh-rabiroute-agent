@@ -17,8 +17,9 @@ export async function playRabiSpeech(config, input, signal, dependencies = {}) {
     const status = await statusResponse.json()
     if (!statusResponse.ok || status.code !== 0) throw new Error(status.message || `HTTP ${statusResponse.status}`)
     if (status.data?.state !== 'online') return { ok: false, reason: 'offline' }
-    const model = status.data?.defaults?.tts
-    if (typeof model !== 'string' || !model.trim()) return { ok: false, reason: 'no-default' }
+    const provider = status.data?.providers?.tts?.find(provider => provider.id === status.data?.defaults?.tts)
+    if (!provider?.enabled || typeof provider.model !== 'string' || !provider.model.trim()) return { ok: false, reason: 'no-default' }
+    const model = `${provider.id}/${provider.model}`
     operationSignal.throwIfAborted()
     submitted = true
     const response = await fetcher(base + '/api/speech/tts', {
@@ -28,7 +29,7 @@ export async function playRabiSpeech(config, input, signal, dependencies = {}) {
     })
     if (!response.ok) {
       const error = await response.json()
-      return { ok: false, reason: response.status >= 500 ? 'uncertain' : 'rejected', message: error.message || `HTTP ${response.status}` }
+      return { ok: false, reason: response.status >= 500 ? 'uncertain' : 'rejected', message: error.message || (typeof error.detail === 'string' ? error.detail : `HTTP ${response.status}`) }
     }
     const playbackJob = response.headers.get('x-rabispeech-playback-job')
     await response.body?.cancel()
