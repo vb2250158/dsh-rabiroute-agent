@@ -4,11 +4,11 @@ export const RABI_PLAN_NS = 'rabiroute-agent-plan'
 export const rabiPlanLocales = {
   zh: {
     tab: 'Rabi 计划',
-    launcherHint: '打开 Rabi 计划面板（当前会话已绑定 Rabi 人格）',
+    launcherHint: '打开当前会话的 Rabi 计划面板',
     frameTitle: 'Rabi 计划面板',
     loading: '正在读取 Rabi 绑定…',
     reload: '重新加载', openExternal: '在浏览器打开',
-    planUnbound: '当前会话尚未绑定 Rabi 人格，没有可显示的计划。',
+    planUnbound: '当前会话没有 Rabi 人格绑定，也未在 Rabi 路由中找到绑定计划。',
     planNoPlan: '当前会话没有绑定中的 Rabi 计划。计划与 Agent 会话的绑定由 Rabi 决定，这里不会替你挑一个。',
     planMultiplePlans: '当前会话绑定了 {count} 个计划（{titles}）。Rabi 要求先收敛为一个计划再打开面板。',
     planNoRoute: '绑定的 Rabi 人格 {roleId} 没有对应的路由，无法定位计划页面。',
@@ -18,11 +18,11 @@ export const rabiPlanLocales = {
   },
   en: {
     tab: 'Rabi plan',
-    launcherHint: 'Open the Rabi plan panel (this session is bound to a Rabi persona)',
+    launcherHint: 'Open the Rabi plan panel for this session',
     frameTitle: 'Rabi plan panel',
     loading: 'Reading the Rabi binding…',
     reload: 'Reload', openExternal: 'Open in browser',
-    planUnbound: 'This session is not bound to a Rabi persona, so there is no plan to show.',
+    planUnbound: 'This session has no Rabi persona binding or bound plan in the Rabi routes.',
     planNoPlan: 'No Rabi plan is bound to this session. Rabi owns that binding; this panel does not pick one for you.',
     planMultiplePlans: 'This session is bound to {count} plans ({titles}). Rabi requires that to settle to one plan before the panel can open.',
     planNoRoute: 'The bound Rabi persona {roleId} has no matching route, so its plan page cannot be located.',

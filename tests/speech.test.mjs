@@ -21,10 +21,10 @@ test('speech tolerates unrelated degradation but still rejects unready or mismat
   const meta = { health: { state: 'degraded', live: true, requiredReady: true }, applicationGenerationId: 'generation', managerInstanceId: 'manager' }
   const deps = { hostStatus: async () => ({ ...meta, managerBaseUrl: 'http://rabi.test' }), fetch: async () => Response.json(meta) }
   const signal = new AbortController().signal
-  await assert.rejects(resolveManagerBase({}, signal, deps), /not ready/)
+  assert.equal(await resolveManagerBase({}, signal, deps), 'http://rabi.test')
   assert.equal(await resolveManagerBase({}, signal, deps, { allowDegraded: true }), 'http://rabi.test')
   meta.health.requiredReady = false
-  await assert.rejects(resolveManagerBase({}, signal, deps, { allowDegraded: true }), /not ready/)
+  await assert.rejects(resolveManagerBase({}, signal, deps, { allowDegraded: true }), /not live and required-ready/)
   meta.health.requiredReady = true
   deps.hostStatus = async () => ({ ...meta, managerBaseUrl: 'http://rabi.test', managerInstanceId: 'other' })
   await assert.rejects(resolveManagerBase({}, signal, deps, { allowDegraded: true }), /identities do not match/)

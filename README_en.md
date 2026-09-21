@@ -136,6 +136,12 @@ Keep machine-specific values local, outside shared patches.
 
 Registration does not access Host, so Manager absence does not prevent DSH startup. `active=true` means tools registered, not business health. Clear an explicitly configured old address to select Host mode; explicit targets are never silently ignored.
 
+## Degraded connectivity contract (0.8.0)
+
+Ordinary requests and plan-panel discovery require `/meta` to report `live=true`, `requiredReady=true`, and either `healthy` or `degraded`, with nonempty generation/instance identities matching Host. An unrelated Route failure no longer blocks every tool; Manager endpoints still enforce plan recovery, target Route and Agent availability.
+
+Exact `GET /meta` requires identity validation only and reuses the discovery response, allowing diagnosis while required capabilities are unavailable. Query variants and other paths do not inherit this exemption. Post-write verification checks identity only: health changes do not invalidate an existing success receipt. Identity changes, unverifiable identity, timeouts and 5xx responses remain uncertain and are never replayed automatically. Address, cancellation, redirect, allowlist, idempotency-key and ETag protections remain unchanged.
+
 ## Tool contracts
 
 - `rabiroute_agent_threads`: discover, read, resolve, create, rename, continue and formally reply through Manager. Preserve full task identity and existing bindings; conflicting source IDs are rejected. Legacy `deliverySource` input is normalized at the boundary; Manager receives only `messageSource`. Reply policies and formal reply fields follow the current Manager contract.
@@ -185,3 +191,18 @@ MIT
 ## Automatic voice input (0.7.2)
 
 The question card switch follows live Rabi microphone segmentation, ASR and auto-submit settings. Cancellation, draft edits or navigation stop capture. Recognition success turns the switch off. See [Automatic voice input](AUTO-VOICE.md).
+
+
+### Plan binding without Hook persona state
+
+A session with no Hook persona binding is resolved against current plan summaries for the distinct roles returned by Rabi routes. Exact task or secretary session IDs identify the plan. Multiple matches remain a conflict; failed or incomplete reads remain unresolved. This lookup never creates a persona binding.
+
+## Workspace persona skills (0.8.0)
+
+Rabi enhancement registers a cwd-sensitive provider through `skills.registerProvider`. Enabled Agent workspaces come from `/api/gateways` state fields `monitorThreadCwd` or `monitorProjectPath`. Rabi owns bindings and skills. Remote instance configuration absent from this endpoint is not matched.
+
+Exact absolute-path matching normalizes Windows case, separators and extended path prefixes. Child directories do not inherit bindings. Active skills from matching personas are merged and repeated routes deduplicated. Names contain persona, skill ID and an identity hash; descriptions contain title, summary and keywords. The official catalog, loader and explicit invocation retain their normal session logging.
+
+`workspaceSkillsEnabled` defaults to true. Positive integer `workspaceSkillCacheMs` defaults to 30000. Expiry invalidates the DSH registry; bodies are read on demand. Failed discovery is never cached as an empty catalog. Other providers remain available. Loading rechecks workspace and active status. Disposal aborts requests and clears timers. Resources remain opaque Rabi resources, not local DSH paths.
+
+Run `node --test tests/workspace-skills.test.mjs`. Set `DSH_SOURCE_ROOT` to a built DSH checkout and run `node --test tests/workspace-skills-registry.test.mjs` for registry, catalog, loader, explicit invocation, expiry and disposal coverage.

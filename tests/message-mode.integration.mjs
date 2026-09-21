@@ -19,7 +19,7 @@ test('real DSH runtime hides and denies file/code tools, preserves Rabi and sibl
   await ctx.plugin(SystemPrompt, {})
   await ctx.plugin(ToolRuntime)
   const calls = []
-  const meta = { health: { state: 'healthy', requiredReady: true }, applicationGenerationId: 'test', managerInstanceId: 'test' }
+  const meta = { health: { state: 'healthy', live: true, requiredReady: true }, applicationGenerationId: 'test', managerInstanceId: 'test' }
   for (const definition of internals.toolDefinitions({ managerBaseUrl: 'http://localhost:12345' }, {
     fetch: async (url, init) => {
       calls.push({ url, method: init.method })

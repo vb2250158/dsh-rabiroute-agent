@@ -238,8 +238,8 @@ test('locale, tab type, body and launcher registrations dispose and remount with
 
 test('plan panel frames Rabi for a bound session and asks the Host for the target', async () => {
   const h = harness()
-  const url = 'http://127.0.0.1:1728/#/routes/XinghaiBuilder-main/plan/plan-abc'
-  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: true, reason: 'bound', roleId: 'XinghaiBuilder', routeId: 'XinghaiBuilder-main', planId: 'plan-abc', planTitle: 'Example', url } }) }))
+  const url = 'http://127.0.0.1:1728/#/routes/ExampleBuilder-main/plan/plan-abc'
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: true, reason: 'bound', roleId: 'ExampleBuilder', routeId: 'ExampleBuilder-main', planId: 'plan-abc', planTitle: 'Example', url } }) }))
   h.renderPlanBody('session-1')
   assert.equal(h.panelCalls[0].url, '/rabiroute/plan-panel?sessionId=session-1')
   await flush()

@@ -165,7 +165,7 @@ test('over a real HTTP server the route answers a locate instead of cancelling i
     // `/meta` is checked for identity before any business call, so the fake Manager has
     // to be a well-formed Manager, not just an endpoint that returns the open receipt.
     if (req.url === '/meta') {
-      res.end(JSON.stringify({ health: { state: 'healthy', requiredReady: true }, applicationGenerationId: 'gen-1', managerInstanceId: 'inst-1' }))
+      res.end(JSON.stringify({ health: { state: 'healthy', live: true, requiredReady: true }, applicationGenerationId: 'gen-1', managerInstanceId: 'inst-1' }))
       return
     }
     res.end(JSON.stringify({ code: 0, action: 'open', threadId: 'task-abc', status: 'opened', owner: 'codex_desktop', thread: { title: 'Example' } }))

@@ -2,6 +2,13 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.8.0 — 2026-09-21
+
+- Discover persona skills by session workspace through the official catalog, loader and explicit invocation; refresh expired bindings and isolate workspaces.
+- Resolve task-bound plans without Hook persona records while preserving conflicts and incomplete-read errors.
+- Accept required-ready degraded Managers, separate diagnostics from identity verification, and retain uncertain-write handling without replay.
+- Validate builds, provider behavior and real DSH registry integration with anonymous fixtures.
+
 ## 0.7.2 — 2026-09-20
 
 - Mount the microphone as a flex item on the official custom-answer row, outside the overlapping `.field` grid cell, with a visible bordered icon.

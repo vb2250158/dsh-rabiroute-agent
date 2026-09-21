@@ -11,7 +11,7 @@ const resolveManagerBase = async () => base
 const config = { managerBaseUrl: '' }
 const session = 'session-1'
 const plan = (id, binding = session, title = 'Example plan') => ({ id, title, status: '进行中', taskBinding: { sessionId: binding } })
-const routes = [{ id: 'main', agentRoleId: 'Rabi' }, { id: 'XinghaiBuilder-main', agentRoleId: 'XinghaiBuilder' }]
+const routes = [{ id: 'main', agentRoleId: 'Rabi' }, { id: 'ExampleBuilder-main', agentRoleId: 'ExampleBuilder' }]
 
 /**
  * A Manager whose binding, current-plan pages and route table are given. `pages` is keyed by
@@ -34,31 +34,66 @@ const manager = ({ binding = null, pages = [], gateways = [], onCall } = {}) => 
 
 test('a bound plan resolves to its single-plan Rabi address', async () => {
   const result = await readRabiPlanPanel(config, session, new AbortController().signal, manager({
-    binding: { sessionId: session, roleId: 'XinghaiBuilder' },
-    pages: [{ items: [plan('plan-abc', session, '[PangHu][功能] 冒险三消游玩界面 F 键直接失败')] }],
+    binding: { sessionId: session, roleId: 'ExampleBuilder' },
+    pages: [{ items: [plan('plan-abc', session, '[ExampleProject][功能] 游戏界面快捷键反馈')] }],
     gateways: routes,
   }))
   assert.deepEqual(result, {
-    available: true, reason: 'bound', roleId: 'XinghaiBuilder', routeId: 'XinghaiBuilder-main',
-    planId: 'plan-abc', planTitle: '[PangHu][功能] 冒险三消游玩界面 F 键直接失败', planStatus: '进行中',
+    available: true, reason: 'bound', roleId: 'ExampleBuilder', routeId: 'ExampleBuilder-main',
+    planId: 'plan-abc', planTitle: '[ExampleProject][功能] 游戏界面快捷键反馈', planStatus: '进行中',
     managerBaseUrl: base,
-    url: base + '/#/routes/XinghaiBuilder-main/plan/plan-abc',
+    url: base + '/#/routes/ExampleBuilder-main/plan/plan-abc',
   })
 })
 
 test('the scan reads the binding, then current plans, then the route table', async () => {
   const calls = []
   await readRabiPlanPanel(config, session, new AbortController().signal, manager({
-    binding: { roleId: 'XinghaiBuilder' },
+    binding: { roleId: 'ExampleBuilder' },
     pages: [{ items: [plan('p1')] }],
     gateways: routes,
     onCall: (url, init) => calls.push([url, init.redirect]),
   }))
   assert.deepEqual(calls, [
     [base + '/api/codex-hook/sessions/session-1', 'error'],
-    [base + '/api/roles/XinghaiBuilder/plans?view=current&limit=200&detail=summary', 'error'],
+    [base + '/api/roles/ExampleBuilder/plans?view=current&limit=200&detail=summary', 'error'],
     [base + '/api/gateways?summary=1', 'error'],
   ])
+})
+
+test('a task-bound session without a Hook binding resolves through routed roles', async () => {
+  const calls = []
+  const dependencies = manager({ binding: null, gateways: [...routes, routes[1]], onCall: url => calls.push(url) })
+  dependencies.findSessionPlans = async (_fetch, _base, roleId, sessionId) => {
+    assert.equal(sessionId, session)
+    calls.push('role:' + roleId)
+    return roleId === 'ExampleBuilder' ? [plan('task-only')] : []
+  }
+  const result = await readRabiPlanPanel(config, session, new AbortController().signal, dependencies)
+  assert.equal(result.available, true)
+  assert.equal(result.roleId, 'ExampleBuilder')
+  assert.equal(result.url, base + '/#/routes/ExampleBuilder-main/plan/task-only')
+  assert.equal(calls.filter(value => value === 'role:ExampleBuilder').length, 1)
+})
+
+test('cross-role task bindings report a conflict and failed role reads stay unresolved', async () => {
+  const dependencies = manager({ gateways: routes })
+  dependencies.findSessionPlans = async (_fetch, _base, roleId) => [plan(roleId)]
+  const result = await readRabiPlanPanel(config, session, new AbortController().signal, dependencies)
+  assert.equal(result.reason, 'multiple-plans')
+  assert.equal(result.planCount, 2)
+  assert.equal(result.url, '')
+  dependencies.findSessionPlans = async (_fetch, _base, roleId) => {
+    if (roleId === 'Rabi') throw new Error('role read failed')
+    return [plan('found')]
+  }
+  await assert.rejects(readRabiPlanPanel(config, session, new AbortController().signal, dependencies), /role read failed/)
+})
+
+test('an incomplete bounded scan cannot claim a unique binding', async () => {
+  let page = 0
+  const fetcher = async () => json({ data: { items: [plan('p' + page, page === 0 ? session : 'other')], nextCursor: 'c' + ++page } })
+  await assert.rejects(findSessionPlans(fetcher, base, 'Rabi', session, new AbortController().signal), /page limit/)
 })
 
 test('the scan follows cursors, stops at two matches, and never reads the full catalog', async () => {
@@ -70,7 +105,7 @@ test('the scan follows cursors, stops at two matches, and never reads the full c
     if (cursor === 'c1') return json({ code: 0, data: { items: [plan('p1')], nextCursor: 'c2' } })
     return json({ code: 0, data: { items: [plan('p2'), plan('p3')], nextCursor: 'c3' } })
   }
-  const matched = await findSessionPlans(fetcher, base, 'XinghaiBuilder', session, new AbortController().signal)
+  const matched = await findSessionPlans(fetcher, base, 'ExampleBuilder', session, new AbortController().signal)
   assert.deepEqual(matched.map(item => item.id), ['p1', 'p2', 'p3'])
   // c3 exists, but two matches already mean a conflict the caller reports.
   assert.equal(seen.length, 3)

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { apply, internals, createRabiRouteAgentRuntimeStatus } from '../lib/index.js'
 import { managerRequest, cleanBaseUrl } from '../lib/connection.js'
 const origin = 'http://localhost:12345'
-const meta = (id = 'one') => ({ health: { state: 'healthy', requiredReady: true }, applicationGenerationId: id, managerInstanceId: 'instance-' + id })
+const meta = (id = 'one') => ({ health: { state: 'healthy', live: true, requiredReady: true }, applicationGenerationId: id, managerInstanceId: 'instance-' + id })
 const response = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers })
 const exec = () => ({ signal: new AbortController().signal })
 const config = { managerBaseUrl: origin }
@@ -21,7 +21,7 @@ test('src and packaged lib match and have no fixed retired address', async () =>
 test('registers all tools and same-origin routes without contacting Host at registration', () => {
   const list = [], sections = [], routes = []
   const webServer = { register: route => { routes.push(route); return () => {} } }
-  const ctx = { tools: { register: t => list.push(t) }, systemPrompt: { section: s => sections.push(s) }, webServer, inject: (_, fn) => fn(ctx), on() {} }
+  const ctx = { tools: { register: t => list.push(t) }, systemPrompt: { section: s => sections.push(s) }, webServer, inject: (names, fn) => { if (names.every(name => name in ctx)) return fn(ctx) }, on() {} }
   assert.equal(apply(ctx).active, true)
   assert.equal(list.length, 3)
   // Both routes exist for the same reason: the browser cannot reach Rabi itself. One
@@ -54,7 +54,7 @@ test('Host identity mismatch and missing readiness prevent business dispatch', a
   const deps = { hostStatus: async () => ({ ...meta('wrong'), managerBaseUrl: origin }), fetch: async url => { if (!url.endsWith('/meta')) business++; return response(meta()) } }
   const result = await managerRequest({}, '/api/roles/example/plans', { method: 'POST' }, exec().signal, deps)
   assert.equal(result.ok, false); assert.equal(result.uncertain, false); assert.equal(business, 0)
-  const missing = await managerRequest(config, '/anything', {}, exec().signal, { fetch: async () => response({ health: { state: 'healthy', requiredReady: true } }) })
+  const missing = await managerRequest(config, '/anything', {}, exec().signal, { fetch: async () => response({ health: { state: 'healthy', live: true, requiredReady: true } }) })
   assert.equal(missing.ok, false)
 })
 test('header output and renderer retain strong ETag and echoed key', async () => {

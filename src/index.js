@@ -1,3 +1,4 @@
+import { createWorkspaceSkillProvider } from './workspace-skills.js'
 import z from '@deepseek-ai/schemastery'
 import { cleanBaseUrl, managerRequest, timeoutBudget } from './connection.js'
 import { createPlanPanelHandler, PLAN_PANEL_PATH } from './plan-panel.js'
@@ -10,11 +11,13 @@ export const Config = z.object({
   hostExecutable: z.string().default(''),
   enforceAgentCommunication: z.boolean().default(true),
   requestTimeoutMs: z.number().default(30000),
+  workspaceSkillsEnabled: z.boolean().default(true),
+  workspaceSkillCacheMs: z.number().min(1).max(2147483647).step(1).default(30000),
   speechTimeoutMs: z.number().default(300000),
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.7.2'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.8.0'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -147,6 +150,9 @@ export function apply(ctx, config = {}) {
     web.webServer.register({ kind: 'exact', path: LOCATE_AGENT_PATH, handler: createLocateAgentHandler(resolved) })
     web.webServer.register({ kind: 'exact', path: SPEECH_PATH, handler: createSpeechHandler(resolved) })
     web.webServer.register({ kind: 'exact', path: SPEECH_ASR_PATH, handler: createAsrHandler(resolved) })
+  })
+  if (config.workspaceSkillsEnabled !== false) ctx.inject(['skills'], runtime => {
+    runtime.skills.registerProvider(control => createWorkspaceSkillProvider(resolved, control))
   })
   ctx.inject(['tools', 'systemPrompt'], runtime => {
     runtime.systemPrompt.section({ name: 'rabiroute:agent-contract', order: 25, text: promptText(resolved) })
