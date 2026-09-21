@@ -61,12 +61,14 @@ test('summary pagination covers completed bindings, deduplicates roles and repor
       assert.ok(url.includes('detail=summary') && url.includes('facets=0'))
       assert.ok(!url.includes('view=current'))
       return Response.json({ code: 0, data: url.includes('cursor=next') ? {
-        items: [{ id: 'two', status: '完成', taskBinding: { sessionId: 'session-b' }, secretaryBinding: { sessionId: 'session-a' } }], nextCursor: null,
+        items: [{ id: 'two', status: '完成', presentation: { label: '配置状态', palette: { accent: '#607d8b', background: '#eaf4f7', foreground: '#52677a' } }, taskBinding: { sessionId: 'session-b' }, secretaryBinding: { sessionId: 'session-a' } }], nextCursor: null,
       } : { items: [{ id: 'one', status: '分析中', taskBinding: { sessionId: 'session-a' }, secretaryBinding: { sessionId: 'session-a' } }], nextCursor: 'next' } })
     },
   })
   assert.equal(urls.length, 3)
   assert.equal(entries['session-b'].status, '完成')
+  assert.equal(entries['session-b'].label, '配置状态')
+  assert.equal(entries['session-b'].palette.accent, '#607d8b')
   assert.equal(entries['session-a'].conflict, true)
 })
 
@@ -133,9 +135,12 @@ test('packaged badge uses the row identity and labels stale/conflicting snapshot
   assert.ok(badge)
   const render = (id, data) => badge.view({ sessionId: id, t: key => key,
     statusStore: { subscribe() {}, getSnapshot: () => data } })
-  const data = { entries: { 'session-a': { status: '分析中' }, 'session-b': { status: '完成' } }, stale: false }
+  const palette = { accent: '#0891b2', background: '#ecfeff', foreground: '#0e7490' }
+  const data = { entries: { 'session-a': { status: '分析中', palette }, 'session-b': { status: '完成' } }, stale: false }
   const a = render('session-a', data), b = render('session-b', data)
   assert.equal(a.children[0].children[0].children[0], '分析中')
+  assert.deepEqual(render('session-a', { ...data, stale: true }).children, a.children)
+  assert.match(a.children[0].children[0].props.style.background, /#0891b2/)
   assert.equal(b.children[0].children[0].children[0], '完成')
   assert.equal(render('unbound', data), null)
   assert.match(render('session-b', { ...data, stale: true }).props.label, /stale/)

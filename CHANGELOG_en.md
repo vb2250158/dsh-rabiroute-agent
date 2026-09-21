@@ -2,6 +2,11 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.9.1 — 2026-09-21
+
+- Use the authoritative Rabi summary presentation labels and palette.
+- Preserve badge colors and text during refresh, expiry and transient failure; stale information stays in the tooltip. Keep badges after session titles.
+
 ## 0.9.0 — 2026-09-21
 
 - Add session plan-status badges backed by one shared asynchronous summary cache.

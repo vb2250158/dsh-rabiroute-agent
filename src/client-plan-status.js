@@ -12,11 +12,17 @@ export function RabiPlanStatusBadge({ sessionId, statusStore, t }) {
   const snapshot = React.useSyncExternalStore(statusStore.subscribe, statusStore.getSnapshot, statusStore.getSnapshot)
   const entry = snapshot.entries[sessionId]
   if (!entry) return null
-  const label = entry.conflict ? t('conflict') : entry.status
+  const label = entry.conflict ? t('conflict') : entry.label || entry.status
   if (!label) return null
   return React.createElement(Tooltip, { label: t('plan') + ': ' + label + (snapshot.stale ? ' · ' + t('stale') : '') },
-    React.createElement('span', { style: { flexShrink: 0, maxWidth: '7em', overflow: 'hidden', fontSize: '10px' }, 'data-rabi-plan-status': sessionId },
-      React.createElement(Tag, { tone: entry.conflict || snapshot.stale ? 'warning' : 'info' }, label + (snapshot.stale ? ' ·' : ''))))
+    React.createElement('span', { style: { flexShrink: 0, maxWidth: '8em', fontSize: '10px' }, 'data-rabi-plan-status': sessionId },
+      entry.palette ? React.createElement('span', { style: {
+        display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle',
+        whiteSpace: 'nowrap', borderRadius: '999px', padding: '1px 6px', lineHeight: '15px',
+        border: '1px solid color-mix(in srgb, ' + entry.palette.accent + ' 42%, var(--dsw-alias-border-l4))',
+        background: 'color-mix(in srgb, ' + entry.palette.accent + ' 18%, var(--dsw-alias-bg-layer-2))',
+        color: 'var(--dsw-alias-label-primary)',
+      } }, label) : React.createElement(Tag, { tone: entry.conflict ? 'warning' : 'neutral' }, label)))
 }
 
 /** Lifecycle-owned registration and shared request scheduler. */
