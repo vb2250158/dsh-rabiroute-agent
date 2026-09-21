@@ -2,6 +2,14 @@ English | [简体中文](README.md)
 
 # dsh-rabiroute-agent
 
+## Session plan-status badges (0.9.0)
+
+Grouped, flat and search session rows display the status of their bound Rabi plan. This plugin owns retrieval, caching and rendering. The host must expose the generic `sidebar.workspaces.session.badges` slot with the actual row's `sessionId`; older hosts without that slot retain other features without badges.
+
+`GET /rabiroute/plan-statuses` returns cached data immediately and refreshes in the background on demand. All sessions share one paginated summary scan, without plan bodies or blocking session navigation and Agent execution. Defaults are `planStatusCacheMs: 60000`, `planStatusTimeoutMs: 15000` and `planStatusMaxPages: 24`. Browser polling stops while hidden, without subscribers or after plugin disposal. Badges may take a few seconds to appear on first load.
+
+Conflicting bindings display “Multiple plans”. Failed refreshes retain the last complete snapshot with a stale marker and tooltip. Queries do not filter by view, covering paused and completed statuses. A page-budget failure never publishes a partial result. Persona discovery follows the current Manager route catalog.
+
 ## Message processing mode (0.7.0)
 
 The `message-processing` preset adds **消息处理模式** to the session mode picker. It handles incoming messages, Rabi channel/persona delivery, reading and creating Agent sessions, task delegation and progress, and plan creation, queries, updates, deletion, bindings, statuses and feedback.

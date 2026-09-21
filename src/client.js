@@ -1,3 +1,4 @@
+import { applyRabiPlanStatus } from './client-plan-status.js'
 /** Public user/steering renderer replacement; durable content is never rewritten. */
 import * as React from 'react'
 import { RabiSpeechAction, rabiSpeechLocales } from './client-speech.js'
@@ -189,6 +190,7 @@ export const inject = ['slots', 'sessions', 'locale', 'sidebarRight', 'sidebarRi
 
 /** Register reversible, explicitly ranked replacements; nonmatching rows do not delegate. */
 export function apply(ctx) {
+  applyRabiPlanStatus(ctx)
   registerRabiQuestionComposer(ctx)
   ctx.effect(() => ctx.locale.register('rabiroute-speech', rabiSpeechLocales))
   ctx.slots.inject('conversation.chat.assistant-actions', () => ctx.slots.register({

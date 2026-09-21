@@ -1,11 +1,11 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 await mkdir(new URL('lib/', root), { recursive: true })
-for (const name of ['workspace-skills.js', 'index.js', 'connection.js', 'plan-panel.js', 'locate-agent.js', 'speech.js', 'speech-asr.js', 'message-mode.js']) await copyFile(new URL('src/' + name, root), new URL('lib/' + name, root))
+for (const name of ['plan-status.js', 'workspace-skills.js', 'index.js', 'connection.js', 'plan-panel.js', 'locate-agent.js', 'speech.js', 'speech-asr.js', 'message-mode.js']) await copyFile(new URL('src/' + name, root), new URL('lib/' + name, root))
 
 // These dependency-free JS modules use the same loader envelope as the client bundle.
 // Order matters: imports are stripped, so a module must precede its consumers.
-const modules = ['message-envelope.js', 'client-locales.js', 'client-plan-locales.js', 'client-styles.js', 'plan-icon.js', 'client-plan.js', 'client-speech.js', 'client-question.js', 'client.js']
+const modules = ['message-envelope.js', 'client-locales.js', 'client-plan-locales.js', 'client-styles.js', 'plan-icon.js', 'client-plan.js', 'client-plan-status-store.js', 'client-plan-status.js', 'client-speech.js', 'client-question.js', 'client.js']
 const sources = await Promise.all(modules.map(async name => {
   const source = await readFile(new URL('src/' + name, root), 'utf8')
   return source.replace(/^import [^\r\n]*\r?\n/gmu, '').replace(/^export /gmu, '')
@@ -14,7 +14,7 @@ await writeFile(new URL('lib/client.js', root), `window.__ModuleLoader__.load({
   id: 'dsh-rabiroute-agent',
   factory: (require) => {
     const React = require('react')
-    const { Button, Menu, Modal, JsonBlock, projectUserText, fileSizeText, writeClipboard } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const { Tag, Tooltip, Button, Menu, Modal, JsonBlock, projectUserText, fileSizeText, writeClipboard } = require('@deepseek-ai/dsh-client-ui-primitives')
 ${sources.join('\n')}
     return { inject, apply }
   },

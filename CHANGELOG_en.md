@@ -2,6 +2,12 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.9.0 — 2026-09-21
+
+- Add session plan-status badges backed by one shared asynchronous summary cache.
+- Handle conflicting bindings, stale results, refresh deadlines, page budgets, visibility and disposal.
+- Require the generic host session-badge slot; Rabi behavior remains in this plugin.
+
 ## 0.8.0 — 2026-09-21
 
 - Discover persona skills by session workspace through the official catalog, loader and explicit invocation; refresh expired bindings and isolate workspaces.
