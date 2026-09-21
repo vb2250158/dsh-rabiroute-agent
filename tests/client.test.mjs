@@ -249,7 +249,7 @@ test('plan panel frames Rabi for a bound session and asks the Host for the targe
   assert.equal(frame.props.title, h.planT('frameTitle'))
 })
 
-test('an unbound session, a session without a bound plan and several bound plans each report their own reason', async () => {
+test('an unbound session, a session without a bound plan each report their own reason', async () => {
   const h = harness()
   h.renderPlanBody('session-2')
   await flush()
@@ -262,15 +262,6 @@ test('an unbound session, a session without a bound plan and several bound plans
   withoutPlan.renderPlanBody('session-2')
   await flush()
   assert.ok(JSON.stringify(withoutPlan.renderPlanBody('session-2')).includes(withoutPlan.planT('planNoPlan')))
-
-  // Several bound plans is Rabi's own error state: the panel names them and frames nothing.
-  const many = harness()
-  many.setPanelResponse(async () => ({ ok: true, json: async () => ({ code: 0, data: { available: false, reason: 'multiple-plans', planCount: 2, planTitles: ['First', 'Second'] } }) }))
-  many.renderPlanBody('session-2')
-  await flush()
-  const text = JSON.stringify(many.renderPlanBody('session-2'))
-  assert.equal(nodes(many.renderPlanBody('session-2'), 'iframe').length, 0)
-  assert.ok(text.includes('2') && text.includes('First') && text.includes('Second'))
 
   const other = harness()
   other.setPanelResponse(async () => { throw new Error('offline') })
@@ -348,4 +339,33 @@ test('question wrapper reuses the official composer and keeps its answer path', 
   const inner = h.RabiQuestionComposer(tree.props)
   assert.equal(inner.props['data-rabi-question'], true)
   assert.equal(inner.children[0].type, 'Official')
+})
+
+
+test('multiple plans display a directory and switch one frame without another request', async () => {
+  const h = harness()
+  const plans = [
+    { roleId: 'first', planId: 'same', planTitle: 'First', planStatus: '等待 QA', accent: '#336699', url: 'http://localhost/#/routes/first/plan/same' },
+    { roleId: 'second', planId: 'same', planTitle: 'Second', planStatus: '完成', accent: '#229944', url: 'http://localhost/#/routes/second/plan/same' },
+    { roleId: 'missing', planId: 'third', planTitle: 'Third', url: '' },
+  ]
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ data: { available: true, plans } }) }))
+  h.renderPlanBody()
+  await flush()
+  let tree = h.renderPlanBody()
+  assert.equal(nodes(tree, 'nav').length, 1)
+  assert.equal(nodes(tree, 'iframe').length, 1)
+  assert.equal(nodes(tree, 'iframe')[0].props.src, plans[0].url)
+  const buttons = nodes(tree, 'Button')
+  buttons[2].props.onClick()
+  tree = h.renderPlanBody()
+  assert.equal(nodes(tree, 'iframe').length, 1)
+  assert.equal(nodes(tree, 'iframe')[0].props.src, plans[1].url)
+  assert.equal(nodes(tree, 'Button')[2].props['aria-current'], 'page')
+  assert.ok(JSON.stringify(tree).includes('#229944'))
+  buttons[3].props.onClick()
+  tree = h.renderPlanBody()
+  assert.equal(nodes(tree, 'iframe').length, 0)
+  assert.ok(JSON.stringify(tree).includes('missing'))
+  assert.equal(h.panelCalls.length, 1)
 })

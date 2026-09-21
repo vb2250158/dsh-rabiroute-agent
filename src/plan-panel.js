@@ -66,9 +66,7 @@ async function readJson(fetcher, url, signal) {
 }
 
 /**
- * Collect the plans that claim this session, reading current-plan pages until it has one
- * answer or the pages run out. Two matches already mean the caller reports a conflict, so
- * the scan stops there instead of finishing the catalog.
+ * Collect the plans that claim this session, reading bounded current-plan summary pages until the pages run out.
  * @param fetcher - the fetch implementation.
  * @param base - the Manager origin.
  * @param roleId - the role whose plans are searched.
@@ -84,7 +82,7 @@ export async function findSessionPlans(fetcher, base, roleId, sessionId, signal)
     const items = Array.isArray(payload?.data?.items) ? payload.data.items : []
     for (const plan of items) if (planBoundToSession(plan, sessionId)) matched.push(plan)
     const next = String(payload?.data?.nextCursor || '').trim()
-    if (!next || matched.length > 1) return matched
+    if (!next) return matched
     if (items.length === 0 || next === cursor) throw new Error('Rabi plan pagination did not advance.')
     cursor = next
   }
@@ -97,12 +95,8 @@ export function unavailablePanel(reason, roleId = '', extra = {}) {
 }
 
 /**
- * Resolve one session to the single plan bound to it.
- *
- * Rabi is the authority on that link: `plan.taskBinding.sessionId` (and the secretary
- * binding) is what its own completion path matches on, and its rule is that a session
- * bound to more than one plan is a state to fix rather than one to guess through. The
- * panel follows the same rule instead of picking a plan of its own.
+ * Resolve all current plans bound to a session, preserving each owning role.
+ * Plan bodies remain in Rabi; the directory contains only summaries and addresses.
  * @param config - plugin config carrying `managerBaseUrl` / `hostExecutable` / `requestTimeoutMs`.
  * @param sessionId - the DSH session id, which is also the Rabi binding key.
  * @param signal - cancels every request.
@@ -121,7 +115,7 @@ export async function readRabiPlanPanel(config, sessionId, signal, dependencies 
   const find = dependencies.findSessionPlans || findSessionPlans
   let bound
   if (roleId) {
-    bound = await find(fetcher, base, roleId, id, signal)
+    bound = (await find(fetcher, base, roleId, id, signal)).map(plan => ({ plan, roleId }))
   } else {
     // A plan's task binding does not require a Hook persona binding. Discover
     // routed roles from Manager and match their plan summaries by exact session ID.
@@ -131,17 +125,26 @@ export async function readRabiPlanPanel(config, sessionId, signal, dependencies 
     const results = await Promise.all(roleIds.map(async candidateRoleId => ({
       roleId: candidateRoleId, plans: await find(fetcher, base, candidateRoleId, id, signal),
     })))
-    bound = results.flatMap(result => result.plans)
+    bound = results.flatMap(result => result.plans.map(plan => ({ plan, roleId: result.roleId })))
     roleId = results.find(result => result.plans.length)?.roleId || ''
   }
   if (bound.length === 0) return unavailablePanel(roleId ? 'no-plan' : 'unbound', roleId)
+  gateways ??= await readJson(fetcher, base + GATEWAYS_PATH, signal)
   if (bound.length > 1) {
-    return unavailablePanel('multiple-plans', roleId, {
-      planCount: bound.length,
-      planTitles: bound.slice(0, 8).map(plan => String(plan?.title || plan?.id || '')).filter(Boolean),
+    const plans = bound.map(({ plan, roleId: owner }) => {
+      const planId = String(plan?.id || '').trim()
+      if (!planId) throw new Error('Rabi plan summary has no identity.')
+      const routeId = routeIdForRole(gateways, owner)
+      const accent = plan.presentation?.palette?.accent
+      return { roleId: owner, routeId, planId, planTitle: String(plan.title || planId),
+        planStatus: String(plan.presentation?.label || plan.status || ''),
+        accent: /^#[0-9a-f]{6}$/i.test(accent || '') ? accent : '',
+        url: routeId ? rabiPlanUrl(base, routeId, planId) : '' }
     })
+    return { available: true, reason: 'multiple-plans', roleId, managerBaseUrl: base,
+      planCount: plans.length, plans, url: '' }
   }
-  const plan = bound[0]
+  const plan = bound[0].plan
   const planId = String(plan?.id || '').trim()
   if (!planId) return unavailablePanel('no-plan', roleId)
   gateways ??= await readJson(fetcher, base + GATEWAYS_PATH, signal)

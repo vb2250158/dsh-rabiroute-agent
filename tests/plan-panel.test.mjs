@@ -76,13 +76,14 @@ test('a task-bound session without a Hook binding resolves through routed roles'
   assert.equal(calls.filter(value => value === 'role:ExampleBuilder').length, 1)
 })
 
-test('cross-role task bindings report a conflict and failed role reads stay unresolved', async () => {
+test('cross-role task bindings retain their own routes and failed role reads stay unresolved', async () => {
   const dependencies = manager({ gateways: routes })
   dependencies.findSessionPlans = async (_fetch, _base, roleId) => [plan(roleId)]
   const result = await readRabiPlanPanel(config, session, new AbortController().signal, dependencies)
   assert.equal(result.reason, 'multiple-plans')
   assert.equal(result.planCount, 2)
-  assert.equal(result.url, '')
+  assert.equal(result.available, true)
+  assert.deepEqual(result.plans.map(p => p.url), [base + '/#/routes/main/plan/Rabi', base + '/#/routes/ExampleBuilder-main/plan/ExampleBuilder'])
   dependencies.findSessionPlans = async (_fetch, _base, roleId) => {
     if (roleId === 'Rabi') throw new Error('role read failed')
     return [plan('found')]
@@ -96,19 +97,19 @@ test('an incomplete bounded scan cannot claim a unique binding', async () => {
   await assert.rejects(findSessionPlans(fetcher, base, 'Rabi', session, new AbortController().signal), /page limit/)
 })
 
-test('the scan follows cursors, stops at two matches, and never reads the full catalog', async () => {
+test('the scan follows cursors, collects all matches, and never reads the full catalog', async () => {
   const seen = []
   const fetcher = async url => {
     seen.push(url)
     const cursor = new URL(url).searchParams.get('cursor') || ''
     if (cursor === '') return json({ code: 0, data: { items: [plan('other', 'someone-else')], nextCursor: 'c1' } })
     if (cursor === 'c1') return json({ code: 0, data: { items: [plan('p1')], nextCursor: 'c2' } })
-    return json({ code: 0, data: { items: [plan('p2'), plan('p3')], nextCursor: 'c3' } })
+    if (cursor === 'c2') return json({ code: 0, data: { items: [plan('p2'), plan('p3')], nextCursor: 'c3' } })
+    return json({ data: { items: [plan('p4')], nextCursor: '' } })
   }
   const matched = await findSessionPlans(fetcher, base, 'ExampleBuilder', session, new AbortController().signal)
-  assert.deepEqual(matched.map(item => item.id), ['p1', 'p2', 'p3'])
-  // c3 exists, but two matches already mean a conflict the caller reports.
-  assert.equal(seen.length, 3)
+  assert.deepEqual(matched.map(item => item.id), ['p1', 'p2', 'p3', 'p4'])
+  assert.equal(seen.length, 4)
   assert.ok(seen.every(url => url.includes('view=current')), 'never asks for the full catalog')
   assert.ok(seen.every(url => url.includes('detail=summary')), 'never asks for full plan bodies')
 })
@@ -121,14 +122,12 @@ test('unbound, unplanned, multi-bound and unrouted sessions each fail closed wit
   const noPlan = await readRabiPlanPanel(config, session, signal, manager({ binding: { roleId: 'Rabi' }, pages: [{ items: [plan('p9', 'other-session')] }] }))
   assert.equal(noPlan.reason, 'no-plan'); assert.equal(noPlan.url, '')
 
-  // Rabi treats several bound plans as a state to fix, so the panel reports them by name
-  // instead of choosing one.
   const many = await readRabiPlanPanel(config, session, signal, manager({
     binding: { roleId: 'Rabi' },
     pages: [{ items: [plan('p1', session, 'First'), plan('p2', session, 'Second')] }],
   }))
   assert.equal(many.reason, 'multiple-plans'); assert.equal(many.planCount, 2)
-  assert.deepEqual(many.planTitles, ['First', 'Second']); assert.equal(many.url, '')
+  assert.deepEqual(many.plans.map(p => p.planTitle), ['First', 'Second']); assert.equal(many.url, '')
 
   const unrouted = await readRabiPlanPanel(config, session, signal, manager({
     binding: { roleId: 'Nobody' }, pages: [{ items: [plan('p1')] }],

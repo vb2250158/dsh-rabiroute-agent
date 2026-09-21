@@ -8,11 +8,8 @@ import { rabiClientStyles } from './client-styles.js'
 /**
  * The plan panel is a thin frame, never a second plan renderer.
  *
- * Which plan a session is bound to, what that plan contains and how it looks all stay
- * Rabi's business: this module asks the Host's same-origin route which single plan the
- * session is bound to, then frames Rabi's own view of that plan. Nothing here reads a
- * plan, caches one, or draws one — a missing binding, an unresolved binding or an
- * unreachable Manager is reported as such rather than filled in from local state.
+ * The Host resolves bound summaries. Multiple bindings render a directory; only
+ * the selected plan mounts Rabi's detail page. Plan bodies remain owned by Rabi.
  */
 
 /** The tab type's kind, and the id its body registers under. */
@@ -66,12 +63,6 @@ export function rabiPlanTabDefinition(t) {
 function rabiPlanEmptyText(data, t) {
   if (data?.reason === 'unbound') return t('planUnbound')
   if (data?.reason === 'no-plan') return t('planNoPlan')
-  // More than one bound plan is Rabi's own error state; the panel reports it rather
-  // than choosing one, and names them so the fix is obvious.
-  if (data?.reason === 'multiple-plans') return t('planMultiplePlans', {
-    count: String(data.planCount ?? ''),
-    titles: (Array.isArray(data.planTitles) ? data.planTitles : []).join(' / '),
-  })
   if (data?.reason === 'unrouted') return t('planNoRoute', { roleId: String(data.roleId || '') })
   if (data?.reason === 'no-session') return t('planNoSession')
   return t('planUnreachable', { error: String(data?.message || data?.reason || 'unknown') })
@@ -84,6 +75,7 @@ function rabiPlanEmptyText(data, t) {
 export function RabiPlanBody({ sessionId, t }) {
   const [state, setState] = React.useState({ phase: 'loading' })
   const [attempt, setAttempt] = React.useState(0)
+  const [selection, setSelection] = React.useState(null)
   React.useEffect(() => {
     const controller = new AbortController()
     let active = true
@@ -106,8 +98,26 @@ export function RabiPlanBody({ sessionId, t }) {
     return React.createElement('div', { style: rabiClientStyles.planNotice }, t('loading'))
   }
   if (state.phase === 'ready') {
+    const plans = state.data.plans || [state.data]
+    const selected = plans.find(plan => selection?.sessionId === sessionId
+      && plan.roleId === selection.roleId && plan.planId === selection.planId) || plans[0]
     return React.createElement('div', { style: rabiClientStyles.planFrameBox },
-      React.createElement('iframe', { key: state.data.url, src: state.data.url, title: t('frameTitle'), style: rabiClientStyles.planFrame }))
+      plans.length > 1 ? React.createElement('nav', { 'aria-label': t('directory'), style: rabiClientStyles.planDirectory },
+        React.createElement('div', { style: rabiClientStyles.planActions },
+          React.createElement('strong', null, t('directoryCount', { count: plans.length })),
+          React.createElement(Button, { size: 'sm', variant: 'ghost', onClick: reload }, t('reload'))),
+        plans.map(plan => React.createElement(Button, {
+          key: JSON.stringify([plan.roleId, plan.planId]), size: 'sm', variant: 'ghost',
+          style: { ...rabiClientStyles.planDirectoryItem, background: plan === selected ? 'var(--dsw-alias-bg-layer-2)' : undefined },
+          'aria-current': plan === selected ? 'page' : undefined,
+          onClick: () => setSelection({ sessionId, roleId: plan.roleId, planId: plan.planId }),
+        }, React.createElement('span', { style: rabiClientStyles.planDirectoryTitle }, plan.planTitle || plan.planId),
+        plan.planStatus ? React.createElement('span', { style: { ...rabiClientStyles.planDirectoryStatus,
+          borderColor: plan.accent || 'var(--dsw-alias-border-l4)',
+          background: plan.accent ? 'color-mix(in srgb, ' + plan.accent + ' 18%, var(--dsw-alias-bg-layer-2))' : undefined,
+        } }, plan.planStatus) : null))) : null,
+      selected.url ? React.createElement('iframe', { key: selected.url, src: selected.url, title: t('frameTitle'), style: rabiClientStyles.planFrame })
+        : React.createElement('div', { style: rabiClientStyles.planNotice }, t('planNoRoute', { roleId: selected.roleId })))
   }
   return React.createElement('div', { style: rabiClientStyles.planNotice },
     React.createElement('div', null, rabiPlanEmptyText(state.data, t)),

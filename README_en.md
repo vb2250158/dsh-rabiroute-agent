@@ -2,7 +2,7 @@ English | [简体中文](README.md)
 
 # dsh-rabiroute-agent
 
-## Session plan-status badges (0.9.2)
+## Session plan-status badges (0.9.3)
 
 Grouped, flat and search session rows display the status of their bound Rabi plan. This plugin owns retrieval, caching and rendering. The host must expose the generic `sidebar.workspaces.session.badges` slot with the actual row's `sessionId`; older hosts without that slot retain other features without badges.
 
@@ -90,11 +90,11 @@ When a session is bound to a Rabi **persona**, the right Sidebar gains a "Rabi p
 
 **Icon source**: `RabiRoute/assets/rabiroute-icon.png`, downscaled to 64px and inlined into the client bundle (`src/plan-icon.js`, ~4 KB). It is not fetched at runtime: the DSH client has no dependable URL for Rabi's static assets, and a fetch would blink an empty button.
 
-**The panel shows exactly one plan — the one bound to that session.** The criterion is not DSH's: `plan.taskBinding.sessionId` (and the secretary binding) is the only session↔plan link in Rabi, and Rabi's own Stop path matches on it. When a session is bound to more than one plan, Rabi treats that as a state to settle (`multiple_plan_task_bindings`), so the panel **reports rather than chooses**, naming the plans instead of picking one.
+A single bound plan opens directly. Multiple bound plans display a clickable directory retaining each role and route identity. Labels and colors come from Rabi summaries. Only the selected detail page is mounted; switching entries does not repeat binding queries. Reload reads Rabi again.
 
 There is exactly one data path. The browser calls the same-origin read-only route `GET /rabiroute/plan-panel?sessionId=<DSH session id>`; the Host discovers Manager, verifies `/meta` identity, then reads — `GET /api/codex-hook/sessions/<session>` for the bound role, paged reads of that role's **current plan summaries** matched against Rabi's binding criterion (`view=current`, 200 summaries per page, at most 8 pages), and `GET /api/gateways?summary=1` to map the role to a route — before returning the page address. No plan body is read, the full catalog is never pulled (hundreds of plans, hundreds of kilobytes per page), no state is written, and no binding is cached.
 
-The panel therefore has exactly three outcomes: available (with a single-plan address), empty with a reason, or loading. The reasons are `unbound`, `no-plan`, `multiple-plans`, `unrouted` (the role owns no route), `no-session`, and `unreachable` (Manager is down). **An unreachable Manager never produces a cached or inferred plan**: when Rabi is absent, the panel reports the absence.
+The panel returns a single-plan address or a directory. Missing bindings, plans, routes and unavailable Manager remain explicit. Current summary pagination must complete within its budget; an incomplete scan fails instead of returning a truncated directory.
 
 The plan tab registers under this plugin's own id (`dsh-rabiroute-agent/plan`) as an independent page type and takes over no existing type. It contributes no guide entry either, so the Sidebar behaves exactly as before in sessions that hold no bound plan.
 

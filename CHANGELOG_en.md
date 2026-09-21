@@ -2,6 +2,10 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.9.3
+
+Multiple bound plans display a selectable directory, retain role routes and Rabi status colors, and mount only the selected detail page.
+
 ## 0.9.2 — 2026-09-21
 
 - Subscribe to Manager plan and status-catalog events, coalesce refreshes and calibrate on reconnect without healthy-state polling or color changes.
