@@ -2,11 +2,11 @@ English | [简体中文](README.md)
 
 # dsh-rabiroute-agent
 
-## Session plan-status badges (0.9.1)
+## Session plan-status badges (0.9.2)
 
 Grouped, flat and search session rows display the status of their bound Rabi plan. This plugin owns retrieval, caching and rendering. The host must expose the generic `sidebar.workspaces.session.badges` slot with the actual row's `sessionId`; older hosts without that slot retain other features without badges.
 
-`GET /rabiroute/plan-statuses` returns cached data immediately and refreshes in the background on demand. All sessions share one paginated summary scan, without plan bodies or blocking session navigation and Agent execution. Defaults are `planStatusCacheMs: 60000`, `planStatusTimeoutMs: 15000` and `planStatusMaxPages: 24`. Browser polling stops while hidden, without subscribers or after plugin disposal. Badges may take a few seconds to appear on first load.
+`GET /rabiroute/plan-statuses` returns cached data immediately and refreshes in the background on demand. All sessions share one paginated summary scan, without plan bodies or blocking session navigation and Agent execution. Defaults are `planStatusCacheMs: 60000`, `planStatusTimeoutMs: 15000` and `planStatusMaxPages: 24`. One same-origin `GET /rabiroute/plan-events` stream coalesces Manager plan and status-catalog notifications. Healthy snapshots are not polled. Reconnect calibrates the cache; hidden pages, no subscribers and disposal close the stream. Badges may take a few seconds to appear on first load.
 
 Conflicting bindings display “Multiple plans”. Failed refreshes retain the last complete snapshot with stale information only in the tooltip, preserving text and color during refresh. Labels and palettes come from summary presentation data; the Rabi accent is mixed with the active theme surface. Queries do not filter by view, covering paused and completed statuses. A page-budget failure never publishes a partial result. Persona discovery follows the current Manager route catalog.
 

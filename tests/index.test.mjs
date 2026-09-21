@@ -29,6 +29,7 @@ test('registers all tools and same-origin routes without contacting Host at regi
   // client's window. They are registered the way any feature plugin claims a route.
   assert.deepEqual(routes.map(route => [route.kind, route.path]), [
     ['exact', '/rabiroute/plan-statuses'],
+    ['exact', '/rabiroute/plan-events'],
     ['exact', '/rabiroute/plan-panel'],
     ['exact', '/rabiroute/locate-agent'],
     ['exact', '/rabiroute/speech'],
