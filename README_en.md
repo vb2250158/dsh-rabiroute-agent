@@ -2,6 +2,8 @@ English | [简体中文](README.md)
 
 # dsh-rabiroute-agent
 
+Badge refresh merges validated pages immediately and retains known bindings after later failures. Only a complete scan removes missing bindings. The background `planStatusTimeoutMs` budget defaults to 120 seconds; cache HTTP reads still return immediately.
+
 ## Session plan-status badges (0.9.3)
 
 Grouped, flat and search session rows display the status of their bound Rabi plan. This plugin owns retrieval, caching and rendering. The host must expose the generic `sidebar.workspaces.session.badges` slot with the actual row's `sessionId`; older hosts without that slot retain other features without badges.

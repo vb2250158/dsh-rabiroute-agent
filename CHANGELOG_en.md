@@ -2,6 +2,10 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.9.4
+
+Show completed summary pages during cold refresh; retain bindings on later failures and remove missing entries only after a complete scan. The configurable background deadline defaults to 120 seconds.
+
 ## 0.9.3
 
 Multiple bound plans display a selectable directory, retain role routes and Rabi status colors, and mount only the selected detail page.

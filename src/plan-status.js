@@ -44,6 +44,7 @@ export async function readPlanStatusIndex(config, signal, dependencies = {}) {
           else if (prior.planId !== plan.id || prior.roleId !== role) index[id] = { status: '', conflict: true }
         }
       }
+      dependencies.onProgress?.({ ...index })
       cursor = page.nextCursor || ''
       if (cursor && (typeof cursor !== 'string' || cursors.has(cursor))) throw new Error('Invalid plan cursor.')
       cursors.add(cursor)
@@ -57,7 +58,7 @@ export function createPlanStatusCache(config = {}, dependencies = {}) {
   const now = dependencies.now || Date.now
   const read = dependencies.readIndex || readPlanStatusIndex
   const ttl = config.planStatusCacheMs ?? 60000
-  const deadline = config.planStatusTimeoutMs ?? 15000
+  const deadline = config.planStatusTimeoutMs ?? 120000
   const lifetime = new AbortController()
   let snapshot = { entries: {}, updatedAt: 0 }
   let nextRefresh = 0
@@ -70,7 +71,12 @@ export function createPlanStatusCache(config = {}, dependencies = {}) {
     const timeout = new AbortController()
     const timer = setTimeout(() => timeout.abort(new Error('Plan status refresh timed out.')), deadline)
     const signal = AbortSignal.any([lifetime.signal, timeout.signal])
-    pending = Promise.resolve().then(() => read(config, signal, dependencies)).then(entries => {
+    pending = Promise.resolve().then(() => read(config, signal, { ...dependencies, onProgress: entries => {
+      if (signal.aborted || startedRevision !== revision) return
+      // Incomplete pages may add/update bindings, but cannot remove unseen bindings.
+      snapshot = { ...snapshot, entries: { ...snapshot.entries, ...entries } }
+      failed = true
+    } })).then(entries => {
       signal.throwIfAborted()
       snapshot = { entries, updatedAt: now() }
       failed = false

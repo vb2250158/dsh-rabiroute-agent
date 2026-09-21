@@ -147,3 +147,37 @@ test('packaged badge uses the row identity and labels stale/conflicting snapshot
   assert.equal(render('session-a', { entries: { 'session-a': { conflict: true } } }).children[0].children[0].children[0], 'conflict')
   cleanups.reverse().forEach(dispose => dispose?.())
 })
+
+
+test('cold refresh exposes completed pages while slower pages remain pending', async () => {
+  let finish, progress
+  const cache = createPlanStatusCache({}, { readIndex: (_config, _signal, dependencies) => {
+    progress = dependencies.onProgress
+    return new Promise(resolve => { finish = resolve })
+  } })
+  cache.get(); await tick()
+  progress({ 'session-a': { status: '分析中' } })
+  assert.equal(cache.get().entries['session-a'].status, '分析中')
+  assert.equal(cache.get().pending, true)
+  assert.equal(cache.get().stale, true)
+  finish({ 'session-a': { status: '完成' }, 'session-b': { status: '执行中' } })
+  await tick()
+  assert.equal(cache.get().stale, false)
+  assert.equal(cache.get().entries['session-b'].status, '执行中')
+  await cache.dispose()
+})
+
+test('a later page failure retains earlier pages without deleting prior bindings', async () => {
+  let now = 1000, calls = 0
+  const cache = createPlanStatusCache({ planStatusCacheMs: 100 }, { now: () => now,
+    readIndex: async (_config, _signal, { onProgress }) => {
+      if (++calls === 1) return { 'session-old': { status: '完成' } }
+      onProgress({ 'session-new': { status: '执行中' } })
+      throw new Error('later page failed')
+    } })
+  cache.get(); await tick(); now += 101; cache.get(); await tick()
+  assert.equal(cache.get().entries['session-old'].status, '完成')
+  assert.equal(cache.get().entries['session-new'].status, '执行中')
+  assert.equal(cache.get().stale, true)
+  await cache.dispose()
+})
