@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1
+
+- Ignore empty workspace plan filters; fit the dialog and retain the page during event refresh.
+
 ## 0.11.0
 
 - Add workspace plan discovery with routed-persona and live DSH-session scope, keyword/status/tag filters, sorting, pagination, event refresh, lazy details and bound-session selection. Requires the Rabi read-only plans/query endpoint and host workspace.actions slot.

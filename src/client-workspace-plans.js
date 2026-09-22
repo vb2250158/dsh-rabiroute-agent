@@ -34,9 +34,10 @@ export function RabiWorkspacePlanDialog({ cwd, t, openPlan, openSession, onClose
   React.useEffect(() => {
     const stream = new EventSource('/rabiroute/plan-events')
     let timer
-    const changed = () => { clearTimeout(timer); timer = setTimeout(() => { setCursors(['']); setRevision(n => n + 1) }, 200) }
+    const changed = () => { clearTimeout(timer); timer = setTimeout(() => { setRevision(n => n + 1) }, 200) }
     stream.addEventListener('changed', changed)
-    stream.addEventListener('open', changed)
+    let connected = false
+    stream.addEventListener('open', () => { if (connected) changed(); connected = true })
     return () => { clearTimeout(timer); stream.close() }
   }, [cwd])
   React.useEffect(() => {
@@ -53,8 +54,9 @@ export function RabiWorkspacePlanDialog({ cwd, t, openPlan, openSession, onClose
   const run = action => { try { action(); onClose() } catch (error) { setState(old => ({ ...old, error: error.message })) } }
   const menu = (key, options) => React.createElement(WorkspacePlanMenu, { key, label: t(key), options, value: filters[key], onChange: value => updateFilter(key, value) })
   const data = state.data
-  return React.createElement(Modal, { open: true, title: t('title'), closeLabel: t('close'), onClose },
-    React.createElement('div', { style: { width: 'min(660px, 75vw)', display: 'grid', gap: 10 }, 'data-rabi-workspace-plans': cwd },
+  return React.createElement(Modal, { open: true, className: 'rabi-workspace-plan-dialog', title: t('title'), closeLabel: t('close'), onClose },
+    React.createElement('div', { style: { width: '100%', minWidth: 0, display: 'grid', gap: 10 }, 'data-rabi-workspace-plans': cwd },
+      React.createElement('style', null, '.rabi-workspace-plan-dialog{width:min(740px,calc(100vw - 48px))}.rabi-workspace-plan-dialog button{max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left;height:auto;min-height:28px}'),
       React.createElement(Input, { value: query, placeholder: t('search'), 'aria-label': t('search'), onChange: event => { setQuery(event.target.value); setCursors(['']) } }),
       React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
         menu('view', ['', 'current', 'plans', 'archived'].map(id => ({ id, label: t(id || 'all') }))),

@@ -38,3 +38,12 @@ test('failed discovery is retryable and cannot become a false empty result', asy
  await assert.rejects(read(params), /503/)
  assert.equal((await read(params)).matched, true)
 })
+test('empty UI filter values do not filter out every plan', async () => {
+ const read = createWorkspacePlans({}, async () => sessions, { base: async () => 'http://localhost:1234', request: async (path, init) => {
+  if (path === '/api/gateways') return { ok: true, body: JSON.stringify(routes) }
+  const query = JSON.parse(init.body)
+  assert.deepEqual(query.statuses, []); assert.deepEqual(query.tags, [])
+  return { ok: true, body: JSON.stringify({ data: { items: [plan(path, 1)], total: 1, facets: { statuses: [], tags: [] } } }) }
+ } })
+ assert.equal((await read(new URLSearchParams({ cwd, status: '', tag: '' }))).items.length, 2)
+})
