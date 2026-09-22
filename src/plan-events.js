@@ -2,7 +2,7 @@ import { resolveManagerBase } from './connection.js'
 
 export const PLAN_EVENTS_PATH = '/rabiroute/plan-events'
 
-/** Each visible browser owns a cancellable Manager stream; payloads remain server-side. */
+/** Each visible browser owns a cancellable Manager stream; only plan identity fields cross to clients. */
 export function createPlanEventRelay(config, cache, dependencies = {}) {
   const clients = new Set()
   return {
@@ -30,7 +30,14 @@ export function createPlanEventRelay(config, cache, dependencies = {}) {
             const type = /^event: ?(.+)$/m.exec(frame)?.[1]
             const changed = ['ready', 'plan_changed', 'plan_status_catalog_changed'].includes(type)
             if (changed) cache.invalidate()
-            if (!response.write(changed ? 'event: changed\ndata: {}\n\n' : ': keepalive\n\n')) throw new Error('Slow event subscriber.')
+            let payload = { type }
+            if (changed && type !== 'ready') {
+              try {
+                const data = JSON.parse(frame.split('\n').filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n'))
+                for (const key of ['roleId', 'planId', 'statusKey']) if (typeof data[key] === 'string') payload[key] = data[key]
+              } catch { payload = { type: 'ready' } } // Unknown frames require reconciliation, never guessed identities.
+            }
+            if (!response.write(changed ? 'event: changed\ndata: ' + JSON.stringify(payload) + '\n\n' : ': keepalive\n\n')) throw new Error('Slow event subscriber.')
           }
         }
       } catch {

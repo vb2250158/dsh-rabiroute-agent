@@ -45,7 +45,7 @@ test('relay filters fragmented SSE, invalidates ready and changes, and cancels u
     fetch: async (_url, options) => {
       signal = options.signal
       return new Response(new ReadableStream({ start(controller) {
-        for (const chunk of ['event: rea', 'dy\ndata: {}\n\n', 'event: unrelated\ndata: {}\n\n', 'event: plan_changed\ndata: {}\n\n']) controller.enqueue(new TextEncoder().encode(chunk))
+        for (const chunk of ['event: rea', 'dy\ndata: {}\n\n', 'event: unrelated\ndata: {}\n\n', 'event: plan_changed\ndata: {"roleId":"role","planId":"plan","privateBody":"hidden"}\n\n']) controller.enqueue(new TextEncoder().encode(chunk))
         controller.close()
       } }), { headers: { 'content-type': 'text/event-stream' } })
     },
@@ -53,6 +53,8 @@ test('relay filters fragmented SSE, invalidates ready and changes, and cancels u
   const response = Object.assign(new EventEmitter(), { output: '', writeHead() { this.headersSent = true }, write(text) { this.output += text; return true }, end() {} })
   await relay.handler({ method: 'GET' }, response)
   assert.equal(invalidations, 2)
+  assert.match(response.output, /"roleId":"role","planId":"plan"/)
+  assert.doesNotMatch(response.output, /privateBody|hidden/)
   assert.equal(response.output.match(/event: changed/g).length, 2)
   assert.equal(signal.aborted, true)
   relay.dispose()

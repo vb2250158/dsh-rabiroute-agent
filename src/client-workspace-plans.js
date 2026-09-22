@@ -1,3 +1,4 @@
+import { createWorkspacePlanStore } from './client-workspace-plan-store.js'
 import * as React from 'react'
 import { Button, Input, Menu, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { RABI_PLAN_ICON_DATA_URI } from './plan-icon.js'
@@ -23,39 +24,15 @@ function WorkspacePlanMenu({ label, options, value, onChange }) {
     anchor: React.createElement(Button, { size: 'sm', variant: 'ghost', 'aria-label': label, onClick: () => setOpen(!open) }, options.find(item => item.id === value)?.label || label) })
 }
 
-/** The workspace dialog owns one cancellable page read and one event subscription while open. */
-export function RabiWorkspacePlanDialog({ cwd, t, openSession, onClose }) {
+/** The dialog subscribes to a cached page; its plugin owns the shared event stream. */
+export function RabiWorkspacePlanDialog({ cwd, t, store, openSession, onClose }) {
   const [query, setQuery] = React.useState('')
   const [filters, setFilters] = React.useState({ status: '', tag: '', sort: 'status', view: '' })
   const [cursors, setCursors] = React.useState([''])
-  const [revision, setRevision] = React.useState(0)
-  const [state, setState] = React.useState({ loading: true, data: null, error: '' })
+  const params = { query, ...filters, cursor: cursors.at(-1) }
+  const [state, setState] = React.useState(() => store.snapshot(cwd, params))
   const [selection, setSelection] = React.useState(null)
-  const reading = React.useRef(false)
-  const dirty = React.useRef(false)
-  React.useEffect(() => {
-    const stream = new EventSource('/rabiroute/plan-events')
-    let timer
-    const changed = () => { clearTimeout(timer); timer = setTimeout(() => { if (reading.current) dirty.current = true; else setRevision(n => n + 1) }, 200) }
-    stream.addEventListener('changed', changed)
-    let connected = false
-    stream.addEventListener('open', () => { if (connected) changed(); connected = true })
-    return () => { clearTimeout(timer); stream.close() }
-  }, [cwd])
-  React.useEffect(() => {
-    const controller = new AbortController()
-    reading.current = true
-    dirty.current = false
-    let refreshTimer
-    setState(old => ({ ...old, loading: true, error: '' }))
-    const timer = setTimeout(() => {
-      workspacePlanRead(cwd, { query, ...filters, cursor: cursors.at(-1) }, controller.signal)
-        .then(data => { if (!controller.signal.aborted) setState({ loading: false, data, error: '' }) })
-        .catch(error => { if (!controller.signal.aborted) setState(old => ({ ...old, loading: false, error: error.message })) })
-        .finally(() => { if (controller.signal.aborted) return; reading.current = false; if (dirty.current) refreshTimer = setTimeout(() => setRevision(n => n + 1), 200) })
-    }, 250)
-    return () => { clearTimeout(timer); clearTimeout(refreshTimer); controller.abort(); reading.current = false }
-  }, [cwd, query, filters, cursors, revision])
+  React.useEffect(() => store.watch(cwd, params, setState), [store, cwd, query, filters, cursors])
   const updateFilter = (key, value) => { setFilters(old => ({ ...old, [key]: value })); setCursors(['']) }
   const run = action => { try { action(); onClose() } catch (error) { setState(old => ({ ...old, error: error.message })) } }
   const menu = (key, options) => React.createElement(WorkspacePlanMenu, { key, label: t(key), options, value: filters[key], onChange: value => updateFilter(key, value) })
@@ -69,7 +46,7 @@ export function RabiWorkspacePlanDialog({ cwd, t, openSession, onClose }) {
         menu('status', [{ id: '', label: t('status') }, ...(data?.facets.statuses || []).map(item => ({ id: item.status, label: item.label }))]),
         menu('tag', [{ id: '', label: t('tag') }, ...(data?.facets.tags || []).map(item => ({ id: item.tag, label: item.tag }))]),
         menu('sort', ['status', 'updated', 'importance', 'urgency'].map(id => ({ id, label: t(id) })))),
-      state.error ? React.createElement('div', { role: 'alert' }, t('error') + ': ' + state.error, React.createElement(Button, { size: 'sm', onClick: () => setRevision(n => n + 1) }, t('retry'))) : null,
+      state.error ? React.createElement('div', { role: 'alert' }, t('error') + ': ' + state.error, React.createElement(Button, { size: 'sm', onClick: () => store.refresh(cwd, params) }, t('retry'))) : null,
       state.loading ? React.createElement('div', { role: 'status' }, t('loading')) : null,
       React.createElement('div', { style: { maxHeight: '52vh', overflowY: 'auto', display: 'grid', gap: 8 }, 'aria-busy': state.loading },
         ...(data?.items || []).map(plan => React.createElement('article', { key: plan.roleId + '/' + plan.id, 'data-rabi-workspace-plan': plan.id,
@@ -88,7 +65,7 @@ export function RabiWorkspacePlanDialog({ cwd, t, openSession, onClose }) {
         ...selection.sessions.map(session => React.createElement(Button, { key: session.id, onClick: () => run(() => openSession(session.id)) }, session.title))) : null))
 }
 
-export function RabiWorkspacePlanLauncher({ cwd, t, openSession }) {
+export function RabiWorkspacePlanLauncher({ cwd, t, store, openSession }) {
   const [matched, setMatched] = React.useState(false)
   const [open, setOpen] = React.useState(false)
   React.useEffect(() => {
@@ -101,14 +78,16 @@ export function RabiWorkspacePlanLauncher({ cwd, t, openSession }) {
   return React.createElement('span', { onClick: event => event.stopPropagation(), 'data-rabi-workspace-launcher': cwd },
     React.createElement(Button, { size: 'sm', variant: 'ghost', 'aria-label': t('title'), title: t('title'), onClick: () => setOpen(true),
       icon: React.createElement('img', { src: RABI_PLAN_ICON_DATA_URI, alt: '', width: 16, height: 16 }) }),
-    open ? React.createElement(RabiWorkspacePlanDialog, { cwd, t, openSession, onClose: () => setOpen(false) }) : null)
+    open ? React.createElement(RabiWorkspacePlanDialog, { cwd, t, store, openSession, onClose: () => setOpen(false) }) : null)
 }
 
 /** Public workspace action and page tab; no DOM lookup or durable session changes. */
 export function applyWorkspacePlans(ctx) {
   const ns = 'rabi-workspace-plans'
+  const store = createWorkspacePlanStore()
+  ctx.effect(() => () => store.dispose())
   ctx.effect(() => ctx.locale.register(ns, workspacePlanLocales))
   ctx.slots.inject('sidebar.workspaces.workspace.actions', () => ctx.slots.register({ name: 'sidebar.workspaces.workspace.actions', id: 'rabi-workspace-plans', order: 20, locale: ns,
-    inject: () => ({ openSession: id => ctx.uiWorkspace.openSession(id) }),
+    inject: () => ({ store, openSession: id => ctx.uiWorkspace.openSession(id) }),
   }, RabiWorkspacePlanLauncher))
 }

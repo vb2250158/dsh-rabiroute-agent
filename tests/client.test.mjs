@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
 
-const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'plan-icon', 'client-plan', 'client-plan-status-store', 'client-plan-status', 'client-workspace-plans', 'client-speech', 'client-question', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
+const sources = await Promise.all(['message-envelope', 'client-locales', 'client-plan-locales', 'client-styles', 'plan-icon', 'client-plan', 'client-plan-status-store', 'client-plan-status', 'client-workspace-plan-store', 'client-workspace-plans', 'client-speech', 'client-question', 'client'].map(name => readFile(new URL(`../src/${name}.js`, import.meta.url), 'utf8')))
 const code = sources.map(source => source.replace(/^import [^\r\n]*\r?\n/gmu, '').replace(/^export /gmu, '')).join('\n')
 const raw = '[消息源]\r\n类型：Agent｜处理端：DSH\r\n会话：Test sender\r\n会话 ID：exact-id\r\n投递时间：2026-01-01\r\n\r\n[消息内容]\r\n  body @reference /skill\n\n[回传参数]\n{"deliveryId":"test","responsePolicy":"none"}'
 const systemRaw = ['[消息源]', '消息源类型：系统', '事件类型：agent_request_reminder', '事件名称：Agent 回复提醒', '事件 ID：ev-1', '消息包发送时间：2026/9/16 22:15:17', '投递 ID：d-1', '', '[消息内容]', 'MARKER_BODY_TEXT'].join('\n')

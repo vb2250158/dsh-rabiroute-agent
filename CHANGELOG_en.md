@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.0
+
+- Cache workspace plan pages and retain plan event identities. Transfer changed rows and necessary page metadata instead of replacing whole pages or refetching unchanged reopened pages.
+- Coalesce events, preserve unchanged rows, bound cached pages, and reconcile reconnects, insertion, deletion, and ordering changes.
+
 ## 0.11.3
 
 - Workspace plans open only their bound sessions. Remove independent plan navigation to keep details aligned with the current session.

@@ -1,8 +1,8 @@
 English | [简体中文](README.md)
 
-v0.11.3
+v0.12.0
 
-A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles are display-only. Opening a bound session loads its associated plan through the session panel; multiple bindings offer a session choice. Discovery scans no plans; closing cancels reads and event subscriptions. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.
+A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles are display-only. Opening a bound session loads its associated plan through the session panel; multiple bindings offer a session choice. Discovery scans no plans. Loaded pages are cached for the plugin lifetime; closing cancels the active read but retains one lightweight event subscription. Reopening an unchanged page makes no query. Role-scoped events reconcile changed rows only; inactive pages reconcile on reopening. Server-owned order, counts, and facets remain authoritative. Reconnect reconciles cached state; failures retain rows with an error. Configure `workspacePlanCachePages` (32) and `workspacePlanEventDelayMs` (200) to bound retained pages and coalesce events. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.
 
 Plan-bound sidebar titles omit up to two leading `[category]` tags. Durable titles, search indexes, and hover details remain intact. Titles share the badge cache and event subscription without additional requests. Requires the host `sidebar.workspaces.session.title` presentation slot.
 
