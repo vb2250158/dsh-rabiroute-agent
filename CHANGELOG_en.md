@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.2
+
+- Include the current DSH session in embedded plan URLs so Rabi can hide guidance, self bindings and empty Agent sections.
+
 ## 0.10.1
 
 - Keep the multi-plan execution guard active until every pending attachment is explicitly assigned, even after a plan has been selected.

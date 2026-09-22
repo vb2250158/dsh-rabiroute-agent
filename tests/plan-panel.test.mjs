@@ -42,7 +42,7 @@ test('a bound plan resolves to its single-plan Rabi address', async () => {
     available: true, reason: 'bound', roleId: 'ExampleBuilder', routeId: 'ExampleBuilder-main',
     planId: 'plan-abc', planTitle: '[ExampleProject][功能] 游戏界面快捷键反馈', planStatus: '进行中',
     managerBaseUrl: base,
-    url: base + '/#/routes/ExampleBuilder-main/plan/plan-abc',
+    url: base + '/#/routes/ExampleBuilder-main/plan/plan-abc?embedAgent=dsh&embedSession=session-1',
   })
 })
 
@@ -72,7 +72,7 @@ test('a task-bound session without a Hook binding resolves through routed roles'
   const result = await readRabiPlanPanel(config, session, new AbortController().signal, dependencies)
   assert.equal(result.available, true)
   assert.equal(result.roleId, 'ExampleBuilder')
-  assert.equal(result.url, base + '/#/routes/ExampleBuilder-main/plan/task-only')
+  assert.equal(result.url, base + '/#/routes/ExampleBuilder-main/plan/task-only?embedAgent=dsh&embedSession=session-1')
   assert.equal(calls.filter(value => value === 'role:ExampleBuilder').length, 1)
 })
 
@@ -83,7 +83,7 @@ test('cross-role task bindings retain their own routes and failed role reads sta
   assert.equal(result.reason, 'multiple-plans')
   assert.equal(result.planCount, 2)
   assert.equal(result.available, true)
-  assert.deepEqual(result.plans.map(p => p.url), [base + '/#/routes/main/plan/Rabi', base + '/#/routes/ExampleBuilder-main/plan/ExampleBuilder'])
+  assert.deepEqual(result.plans.map(p => p.url), [base + '/#/routes/main/plan/Rabi?embedAgent=dsh&embedSession=session-1', base + '/#/routes/ExampleBuilder-main/plan/ExampleBuilder?embedAgent=dsh&embedSession=session-1'])
   dependencies.findSessionPlans = async (_fetch, _base, roleId) => {
     if (roleId === 'Rabi') throw new Error('role read failed')
     return [plan('found')]
@@ -160,7 +160,7 @@ test('the route rejects non-GET and returns the panel state it resolved', async 
   assert.equal((await call(handler, PLAN_PANEL_PATH, 'POST')).statusCode, 405)
   const ok = await call(handler, PLAN_PANEL_PATH + '?sessionId=' + session)
   assert.equal(ok.statusCode, 200)
-  assert.equal(ok.body.data.url, base + '/#/routes/main/plan/p1')
+  assert.equal(ok.body.data.url, base + '/#/routes/main/plan/p1?embedAgent=dsh&embedSession=session-1')
 })
 
 test('addresses are encoded and route matching is exact role equality', () => {
@@ -184,3 +184,10 @@ function call(handler, url, method = 'GET') {
     Promise.resolve(handler(request, response)).catch(reject)
   })
 }
+
+test("embedded URL carries the exact session identity safely", () => {
+  const url = rabiPlanUrl(base, "main", "p1", "session-a&b/1");
+  const query = new URLSearchParams(url.split("?")[1]);
+  assert.equal(query.get("embedAgent"), "dsh");
+  assert.equal(query.get("embedSession"), "session-a&b/1");
+});

@@ -26,8 +26,9 @@ const PLAN_PAGE_LIMIT = 200
 const MAX_PLAN_PAGES = 8
 
 /** Where Rabi publishes one plan of one route. */
-export function rabiPlanUrl(managerBaseUrl, routeId, planId) {
-  return managerBaseUrl + '/#/routes/' + encodeURIComponent(routeId) + '/plan/' + encodeURIComponent(planId)
+export function rabiPlanUrl(managerBaseUrl, routeId, planId, sessionId = '') {
+  const query = sessionId ? '?' + new URLSearchParams({ embedAgent: 'dsh', embedSession: sessionId }) : ''
+  return managerBaseUrl + '/#/routes/' + encodeURIComponent(routeId) + '/plan/' + encodeURIComponent(planId) + query
 }
 
 /** One page of current plans for a role. */
@@ -139,7 +140,7 @@ export async function readRabiPlanPanel(config, sessionId, signal, dependencies 
       return { roleId: owner, routeId, planId, planTitle: String(plan.title || planId),
         planStatus: String(plan.presentation?.label || plan.status || ''),
         accent: /^#[0-9a-f]{6}$/i.test(accent || '') ? accent : '',
-        url: routeId ? rabiPlanUrl(base, routeId, planId) : '' }
+        url: routeId ? rabiPlanUrl(base, routeId, planId, id) : '' }
     })
     return { available: true, reason: 'multiple-plans', roleId, managerBaseUrl: base,
       planCount: plans.length, plans, url: '' }
@@ -159,7 +160,7 @@ export async function readRabiPlanPanel(config, sessionId, signal, dependencies 
     planTitle: String(plan?.title || ''),
     planStatus: String(plan?.status || ''),
     managerBaseUrl: base,
-    url: rabiPlanUrl(base, routeId, planId),
+    url: rabiPlanUrl(base, routeId, planId, id),
   }
 }
 
