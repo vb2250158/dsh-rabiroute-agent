@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.5
+
+- Add bound-plan context and detail tool arguments using the shared summary cache, with multiple plans, stale indicators and unbinding cleanup.
+
 English | [简体中文](CHANGELOG.md)
 
 ## 0.9.4

@@ -1,5 +1,11 @@
 English | [简体中文](README.md)
 
+## Plan context (0.9.5)
+
+Official `systemPrompt.context` includes the session's bound plan summaries when user input reaches the model: title, status, current step, progress, update time, and executable `rabiroute_manager_api` detail arguments. Multiple plans keep their own identities. User text is unchanged; logged context snapshots supersede older values, and unbinding clears the current context.
+
+Context assembly shares the sidebar's event-invalidated TTL cache and never waits for Manager or fetches plan bodies. Cold or failed reads are explicitly unavailable or stale. `planContextEnabled` defaults to true, `planContextMaxPlans` to 16, and `planContextTextLimit` to 300. Rabi remains authoritative; this plugin only adapts DSH context assembly and durable logging.
+
 # dsh-rabiroute-agent
 
 Badge refresh merges validated pages immediately and retains known bindings after later failures. Only a complete scan removes missing bindings. The background `planStatusTimeoutMs` budget defaults to 120 seconds; cache HTTP reads still return immediately.

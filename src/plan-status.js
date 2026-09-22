@@ -39,9 +39,15 @@ export async function readPlanStatusIndex(config, signal, dependencies = {}) {
           const entry = { status: plan.status, planId: plan.id, roleId: role,
             label: typeof presentation?.label === 'string' ? presentation.label : plan.status,
             ...(validPalette ? { palette: { accent: palette.accent, background: palette.background, foreground: palette.foreground } } : {}) }
-          const prior = index[id]
-          if (!prior) index[id] = entry
-          else if (prior.planId !== plan.id || prior.roleId !== role) index[id] = { status: '', conflict: true }
+          const summary = { planId: plan.id, roleId: role, title: plan.title, status: plan.status,
+            label: entry.label, markerStatus: plan.markerStatus, activationStatus: plan.activationStatus,
+            currentStep: plan.currentStep, stepCount: plan.stepCount, completedStepCount: plan.completedStepCount,
+            updatedAt: plan.updatedAt }
+          const plans = [...(index[id]?.plans || [])]
+          const existing = plans.findIndex(value => value.planId === plan.id && value.roleId === role)
+          if (existing < 0) plans.push(summary)
+          else plans[existing] = summary
+          index[id] = plans.length === 1 ? { ...entry, plans } : { status: '', conflict: true, plans }
         }
       }
       dependencies.onProgress?.({ ...index })
@@ -78,6 +84,7 @@ export function createPlanStatusCache(config = {}, dependencies = {}) {
       failed = true
     } })).then(entries => {
       signal.throwIfAborted()
+      if (startedRevision !== revision) return
       snapshot = { entries, updatedAt: now() }
       failed = false
     }).catch(() => {
@@ -93,6 +100,7 @@ export function createPlanStatusCache(config = {}, dependencies = {}) {
   return {
     invalidate() {
       revision++
+      failed = true
       nextRefresh = 0
     },
     get() {

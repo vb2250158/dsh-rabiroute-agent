@@ -8,7 +8,7 @@ test('Rabi enhancement registers the provider lazily and honors its disable swit
   const controller = new AbortController()
   t.after(() => controller.abort())
   const providers = []
-  const ctx = { skills: { registerProvider: create => providers.push(create({ signal: controller.signal, invalidate() {} })) },
+  const ctx = { effect(fn) { const dispose = fn(); if (dispose) t.after(dispose) }, skills: { registerProvider: create => providers.push(create({ signal: controller.signal, invalidate() {} })) },
     inject(names, fn) { if (names.every(name => name in ctx)) fn(ctx) } }
   apply(ctx)
   assert.equal(providers[0].name, 'rabiroute-workspace')

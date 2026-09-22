@@ -1,5 +1,13 @@
 # dsh-rabiroute-agent
 
+## 计划上下文（0.9.5）
+
+用户消息进入模型时，通过官方 `systemPrompt.context` 附带当前会话绑定计划的摘要：标题、状态、当前步骤、完成进度、更新时间，以及可直接调用的 `rabiroute_manager_api` 详情参数。多计划保留各自身份。用户原文不改写；上下文快照写入会话日志，新快照标明取代旧值，解绑后清除。
+
+与侧栏共用事件失效及 TTL 缓存，发送和模型装配不等待网络、不读取计划正文。冷缓存或刷新失败会注明尚未就绪或过期，不能据此判定未绑定或把旧状态当成最新。`planContextEnabled` 默认 true；`planContextMaxPlans` 默认 16，`planContextTextLimit` 默认 300，限制单次摘要体积。
+
+业务真源仍是 Rabi；本插件仅负责 DSH 模型上下文的装配和持久化接入。
+
 [English](README_en.md) | 简体中文
 
 把 DSH 会话接入 RabiRoute 的受管任务、消息、计划和记忆接口。业务合同与 Codex 对齐，实际会话、工具和权限仍由 DSH 持有，不另启 Runtime、不改投 Codex。

@@ -1,3 +1,4 @@
+import { installPlanContext } from './plan-context.js'
 import { createPlanStatusCache, createPlanStatusHandler, PLAN_STATUS_PATH } from './plan-status.js'
 import { createPlanEventRelay, PLAN_EVENTS_PATH } from './plan-events.js'
 import { createWorkspaceSkillProvider } from './workspace-skills.js'
@@ -15,6 +16,9 @@ export const Config = z.object({
   requestTimeoutMs: z.number().default(30000),
   workspaceSkillsEnabled: z.boolean().default(true),
   workspaceSkillCacheMs: z.number().min(1).max(2147483647).step(1).default(30000),
+  planContextEnabled: z.boolean().default(true),
+  planContextMaxPlans: z.number().min(1).max(100).step(1).default(16),
+  planContextTextLimit: z.number().min(80).max(2000).step(1).default(300),
   planStatusCacheMs: z.number().min(10000).max(3600000).step(1).default(60000),
   planStatusTimeoutMs: z.number().min(1000).max(300000).step(1).default(120000),
   planStatusMaxPages: z.number().min(1).max(100).step(1).default(24),
@@ -22,7 +26,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.9.4'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.9.5'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -148,11 +152,12 @@ function promptText(config) {
 export function apply(ctx, config = {}) {
   const status = createRabiRouteAgentRuntimeStatus(config)
   const resolved = { ...config, managerBaseUrl: status.managerBaseUrl, enforceAgentCommunication: status.enforceAgentCommunication, requestTimeoutMs: status.requestTimeoutMs }
+  const statusCache = createPlanStatusCache(resolved)
+  ctx.effect(() => () => statusCache.dispose())
+  if (resolved.planContextEnabled !== false) ctx.inject(['systemPrompt'], runtime => installPlanContext(runtime, statusCache, resolved))
   // Rabi has no DSH CORS policy. Optional same-origin routes adapt its plan,
   // window navigation, TTS and ASR APIs for the browser.
   ctx.inject(['webServer'], web => {
-    const statusCache = createPlanStatusCache(resolved)
-    web.effect(() => () => statusCache.dispose())
     web.webServer.register({ kind: 'exact', path: PLAN_STATUS_PATH, handler: createPlanStatusHandler(statusCache) })
     const eventRelay = createPlanEventRelay(resolved, statusCache)
     web.effect(() => () => eventRelay.dispose())

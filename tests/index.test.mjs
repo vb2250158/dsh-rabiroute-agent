@@ -22,7 +22,7 @@ test('registers all tools and same-origin routes without contacting Host at regi
   const list = [], sections = [], routes = []
   const webServer = { register: route => { routes.push(route); return () => {} } }
   const ctx = { tools: { register: t => list.push(t) }, systemPrompt: { section: s => sections.push(s) }, webServer, effect: fn => fn(), inject: (names, fn) => { if (names.every(name => name in ctx)) return fn(ctx) }, on() {} }
-  assert.equal(apply(ctx).active, true)
+  assert.equal(apply(ctx, { planContextEnabled: false }).active, true)
   assert.equal(list.length, 3)
   // Both routes exist for the same reason: the browser cannot reach Rabi itself. One
   // answers which plan a session is bound to, the other asks Rabi to raise another
