@@ -8,6 +8,10 @@ Context assembly shares the sidebar's event-invalidated TTL cache and never wait
 
 # dsh-rabiroute-agent
 
+## Plan resource archiving (0.10.0)
+
+User images and files are archived to a single bound plan automatically. With multiple plans, the Agent explicitly assigns them through a dedicated tool. Changed files are recorded on the selected step, distinguishing tool observations from Agent reports. Background archival survives restart without blocking message submission. See [plan resource archiving](PLAN-RESOURCES_en.md).
+
 Badge refresh merges validated pages immediately and retains known bindings after later failures. Only a complete scan removes missing bindings. The background `planStatusTimeoutMs` budget defaults to 120 seconds; cache HTTP reads still return immediately.
 
 ## Session plan-status badges (0.9.3)

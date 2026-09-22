@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.9.5",
+  "version": "0.10.0",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -20,7 +20,9 @@
     "presets",
     "cordis.patch.yml",
     "LICENSE",
-    "AUTO-VOICE.md"
+    "AUTO-VOICE.md",
+    "PLAN-RESOURCES.md",
+    "PLAN-RESOURCES_en.md"
   ],
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1"

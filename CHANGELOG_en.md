@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0
+
+- Add background conversation attachment archiving, explicit multi-plan attribution and step file records. Retain pending items and confirm writes with strong ETags, idempotency keys and authoritative readback.
+
 ## 0.9.5
 
 - Add bound-plan context and detail tool arguments using the shared summary cache, with multiple plans, stale indicators and unbinding cleanup.
