@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0
+
+- Add workspace plan discovery with routed-persona and live DSH-session scope, keyword/status/tag filters, sorting, pagination, event refresh, lazy details and bound-session selection. Requires the Rabi read-only plans/query endpoint and host workspace.actions slot.
+
 ## 0.10.3
 
 - Hide up to two leading category tags in plan-bound sidebar titles without changing durable titles or status colors. Reuses the event cache and requires the host session.title slot.

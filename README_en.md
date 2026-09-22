@@ -1,6 +1,8 @@
 English | [简体中文](README.md)
 
-v0.10.3
+v0.11.0
+
+A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles open right-side details; multiple bound sessions offer a selection. Discovery scans no plans; closing cancels reads and event subscriptions. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.
 
 Plan-bound sidebar titles omit up to two leading `[category]` tags. Durable titles, search indexes, and hover details remain intact. Titles share the badge cache and event subscription without additional requests. Requires the host `sidebar.workspaces.session.title` presentation slot.
 
