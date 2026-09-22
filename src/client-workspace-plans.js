@@ -31,10 +31,12 @@ export function RabiWorkspacePlanDialog({ cwd, t, openPlan, openSession, onClose
   const [revision, setRevision] = React.useState(0)
   const [state, setState] = React.useState({ loading: true, data: null, error: '' })
   const [selection, setSelection] = React.useState(null)
+  const reading = React.useRef(false)
+  const dirty = React.useRef(false)
   React.useEffect(() => {
     const stream = new EventSource('/rabiroute/plan-events')
     let timer
-    const changed = () => { clearTimeout(timer); timer = setTimeout(() => { setRevision(n => n + 1) }, 200) }
+    const changed = () => { clearTimeout(timer); timer = setTimeout(() => { if (reading.current) dirty.current = true; else setRevision(n => n + 1) }, 200) }
     stream.addEventListener('changed', changed)
     let connected = false
     stream.addEventListener('open', () => { if (connected) changed(); connected = true })
@@ -42,13 +44,17 @@ export function RabiWorkspacePlanDialog({ cwd, t, openPlan, openSession, onClose
   }, [cwd])
   React.useEffect(() => {
     const controller = new AbortController()
+    reading.current = true
+    dirty.current = false
+    let refreshTimer
     setState(old => ({ ...old, loading: true, error: '' }))
     const timer = setTimeout(() => {
       workspacePlanRead(cwd, { query, ...filters, cursor: cursors.at(-1) }, controller.signal)
         .then(data => { if (!controller.signal.aborted) setState({ loading: false, data, error: '' }) })
         .catch(error => { if (!controller.signal.aborted) setState(old => ({ ...old, loading: false, error: error.message })) })
+        .finally(() => { if (controller.signal.aborted) return; reading.current = false; if (dirty.current) refreshTimer = setTimeout(() => setRevision(n => n + 1), 200) })
     }, 250)
-    return () => { clearTimeout(timer); controller.abort() }
+    return () => { clearTimeout(timer); clearTimeout(refreshTimer); controller.abort(); reading.current = false }
   }, [cwd, query, filters, cursors, revision])
   const updateFilter = (key, value) => { setFilters(old => ({ ...old, [key]: value })); setCursors(['']) }
   const run = action => { try { action(); onClose() } catch (error) { setState(old => ({ ...old, error: error.message })) } }

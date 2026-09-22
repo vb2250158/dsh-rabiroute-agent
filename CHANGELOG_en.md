@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.2
+
+- Coalesce plan events without aborting in-flight page requests.
+
 ## 0.11.1
 
 - Ignore empty workspace plan filters; fit the dialog and retain the page during event refresh.
