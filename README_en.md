@@ -1,5 +1,9 @@
 English | [简体中文](README.md)
 
+v0.10.3
+
+Plan-bound sidebar titles omit up to two leading `[category]` tags. Durable titles, search indexes, and hover details remain intact. Titles share the badge cache and event subscription without additional requests. Requires the host `sidebar.workspaces.session.title` presentation slot.
+
 ## Plan context (0.9.5)
 
 Official `systemPrompt.context` includes the session's bound plan summaries when user input reaches the model: title, status, current step, progress, update time, and executable `rabiroute_manager_api` detail arguments. Multiple plans keep their own identities. User text is unchanged; logged context snapshots supersede older values, and unbinding clears the current context.

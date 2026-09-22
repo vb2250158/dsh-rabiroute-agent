@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.3
+
+- Hide up to two leading category tags in plan-bound sidebar titles without changing durable titles or status colors. Reuses the event cache and requires the host session.title slot.
+
 ## 0.10.2
 
 - Include the current DSH session in embedded plan URLs so Rabi can hide guidance, self bindings and empty Agent sections.

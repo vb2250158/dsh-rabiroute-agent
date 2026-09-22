@@ -7,6 +7,19 @@ const rabiStatusLocales = {
   en: { conflict: 'Multiple plans', stale: 'Cached status, awaiting refresh', plan: 'Rabi plan status' },
 }
 
+/** Strip at most two leading category tags only for a confirmed plan binding. */
+export function planSessionTitle(title, bound) {
+  if (!bound) return title
+  const compact = title.replace(/^(?:\s*\[[^\]\r\n]+\]){1,2}\s*/u, '')
+  return compact.trim() ? compact : title
+}
+
+/** Reuses the badge store without introducing another request or event stream. */
+export function RabiPlanSessionTitle({ sessionId, title, statusStore }) {
+  const snapshot = React.useSyncExternalStore(statusStore.subscribe, statusStore.getSnapshot, statusStore.getSnapshot)
+  return planSessionTitle(title, !!snapshot.entries[sessionId])
+}
+
 /** The owner supplies the row identity, independently of the selected session. */
 export function RabiPlanStatusBadge({ sessionId, statusStore, t }) {
   const snapshot = React.useSyncExternalStore(statusStore.subscribe, statusStore.getSnapshot, statusStore.getSnapshot)
@@ -35,6 +48,10 @@ export function applyRabiPlanStatus(ctx) {
       name: 'sidebar.workspaces.session.badges', id: 'rabi-plan-status', order: 30, locale: 'rabi-plan-status',
       inject: () => ({ statusStore }),
     }, RabiPlanStatusBadge))
-    return () => { release(); statusStore.dispose() }
+    const releaseTitle = ctx.slots.inject('sidebar.workspaces.session.title', () => ctx.slots.register({
+      name: 'sidebar.workspaces.session.title', id: 'rabi-plan-title',
+      inject: () => ({ statusStore }),
+    }, RabiPlanSessionTitle))
+    return () => { releaseTitle(); release(); statusStore.dispose() }
   })
 }
