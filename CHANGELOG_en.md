@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.3
+
+- Workspace plans open only their bound sessions. Remove independent plan navigation to keep details aligned with the current session.
+
 ## 0.11.2
 
 - Coalesce plan events without aborting in-flight page requests.

@@ -220,7 +220,7 @@ test('locale, tab type, body and launcher registrations dispose and remount with
       assert.equal(row.spec.inject().rabiSessions, h.sessions)
     }
     // The plan panel is this plugin's own page type; it takes no other type's kind over.
-    assert.deepEqual(definitions.map(definition => [definition.id, definition.kind]), [['dsh-rabiroute-agent/workspace-plan', 'rabi-workspace-plan'], [h.RABI_PLAN_TAB_ID, h.RABI_PLAN_KIND]])
+    assert.deepEqual(definitions.map(definition => [definition.id, definition.kind]), [[h.RABI_PLAN_TAB_ID, h.RABI_PLAN_KIND]])
     const body = registrations.find(row => row.spec.key === h.RABI_PLAN_TAB_ID)
     assert.equal(body.spec.key, h.RABI_PLAN_TAB_ID)
     assert.equal(body.spec.locale, 'rabiroute-agent-plan')

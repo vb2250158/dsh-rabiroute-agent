@@ -24,7 +24,7 @@ function WorkspacePlanMenu({ label, options, value, onChange }) {
 }
 
 /** The workspace dialog owns one cancellable page read and one event subscription while open. */
-export function RabiWorkspacePlanDialog({ cwd, t, openPlan, openSession, onClose }) {
+export function RabiWorkspacePlanDialog({ cwd, t, openSession, onClose }) {
   const [query, setQuery] = React.useState('')
   const [filters, setFilters] = React.useState({ status: '', tag: '', sort: 'status', view: '' })
   const [cursors, setCursors] = React.useState([''])
@@ -75,7 +75,7 @@ export function RabiWorkspacePlanDialog({ cwd, t, openPlan, openSession, onClose
         ...(data?.items || []).map(plan => React.createElement('article', { key: plan.roleId + '/' + plan.id, 'data-rabi-workspace-plan': plan.id,
           style: { padding: '8px 10px', border: '1px solid var(--dsw-alias-border-l4)', borderLeft: '3px solid ' + plan.presentation.palette.accent, borderRadius: 8 } },
           React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-            React.createElement(Button, { variant: 'ghost', size: 'sm', style: { flex: 1, minWidth: 0, justifyContent: 'flex-start', textAlign: 'left' }, onClick: () => run(() => openPlan(plan)) }, plan.title),
+            React.createElement('span', { style: { flex: 1, minWidth: 0, fontWeight: 600, overflowWrap: 'anywhere' } }, plan.title),
             React.createElement('span', { style: { fontSize: 11, whiteSpace: 'nowrap', padding: '2px 6px', borderRadius: 8, background: 'color-mix(in srgb, ' + plan.presentation.palette.accent + ' 18%, transparent)', border: '1px solid ' + plan.presentation.palette.accent } }, plan.presentation.label)),
           React.createElement('div', { style: { opacity: 0.8, fontSize: 12, margin: '4px 0' } }, plan.currentStep),
           React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: () => plan.sessions.length === 1 ? run(() => openSession(plan.sessions[0].id)) : setSelection(plan) }, t('open') + ' · ' + plan.sessions.map(session => session.title).join(' / ')))),
@@ -88,7 +88,7 @@ export function RabiWorkspacePlanDialog({ cwd, t, openPlan, openSession, onClose
         ...selection.sessions.map(session => React.createElement(Button, { key: session.id, onClick: () => run(() => openSession(session.id)) }, session.title))) : null))
 }
 
-export function RabiWorkspacePlanLauncher({ cwd, t, openPlan, openSession }) {
+export function RabiWorkspacePlanLauncher({ cwd, t, openSession }) {
   const [matched, setMatched] = React.useState(false)
   const [open, setOpen] = React.useState(false)
   React.useEffect(() => {
@@ -101,22 +101,14 @@ export function RabiWorkspacePlanLauncher({ cwd, t, openPlan, openSession }) {
   return React.createElement('span', { onClick: event => event.stopPropagation(), 'data-rabi-workspace-launcher': cwd },
     React.createElement(Button, { size: 'sm', variant: 'ghost', 'aria-label': t('title'), title: t('title'), onClick: () => setOpen(true),
       icon: React.createElement('img', { src: RABI_PLAN_ICON_DATA_URI, alt: '', width: 16, height: 16 }) }),
-    open ? React.createElement(RabiWorkspacePlanDialog, { cwd, t, openPlan, openSession, onClose: () => setOpen(false) }) : null)
-}
-
-function RabiWorkspacePlanDetail({ useTabInfo, t }) {
-  const { tab } = useTabInfo()
-  const url = tab.navigation.params?.url
-  return url ? React.createElement('iframe', { src: url, title: t('title'), style: { width: '100%', height: '100%', border: 0 } }) : null
+    open ? React.createElement(RabiWorkspacePlanDialog, { cwd, t, openSession, onClose: () => setOpen(false) }) : null)
 }
 
 /** Public workspace action and page tab; no DOM lookup or durable session changes. */
 export function applyWorkspacePlans(ctx) {
-  const ns = 'rabi-workspace-plans', kind = 'rabi-workspace-plan', id = 'dsh-rabiroute-agent/workspace-plan'
+  const ns = 'rabi-workspace-plans'
   ctx.effect(() => ctx.locale.register(ns, workspacePlanLocales))
-  ctx.effect(() => ctx.sidebarRightTabs.register({ id, kind, title: () => ctx.locale.bind(ns)('title') }))
-  ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: id, locale: ns }, RabiWorkspacePlanDetail))
   ctx.slots.inject('sidebar.workspaces.workspace.actions', () => ctx.slots.register({ name: 'sidebar.workspaces.workspace.actions', id: 'rabi-workspace-plans', order: 20, locale: ns,
-    inject: () => ({ openPlan: plan => ctx.sidebarRight.openTab(kind, { params: { url: plan.url } }), openSession: id => ctx.uiWorkspace.openSession(id) }),
+    inject: () => ({ openSession: id => ctx.uiWorkspace.openSession(id) }),
   }, RabiWorkspacePlanLauncher))
 }

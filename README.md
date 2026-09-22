@@ -1,8 +1,8 @@
 # dsh-rabiroute-agent
 
-v0.11.2
+v0.11.3
 
-工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。点击标题打开右侧详情，打开会话操作在多绑定时提供选择。按钮发现不扫描计划；弹窗关闭取消请求和事件订阅。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
+工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划；弹窗关闭取消请求和事件订阅。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
 
 绑定计划的侧栏标题隐藏开头最多两个 `[分类]` 标签；原始会话标题、搜索索引和悬浮详情保持完整。标题与状态标签共享缓存和事件订阅，不增加网络请求。宿主需提供 `sidebar.workspaces.session.title` 显示插槽。
 
