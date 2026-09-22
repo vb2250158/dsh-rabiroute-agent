@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1
+
+- Keep the multi-plan execution guard active until every pending attachment is explicitly assigned, even after a plan has been selected.
+
 ## 0.10.0
 
 - Add background conversation attachment archiving, explicit multi-plan attribution and step file records. Retain pending items and confirm writes with strong ETags, idempotency keys and authoritative readback.

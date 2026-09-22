@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { createPlanResources } from '../src/plan-resources.js'
+import { installPlanResources } from '../src/plan-resources-install.js'
 
 async function fixture(t, count = 1) {
   const directory = await mkdtemp(path.join(tmpdir(), 'rabi-resources-'))
@@ -133,4 +134,18 @@ test('a stalled Manager does not block queue inspection or session durability', 
     ])
     assert.equal(inspected.pending.length, 1)
   } finally { clearTimeout(timer); release(); await upload }
+})
+
+test('choosing a plan does not bypass attribution of remaining multi-plan attachments', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'rabi-resource-guard-'))
+  const listeners = new Map(), cleanup = []
+  const ctx = { attachments: {}, tools: { register() {} }, systemPrompt: { context() {} }, on(name, callback) { listeners.set(name, callback) }, effect(callback) { cleanup.push(callback()) } }
+  const service = installPlanResources(ctx, { planResourcesDirectory: directory }, { get: () => ({ entries: { s: { plans: [{ planId: 'a' }, { planId: 'b' }] } } }) })
+  t.after(async () => { for (const dispose of cleanup) await dispose(); await rm(directory, { recursive: true, force: true }) })
+  const state = { selected: { planId: 'a', roleId: 'r', stepId: 'step' }, pending: [{ id: 'image' }] }
+  service.status = () => state
+  const exec = { name: 'read', agent: { session: { id: 's' } } }
+  assert.equal((await listeners.get('tools/pre-execute')(exec, () => 'allowed')).kind, 'deny')
+  state.pending[0].target = { planId: 'b', roleId: 'r' }
+  assert.equal(await listeners.get('tools/pre-execute')(exec, () => 'allowed'), 'allowed')
 })
