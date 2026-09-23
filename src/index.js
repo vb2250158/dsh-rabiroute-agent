@@ -1,4 +1,5 @@
 import { createWorkspacePlans, createWorkspacePlansHandler, WORKSPACE_PLANS_PATH } from './workspace-plans.js'
+import { createPlanAdvanceHost, PLAN_ADVANCE_PATH } from './plan-advance.js'
 import { installPlanContext } from './plan-context.js'
 import { installPlanResources } from './plan-resources-install.js'
 import { createPlanStatusCache, createPlanStatusHandler, PLAN_STATUS_PATH } from './plan-status.js'
@@ -19,6 +20,10 @@ export const Config = z.object({
   workspaceSkillsEnabled: z.boolean().default(true),
   workspacePlanCachePages: z.number().min(1).max(256).step(1).default(32),
   workspacePlanEventDelayMs: z.number().min(50).max(10000).step(1).default(200),
+  planAdvanceStartupDelayMs: z.number().min(1000).max(300000).step(1).default(10000),
+  planAdvanceEventDelayMs: z.number().min(200).max(30000).step(1).default(1000),
+  planAdvanceReconnectMs: z.number().min(1000).max(300000).step(1).default(15000),
+  planAdvanceDueCheckMs: z.number().min(10000).max(3600000).step(1).default(60000),
   workspaceSkillCacheMs: z.number().min(1).max(2147483647).step(1).default(30000),
   planContextEnabled: z.boolean().default(true),
   planResourcesEnabled: z.boolean().default(true),
@@ -35,7 +40,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.10.1'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.0'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -172,6 +177,10 @@ export function apply(ctx, config = {}) {
   ctx.inject(['webServer', 'sessionController'], web => {
     const read = createWorkspacePlans(resolved, async signal => (await web.sessionController.list({}, signal)).items)
     web.webServer.register({ kind: 'exact', path: WORKSPACE_PLANS_PATH, handler: createWorkspacePlansHandler(read) })
+    const advance = createPlanAdvanceHost(resolved, async () => (await web.sessionController.list({})).items, read)
+    web.webServer.register({ kind: 'exact', path: PLAN_ADVANCE_PATH, handler: advance.handler })
+    web.on('session/event', (session, event) => { if (event.type === 'turn/end') advance.enqueue({ trigger: 'idle', sessionId: session.id }) })
+    web.effect(() => { advance.start(); return () => advance.dispose() })
   })
   // Rabi has no DSH CORS policy. Optional same-origin routes adapt its plan,
   // window navigation, TTS and ASR APIs for the browser.

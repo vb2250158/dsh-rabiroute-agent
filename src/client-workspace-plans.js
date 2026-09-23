@@ -1,11 +1,12 @@
 import { createWorkspacePlanStore } from './client-workspace-plan-store.js'
+import { RabiAdvanceDialog } from './client-plan-advance.js'
 import * as React from 'react'
 import { Button, Input, Menu, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { RABI_PLAN_ICON_DATA_URI } from './plan-icon.js'
 
 const workspacePlanLocales = {
-  zh: { title: '工作区 Rabi 计划', close: '关闭', search: '搜索计划、关键字…', loading: '加载中…', empty: '没有匹配的计划', retry: '重试', next: '下一页', previous: '上一页', open: '打开会话', status: '状态', tag: '标签', sort: '排序', all: '全部', current: '当前', plans: '计划', archived: '已归档', view: '范围', updated: '最近更新', importance: '重要性', urgency: '紧急性', total: '个计划', error: '计划加载失败', stale: '计划已更新，正在刷新' },
-  en: { title: 'Workspace Rabi plans', close: 'Close', search: 'Search plans and keywords…', loading: 'Loading…', empty: 'No matching plans', retry: 'Retry', next: 'Next', previous: 'Previous', open: 'Open session', status: 'Status', tag: 'Tag', sort: 'Sort', all: 'All', current: 'Current', plans: 'Plans', archived: 'Archived', view: 'View', updated: 'Updated', importance: 'Importance', urgency: 'Urgency', total: 'plans', error: 'Failed to load plans', stale: 'Plans changed; refreshing' },
+  zh: { advanceCheck: '检查推进', advanceSettings: '推进设置', title: '工作区 Rabi 计划', close: '关闭', search: '搜索计划、关键字…', loading: '加载中…', empty: '没有匹配的计划', retry: '重试', next: '下一页', previous: '上一页', open: '打开会话', status: '状态', tag: '标签', sort: '排序', all: '全部', current: '当前', plans: '计划', archived: '已归档', view: '范围', updated: '最近更新', importance: '重要性', urgency: '紧急性', total: '个计划', error: '计划加载失败', stale: '计划已更新，正在刷新' },
+  en: { advanceCheck: 'Check advancement', advanceSettings: 'Advance settings', title: 'Workspace Rabi plans', close: 'Close', search: 'Search plans and keywords…', loading: 'Loading…', empty: 'No matching plans', retry: 'Retry', next: 'Next', previous: 'Previous', open: 'Open session', status: 'Status', tag: 'Tag', sort: 'Sort', all: 'All', current: 'Current', plans: 'Plans', archived: 'Archived', view: 'View', updated: 'Updated', importance: 'Importance', urgency: 'Urgency', total: 'plans', error: 'Failed to load plans', stale: 'Plans changed; refreshing' },
 }
 
 async function workspacePlanRead(cwd, params, signal) {
@@ -32,6 +33,7 @@ export function RabiWorkspacePlanDialog({ cwd, t, store, openSession, onClose })
   const params = { query, ...filters, cursor: cursors.at(-1) }
   const [state, setState] = React.useState(() => store.snapshot(cwd, params))
   const [selection, setSelection] = React.useState(null)
+  const [advanceMode, setAdvanceMode] = React.useState('')
   React.useEffect(() => store.watch(cwd, params, setState), [store, cwd, query, filters, cursors])
   const updateFilter = (key, value) => { setFilters(old => ({ ...old, [key]: value })); setCursors(['']) }
   const run = action => { try { action(); onClose() } catch (error) { setState(old => ({ ...old, error: error.message })) } }
@@ -42,6 +44,8 @@ export function RabiWorkspacePlanDialog({ cwd, t, store, openSession, onClose })
       React.createElement('style', null, '.rabi-workspace-plan-dialog{width:min(740px,calc(100vw - 48px))}.rabi-workspace-plan-dialog button{max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left;height:auto;min-height:28px}'),
       React.createElement(Input, { value: query, placeholder: t('search'), 'aria-label': t('search'), onChange: event => { setQuery(event.target.value); setCursors(['']) } }),
       React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
+        React.createElement(Button, { size: 'sm', disabled: !data?.roleIds?.length, onClick: () => setAdvanceMode('check') }, t('advanceCheck')),
+        React.createElement(Button, { size: 'sm', disabled: !data?.roleIds?.length, onClick: () => setAdvanceMode('settings') }, t('advanceSettings')),
         menu('view', ['', 'current', 'plans', 'archived'].map(id => ({ id, label: t(id || 'all') }))),
         menu('status', [{ id: '', label: t('status') }, ...(data?.facets.statuses || []).map(item => ({ id: item.status, label: item.label }))]),
         menu('tag', [{ id: '', label: t('tag') }, ...(data?.facets.tags || []).map(item => ({ id: item.tag, label: item.tag }))]),
@@ -61,6 +65,7 @@ export function RabiWorkspacePlanDialog({ cwd, t, store, openSession, onClose })
         React.createElement('span', null, (data?.total ?? 0) + ' ' + t('total')),
         React.createElement(Button, { size: 'sm', disabled: state.loading || cursors.length < 2, onClick: () => setCursors(old => old.slice(0, -1)) }, t('previous')),
         React.createElement(Button, { size: 'sm', disabled: state.loading || !data?.nextCursor, onClick: () => setCursors(old => [...old, data.nextCursor]) }, t('next'))),
+      advanceMode ? React.createElement(RabiAdvanceDialog, { cwd, roleIds: data.roleIds, mode: advanceMode, t, onClose: () => setAdvanceMode('') }) : null,
       selection ? React.createElement(Modal, { open: true, title: t('open'), closeLabel: t('close'), onClose: () => setSelection(null) },
         ...selection.sessions.map(session => React.createElement(Button, { key: session.id, onClick: () => run(() => openSession(session.id)) }, session.title))) : null))
 }

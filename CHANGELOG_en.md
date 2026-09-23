@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0
+
+- 0.13.0: Add persona status-specific advancement settings, preview, and selected dispatch to workspace Rabi plans; automation defaults off, with durable deduplication and approval and original-session guards.
+
 ## 0.12.0
 
 - Cache workspace plan pages and retain plan event identities. Transfer changed rows and necessary page metadata instead of replacing whole pages or refetching unchanged reopened pages.
