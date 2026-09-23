@@ -112,7 +112,7 @@ When a session is bound to a Rabi **persona**, the right Sidebar gains a "Rabi p
 
 A single bound plan opens directly. Multiple bound plans display a clickable directory retaining each role and route identity. Labels and colors come from Rabi summaries. Only the selected detail page is mounted; switching entries does not repeat binding queries. Reload reads Rabi again.
 
-There is exactly one data path. The browser calls the same-origin read-only route `GET /rabiroute/plan-panel?sessionId=<DSH session id>`; the Host discovers Manager, verifies `/meta` identity, then reads — `GET /api/codex-hook/sessions/<session>` for the bound role, paged reads of that role's **current plan summaries** matched against Rabi's binding criterion (`view=current`, 200 summaries per page, at most 8 pages), and `GET /api/gateways?summary=1` to map the role to a route — before returning the page address. No plan body is read, the full catalog is never pulled (hundreds of plans, hundreds of kilobytes per page), no state is written, and no binding is cached.
+There is exactly one data path. The browser calls the same-origin read-only route `GET /rabiroute/plan-panel?sessionId=<DSH session id>`; the Host discovers Manager, verifies `/meta` identity, then reads — `GET /api/codex-hook/sessions/<session>` for the bound role, paged reads of that role's **current plan summaries** matched against Rabi's binding criterion (`view=current`, 200 summaries per page, at most 8 pages), and `GET /api/gateways?summary=1` to map the role to a route — before returning the page address. No plan body is read, the full catalog is never pulled (hundreds of plans, hundreds of kilobytes per page), and no state is written. The browser caches up to 32 resolved session addresses for this plugin lifetime; plan events invalidate affected entries, while manual reload forces a read.
 
 The panel returns a single-plan address or a directory. Missing bindings, plans, routes and unavailable Manager remain explicit. Current summary pagination must complete within its budget; an incomplete scan fails instead of returning a truncated directory.
 
@@ -120,7 +120,7 @@ The plan tab registers under this plugin's own id (`dsh-rabiroute-agent/plan`) a
 
 ### Cross-repository dependency (Rabi front end must carry the single-plan address)
 
-The single-plan view lives in Rabi's front end: the `ribiwebgui` plan page gains the focus address `/routes/:id/plan/:planId`, reusing the same plan rendering while narrowing what is loaded and shown (no directory, no paging, no memory panels, plan opened by default). That is a **front-end-only** change, so the Web hot-patch channel publishes it — no Manager backend change and no release reinstall is required.
+The single-plan view lives in Rabi's front end: the `ribiwebgui` plan page uses the focus address `/routes/:id/plan/:planId`, reusing the same plan rendering while narrowing what is loaded and shown (no directory, no paging, no memory panels, plan opened by default). On reopening, Rabi Web displays its browser-session snapshot immediately; Manager returns `304` or a changed detail body by view revision. This cache behavior requires both the Rabi Web and Manager updates.
 
 Without that address the panel reports unreachable or not-found rather than degrading into the full catalog page.
 

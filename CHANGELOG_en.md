@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.2
+
+- Reuse the resolved binding in the session plan panel and invalidate only affected entries on plan events. Rabi Web reuses full details by view revision.
+
 ## 0.13.1
 
 - Persist a session's selected plan and step across messages and restarts; unbound selections cannot authorize tool edits.

@@ -12,10 +12,16 @@ const planRaw = ['[消息源]', '消息源类型：计划', '计划名称：示�
 function harness() {
   let states = [], cursor = 0
   const effects = [], projections = [], images = [], copied = [], opened = [], panelCalls = []
+  let panelStream
+  class EventSource {
+    constructor() { this.listeners = new Map(); panelStream = this }
+    addEventListener(type, callback) { this.listeners.set(type, callback) }
+    close() {}
+  }
   let panelResponse = async () => ({ ok: true, json: async () => ({ code: 0, data: { available: false, reason: 'unbound', roleId: '', routeId: '', url: '' } }) })
   const sessions = { refresh: async () => {}, list: { getSnapshot: () => ({ phase: 'ready', ids: ['exact-id'], byId: { 'exact-id': { id: 'exact-id' } } }) }, open: id => opened.push(id) }
-  const React = { Fragment: 'Fragment', createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] }, useRef: initial => { const index = cursor++; return states[index] ?? (states[index] = { current: initial }) }, useCallback: fn => fn, useEffect: fn => { const index = cursor++; if (!(index in states)) { states[index] = true; effects.push(fn()) } } }
-  const context = { React, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController, setTimeout, clearTimeout }
+  const React = { Fragment: 'Fragment', createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] }, useRef: initial => { const index = cursor++; return states[index] ?? (states[index] = { current: initial }) }, useCallback: fn => fn, useEffect: fn => { const index = cursor++; if (!(index in states)) { states[index] = true; effects.push(fn()) } } }
+  const context = { React, EventSource, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController, setTimeout, clearTimeout }
   vm.createContext(context)
   vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
@@ -23,7 +29,10 @@ function harness() {
   const render = (content, kind = 'user', extras = {}) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderMessageImages: args => { images.push(args); return { type: 'image', props: args, children: [] } } }) }
   const renderPlanBody = (sessionId = 'session-1') => { cursor = 0; return context.api.RabiPlanBody({ sessionId, t: planT }) }
   const renderPlanLauncher = (sessionId = 'session-1', openRabiPlanTab = () => {}) => { cursor = 0; return context.api.RabiPlanLauncher({ sessionId, t: planT, openRabiPlanTab }) }
-  return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, setPanelResponse: fn => { panelResponse = fn } }
+  return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls,
+    remount: () => { for (const dispose of effects) dispose?.(); effects.length = 0; states = []; cursor = 0 },
+    emitPlanChange: change => panelStream?.listeners.get('changed')?.({ data: JSON.stringify(change) }),
+    setPanelResponse: fn => { panelResponse = fn } }
 }
 function nodes(tree, type) {
   if (!tree || typeof tree !== 'object') return []
@@ -248,6 +257,26 @@ test('plan panel frames Rabi for a bound session and asks the Host for the targe
   const frame = nodes(h.renderPlanBody('session-1'), 'iframe')[0]
   assert.equal(frame.props.src, url)
   assert.equal(frame.props.title, h.planT('frameTitle'))
+})
+
+test('reopening an unchanged session reuses its panel resolution, while a matching plan event invalidates it', async () => {
+  const h = harness()
+  const data = { available: true, roleId: 'ExampleBuilder', planId: 'plan-a', url: 'http://localhost/#/routes/main/plan/plan-a' }
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ data }) }))
+  h.renderPlanBody('session-cached')
+  await flush()
+  h.remount()
+  assert.equal(nodes(h.renderPlanBody('session-cached'), 'iframe')[0].props.src, data.url)
+  assert.equal(h.panelCalls.length, 1)
+  h.emitPlanChange({ type: 'plan_changed', roleId: 'ExampleBuilder', planId: 'another-plan' })
+  h.remount()
+  h.renderPlanBody('session-cached')
+  assert.equal(h.panelCalls.length, 1)
+  h.emitPlanChange({ type: 'plan_changed', roleId: 'ExampleBuilder', planId: 'plan-a' })
+  h.remount()
+  h.renderPlanBody('session-cached')
+  await flush()
+  assert.equal(h.panelCalls.length, 2)
 })
 
 test('an unbound session, a session without a bound plan each report their own reason', async () => {

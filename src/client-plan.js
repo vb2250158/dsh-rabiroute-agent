@@ -24,6 +24,63 @@ export const RABI_PLAN_PANEL_PATH = '/rabiroute/plan-panel'
  * keep re-opening a column the user closed on purpose.
  */
 const rabiPlanAutoOpened = new Set()
+const panelSnapshots = new Map()
+const panelListeners = new Map()
+let panelEvents
+
+function panelSnapshot(sessionId) {
+  const value = panelSnapshots.get(sessionId)
+  if (value) { panelSnapshots.delete(sessionId); panelSnapshots.set(sessionId, value) }
+  return value
+}
+
+function invalidatePanelSnapshots(change = {}, notify = true) {
+  for (const [sessionId, entry] of panelSnapshots) {
+    const plans = entry.data?.plans || (entry.data ? [entry.data] : [])
+    if (change.roleId && entry.data && !plans.some(plan => plan.roleId === change.roleId)) continue
+    if (change.planId && entry.data?.available && !plans.some(plan => plan.planId === change.planId)) continue
+    panelSnapshots.delete(sessionId)
+    if (notify) for (const listener of panelListeners.get(sessionId) || []) listener()
+  }
+}
+
+function watchPanelSnapshot(sessionId, listener) {
+  let listeners = panelListeners.get(sessionId)
+  if (!listeners) { listeners = new Set(); panelListeners.set(sessionId, listeners) }
+  listeners.add(listener)
+  if (!panelEvents && typeof EventSource !== 'undefined') {
+    panelEvents = new EventSource('/rabiroute/plan-events')
+    panelEvents.addEventListener('changed', event => {
+      try { invalidatePanelSnapshots(JSON.parse(event.data || '{}')) }
+      catch { invalidatePanelSnapshots() }
+    })
+    panelEvents.addEventListener('error', () => { for (const entry of panelSnapshots.values()) entry.dirty = true })
+  }
+  return () => {
+    listeners.delete(listener)
+    if (!listeners.size) panelListeners.delete(sessionId)
+    if (!panelListeners.size) { panelEvents?.close(); panelEvents = undefined }
+  }
+}
+
+async function cachedPanelState(sessionId) {
+  const cached = panelSnapshot(sessionId)
+  if (cached && !cached.dirty) return cached.pending || cached.data
+  const entry = { data: null, pending: null }
+  panelSnapshots.set(sessionId, entry)
+  while (panelSnapshots.size > 32) panelSnapshots.delete(panelSnapshots.keys().next().value)
+  entry.pending = readRabiPlanPanelState(sessionId).then(data => {
+    entry.data = data
+    entry.pending = null
+    // A new binding may appear at any time; only a resolved binding is reusable.
+    if (panelSnapshots.get(sessionId) === entry && !data.roleId && !data.plans?.some(plan => plan.roleId)) panelSnapshots.delete(sessionId)
+    return data
+  }).catch(error => {
+    if (panelSnapshots.get(sessionId) === entry) panelSnapshots.delete(sessionId)
+    throw error
+  })
+  return entry.pending
+}
 
 /**
  * Ask the Host which Rabi route this session's binding resolves to.
@@ -73,14 +130,17 @@ function rabiPlanEmptyText(data, t) {
  * @param props - framework props carrying the session identity and plan copy.
  */
 export function RabiPlanBody({ sessionId, t }) {
-  const [state, setState] = React.useState({ phase: 'loading' })
+  const [state, setState] = React.useState(() => {
+    const data = panelSnapshot(sessionId)?.data
+    return data ? { phase: data.available ? 'ready' : 'empty', data } : { phase: 'loading' }
+  })
   const [attempt, setAttempt] = React.useState(0)
   const [selection, setSelection] = React.useState(null)
   React.useEffect(() => {
-    const controller = new AbortController()
     let active = true
-    setState({ phase: 'loading' })
-    readRabiPlanPanelState(sessionId, controller.signal)
+    const cached = !attempt && panelSnapshot(sessionId)?.data
+    if (!cached) setState({ phase: 'loading' })
+    cachedPanelState(sessionId)
       .then(data => {
         if (!active) return
         setState({ phase: data.available ? 'ready' : 'empty', data })
@@ -89,10 +149,14 @@ export function RabiPlanBody({ sessionId, t }) {
         if (!active) return
         setState({ phase: 'empty', data: { available: false, reason: 'unreachable', message: error instanceof Error ? error.message : String(error) } })
       })
-    return () => { active = false; controller.abort() }
+    return () => { active = false }
   }, [sessionId, attempt])
+  React.useEffect(() => watchPanelSnapshot(sessionId, () => setAttempt(value => value + 1)), [sessionId])
 
-  const reload = React.useCallback(() => { setAttempt(value => value + 1) }, [])
+  const reload = React.useCallback(() => {
+    panelSnapshots.delete(sessionId)
+    setAttempt(value => value + 1)
+  }, [sessionId])
 
   if (state.phase === 'loading') {
     return React.createElement('div', { style: rabiClientStyles.planNotice }, t('loading'))
@@ -146,9 +210,8 @@ export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab }) {
   const open = React.useRef(openRabiPlanTab)
   open.current = openRabiPlanTab
   React.useEffect(() => {
-    const controller = new AbortController()
     let active = true
-    readRabiPlanPanelState(sessionId, controller.signal)
+    cachedPanelState(sessionId)
       .then(data => {
         if (!active) return
         // A roleId is what "this session is bound to a Rabi persona" looks like from here.
@@ -166,8 +229,13 @@ export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab }) {
         }
       })
       .catch(() => { if (active) setState({ phase: 'hidden' }) })
-    return () => { active = false; controller.abort() }
+    return () => { active = false }
   }, [sessionId])
+  React.useEffect(() => watchPanelSnapshot(sessionId, () => {
+    // A changed binding needs the launcher to re-read; the body owns the visible refresh.
+    cachedPanelState(sessionId).then(data => { if (data.roleId) setState({ phase: 'ready' }) })
+      .catch(() => setState({ phase: 'hidden' }))
+  }), [sessionId])
 
   if (state.phase !== 'ready') return null
   // Rabi's own mark, carried in the bundle: the entry is the way back to a panel the
