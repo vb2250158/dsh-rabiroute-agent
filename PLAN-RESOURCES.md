@@ -6,7 +6,7 @@
 
 执行文件修改前，Agent 使用 `select` 指定 `stepId`。官方 `write`、`edit` 工具的成功结果自动记录路径、改动类型和内容摘要；Shell、外部编辑器及其他工具的改动由 Agent 调用 `record_changes` 提交实际修改的资源。记录保存在 Rabi 的 `steps[].resourceRecords`，区分 `tool-observed` 与 `agent-reported`，不会把整个工作区已有差异当作本次改动。Rabi Web 的步骤卡片显示“文件变动”。
 
-后台归档使用强 ETag、稳定幂等键及写后回读。失败保留待发送记录；不确定结果只读回，不自动重放。归档不等待用户消息发送或模型上下文装配。多计划未选归属时，其他工具执行会被拦截，并要求先选择计划。新用户消息清除本轮选择。
+后台归档使用强 ETag、稳定幂等键及写后回读。失败保留待发送记录；不确定结果只读回，不自动重放。归档不等待用户消息发送或模型上下文装配。多计划未选归属时，其他工具执行会被拦截，并要求先选择计划。选择单独持久保存于 `selections.json`，没有时间过期；新用户消息和宿主重启不会清除，切换计划或步骤时重新调用 `select`。计划解绑后旧选择不能授权工具修改或归档。
 
 `planResourcesEnabled` 默认开启。`planResourcesDirectory` 默认位于当前 DSH 数据目录的 `storages/rabiroute-plan-resources`；`planResourceRetryMs` 默认 30000；`planResourceTimeoutMs` 默认 12000；`planResourceMaxBytes` 默认 10485760。超过单文件限制的材料保留在 DSH，并显示待归档错误。队列中的 `pending` 清空才表示相关材料已确认保存。不要手工删除待发送队列。
 

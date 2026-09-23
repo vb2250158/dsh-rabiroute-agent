@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.1
+
+- Persist a session's selected plan and step across messages and restarts; unbound selections cannot authorize tool edits.
+
 ## 0.13.0
 
 - 0.13.0: Add persona status-specific advancement settings, preview, and selected dispatch to workspace Rabi plans; automation defaults off, with durable deduplication and approval and original-session guards.

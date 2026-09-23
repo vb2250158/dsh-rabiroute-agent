@@ -81,6 +81,20 @@ test('pending choices survive restart; plugin messages do not create uploads', a
   assert.equal(f.writes.length, 0)
 })
 
+test('selected plan and step survive user messages and restart without expiry', async t => {
+  const f = await fixture(t)
+  await f.service.execute({ action: 'select', roleId: 'r', planId: 'p0', stepId: 's' }, f.exec)
+  const archive = JSON.parse(await readFile(path.join(f.directory, 'selections.json'), 'utf8'))
+  assert.deepEqual(archive.selections, [{ sessionId: f.session.id, roleId: 'r', planId: 'p0', stepId: 's' }])
+  f.service.capture(f.session, { ...f.event, data: { ...f.event.data, content: [] } })
+  assert.equal(f.service.status(f.session.id).selected.stepId, 's')
+  await f.service.dispose()
+  const restored = f.create()
+  t.after(() => restored.dispose())
+  await restored.whenReady()
+  assert.deepEqual(restored.status(f.session.id).selected, { roleId: 'r', planId: 'p0', stepId: 's' })
+})
+
 test('uncertain requests are retained and not replayed on the next flush', async t => {
   const f = await fixture(t)
   f.setUncertain(true)
@@ -140,7 +154,8 @@ test('choosing a plan does not bypass attribution of remaining multi-plan attach
   const directory = await mkdtemp(path.join(tmpdir(), 'rabi-resource-guard-'))
   const listeners = new Map(), cleanup = []
   const ctx = { attachments: {}, tools: { register() {} }, systemPrompt: { context() {} }, on(name, callback) { listeners.set(name, callback) }, effect(callback) { cleanup.push(callback()) } }
-  const service = installPlanResources(ctx, { planResourcesDirectory: directory }, { get: () => ({ entries: { s: { plans: [{ planId: 'a' }, { planId: 'b' }] } } }) })
+  let bound = [{ roleId: 'r', planId: 'a' }, { roleId: 'r', planId: 'b' }]
+  const service = installPlanResources(ctx, { planResourcesDirectory: directory }, { get: () => ({ entries: { s: { plans: bound } } }) })
   t.after(async () => { for (const dispose of cleanup) await dispose(); await rm(directory, { recursive: true, force: true }) })
   const state = { selected: { planId: 'a', roleId: 'r', stepId: 'step' }, pending: [{ id: 'image' }] }
   service.status = () => state
@@ -148,4 +163,6 @@ test('choosing a plan does not bypass attribution of remaining multi-plan attach
   assert.equal((await listeners.get('tools/pre-execute')(exec, () => 'allowed')).kind, 'deny')
   state.pending[0].target = { planId: 'b', roleId: 'r' }
   assert.equal(await listeners.get('tools/pre-execute')(exec, () => 'allowed'), 'allowed')
+  bound = [{ roleId: 'r', planId: 'b' }, { roleId: 'r', planId: 'c' }]
+  assert.equal((await listeners.get('tools/pre-execute')(exec, () => 'allowed')).kind, 'deny')
 })
