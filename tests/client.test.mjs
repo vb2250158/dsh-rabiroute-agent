@@ -28,7 +28,7 @@ function harness(storage = new Map()) {
   let panelResponse = async () => ({ ok: true, json: async () => ({ code: 0, data: { available: false, reason: 'unbound', roleId: '', routeId: '', url: '' } }) })
   const sessions = { refresh: async () => {}, list: { getSnapshot: () => ({ phase: 'ready', ids: ['exact-id'], byId: { 'exact-id': { id: 'exact-id' } } }) }, open: id => opened.push(id) }
   const React = { Fragment: 'Fragment', createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] }, useRef: initial => { const index = cursor++; return states[index] ?? (states[index] = { current: initial }) }, useCallback: fn => fn, useEffect: (fn, deps) => { const index = cursor++; const previous = states[index]; if (!previous || !deps || deps.some((value, i) => !Object.is(value, previous.deps?.[i]))) { previous?.dispose?.(); const dispose = fn(); states[index] = { deps, dispose }; effects[index] = dispose } } }
-  const context = { React, EventSource, MutationObserver, document: { querySelector: () => panelElement, addEventListener() {}, removeEventListener() {} }, sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController, setTimeout, clearTimeout }
+  const context = { React, EventSource, MutationObserver, URL, URLSearchParams, document: { querySelector: () => panelElement, addEventListener() {}, removeEventListener() {} }, sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController, setTimeout, clearTimeout }
   vm.createContext(context)
   vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
@@ -311,6 +311,48 @@ test('switching between many sessions keeps their verified bindings without a lo
   assert.equal(h.panelCalls.length, 41)
   assert.equal(nodes(h.renderPlanBody('session-1'), 'iframe')[0].props.src, 'http://localhost/plan/session-1')
   assert.equal(h.panelCalls.length, 41)
+})
+
+test('page reload restores the confirmed plan before background reconciliation without storing its URL', async () => {
+  const storage = new Map(), first = harness(storage)
+  const url = 'http://127.0.0.1:4137/#/routes/main/plan/plan-1?embedAgent=dsh&embedSession=session-persisted'
+  const data = { available: true, roleId: 'Rabi', routeId: 'main', planId: 'plan-1',
+    planTitle: 'Confirmed plan', managerBaseUrl: 'http://127.0.0.1:4137', url }
+  first.setPanelResponse(async () => ({ ok: true, json: async () => ({ data }) }))
+  first.renderPlanBody('session-persisted')
+  await flush()
+  const persisted = storage.get('dsh-rabiroute-agent:panel-resolution:v1:session-persisted')
+  assert.ok(persisted)
+  assert.equal(JSON.parse(persisted).plans[0].planId, 'plan-1')
+  assert.equal(persisted.includes('"url"'), false)
+  assert.equal(persisted.includes('managerBaseUrl'), false)
+
+  const reloaded = harness(storage)
+  let resolveRefresh
+  reloaded.setPanelResponse(() => new Promise(resolve => { resolveRefresh = resolve }))
+  assert.equal(nodes(reloaded.renderPlanBody('session-persisted'), 'iframe')[0].props.src, url)
+  assert.equal(reloaded.panelCalls.length, 1, 'reconciliation is background work')
+  resolveRefresh({ ok: true, json: async () => ({ data }) })
+  await flush()
+  assert.equal(nodes(reloaded.renderPlanBody('session-persisted'), 'iframe')[0].props.src, url)
+
+  storage.set('dsh-rabiroute-agent:plan-visibility:session-persisted', 'open')
+  const launcher = harness(storage)
+  let opens = 0, resolveLauncher
+  launcher.setPanelResponse(() => new Promise(resolve => { resolveLauncher = resolve }))
+  assert.equal(launcher.renderPlanLauncher('session-persisted', () => { opens++ }).type, 'Button')
+  assert.equal(opens, 1, 'an explicitly open plan restores before the binding request finishes')
+  resolveLauncher({ ok: true, json: async () => ({ data }) })
+  await flush()
+  assert.equal(opens, 1)
+
+  const tokenized = harness(storage)
+  tokenized.setPanelResponse(async () => ({ ok: true, json: async () => ({ data: {
+    ...data, managerBaseUrl: 'http://127.0.0.1:4137/?token=private',
+  } }) }))
+  tokenized.renderPlanBody('session-tokenized')
+  await flush()
+  assert.equal(storage.has('dsh-rabiroute-agent:panel-resolution:v1:session-tokenized'), false)
 })
 
 test('plan event reconciles in the background and retains the last verified frame if Rabi is unavailable', async () => {

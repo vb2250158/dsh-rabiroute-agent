@@ -19,6 +19,7 @@ export const RABI_PLAN_TAB_ID = 'dsh-rabiroute-agent/plan'
 export const RABI_PLAN_PANEL_PATH = '/rabiroute/plan-panel'
 
 const PANEL_VISIBILITY_PREFIX = 'dsh-rabiroute-agent:plan-visibility:'
+const PANEL_SNAPSHOT_PREFIX = 'dsh-rabiroute-agent:panel-resolution:v1:'
 const panelVisibility = new Map()
 const panelSnapshots = new Map()
 const panelListeners = new Map()
@@ -60,7 +61,63 @@ function watchPlanPanelVisibility(sessionId, title) {
 }
 
 function panelSnapshot(sessionId) {
-  return panelSnapshots.get(sessionId)
+  const current = panelSnapshots.get(sessionId)
+  if (current) return current
+  const data = restorePanelResolution(sessionId)
+  if (!data) return undefined
+  const entry = { data, pending: null, dirty: true, revision: 0 }
+  panelSnapshots.set(sessionId, entry)
+  return entry
+}
+
+function planAddress(base, routeId, planId, sessionId) {
+  return base + '/#/routes/' + encodeURIComponent(routeId) + '/plan/' + encodeURIComponent(planId)
+    + '?' + new URLSearchParams({ embedAgent: 'dsh', embedSession: sessionId })
+}
+
+function safePanelBase(value) {
+  try {
+    const url = new URL(value)
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password
+      || url.pathname !== '/' || url.search || url.hash) return ''
+    return url.origin
+  } catch { return '' }
+}
+
+function restorePanelResolution(sessionId) {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(PANEL_SNAPSHOT_PREFIX + sessionId) || 'null')
+    if (stored?.version !== 1 || !Array.isArray(stored.plans) || !stored.plans.length) return null
+    const base = safePanelBase(stored.base)
+    if (!base) return null
+    const plans = stored.plans.map(plan => {
+      if (typeof plan?.roleId !== 'string' || !plan.roleId || typeof plan.routeId !== 'string'
+        || typeof plan.planId !== 'string' || !plan.planId) throw new Error('Invalid stored plan identity.')
+      return { roleId: plan.roleId, routeId: plan.routeId, planId: plan.planId,
+        planTitle: String(plan.planTitle || ''), planStatus: String(plan.planStatus || ''),
+        accent: /^#[0-9a-f]{6}$/i.test(plan.accent || '') ? plan.accent : '',
+        url: plan.routeId ? planAddress(base, plan.routeId, plan.planId, sessionId) : '' }
+    })
+    return plans.length === 1
+      ? { ...plans[0], available: true, reason: 'bound', managerBaseUrl: base }
+      : { available: true, reason: 'multiple-plans', roleId: plans[0].roleId,
+        managerBaseUrl: base, planCount: plans.length, plans, url: '' }
+  } catch { return null }
+}
+
+function savePanelResolution(sessionId, data) {
+  try {
+    const plans = data.plans || (data.available ? [data] : [])
+    const base = safePanelBase(data.managerBaseUrl)
+    if (!base || !plans.length || plans.some(plan => !plan.planId || !plan.roleId)) {
+      sessionStorage.removeItem(PANEL_SNAPSHOT_PREFIX + sessionId)
+      return
+    }
+    // Store identities and presentation only. Runtime URLs may contain credentials.
+    sessionStorage.setItem(PANEL_SNAPSHOT_PREFIX + sessionId, JSON.stringify({ version: 1, base,
+      plans: plans.map(({ roleId, routeId, planId, planTitle, planStatus, accent }) =>
+        ({ roleId, routeId, planId, planTitle, planStatus, accent })) }))
+  } catch { /* Storage quota or disabled storage does not affect the in-memory result. */ }
 }
 
 function invalidatePanelSnapshots(change = {}, notify = true) {
@@ -108,6 +165,7 @@ async function cachedPanelState(sessionId) {
     if (entry.revision !== revision) return cachedPanelState(sessionId)
     entry.data = data
     entry.dirty = false
+    savePanelResolution(sessionId, data)
     // An unbound session has no confirmed address to retain. A later binding
     // must be discovered from Rabi rather than an old empty response.
     if (!data.roleId && !data.plans?.some(plan => plan.roleId)) panelSnapshots.delete(sessionId)
@@ -262,25 +320,32 @@ export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab, getRabiPanelVi
   React.useEffect(() => phase === 'ready' ? watchPlanPanelVisibility(sessionId, t('tab')) : undefined, [sessionId, phase, t])
   React.useEffect(() => {
     let active = true
+    let opened = false
+    const showBoundPlan = data => {
+      if (!data.roleId || !data.available || savedPanelVisibility(sessionId) === 'closed') return
+      const current = view.current?.()
+      if (current?.activeKind === RABI_PLAN_KIND) {
+        savePanelVisibility(sessionId, current.expanded ? 'open' : 'closed')
+        return
+      }
+      if (current?.activeKind || opened) return
+      try {
+        open.current()
+        opened = true
+        savePanelVisibility(sessionId, 'open')
+      } catch {
+        // Opening can refuse while the session's panel is not mounted; the
+        // button remains, so the user can open it deliberately.
+      }
+    }
+    const confirmed = panelSnapshot(sessionId)?.data
+    if (confirmed?.available && savedPanelVisibility(sessionId) === 'open') showBoundPlan(confirmed)
     cachedPanelState(sessionId)
       .then(data => {
         if (!active) return
         // A roleId is what "this session is bound to a Rabi persona" looks like from here.
         setState({ sessionId, phase: data.roleId ? 'ready' : 'hidden' })
-        if (!data.roleId || !data.available || savedPanelVisibility(sessionId) === 'closed') return
-        const current = view.current?.()
-        if (current?.activeKind === RABI_PLAN_KIND) {
-          savePanelVisibility(sessionId, current.expanded ? 'open' : 'closed')
-          return
-        }
-        if (current?.activeKind) return
-        try {
-          open.current()
-          savePanelVisibility(sessionId, 'open')
-        } catch {
-          // Opening can refuse while the session's panel is not mounted; the
-          // button remains, so the user can open it deliberately.
-        }
+        showBoundPlan(data)
       })
       .catch(() => { if (active) setState({ sessionId, phase: panelSnapshot(sessionId)?.data?.roleId ? 'ready' : 'hidden' }) })
     return () => { active = false }

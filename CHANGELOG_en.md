@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.6
+
+- Restore verified plan identities and a credential-free origin from browser session storage before background reconciliation after reload. Previously open panels reopen immediately; credential-bearing URLs are never persisted.
+
 ## 0.13.5
 
 - Keep verified panel resolutions per session without the 32-entry eviction. Reconcile relevant plan events in the background, retain the last verified page with a stale notice on failure, and avoid showing another session's plan while switching.
