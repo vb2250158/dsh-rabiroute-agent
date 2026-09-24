@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.4
+
+- Stop plan-event cache invalidation from iterating forever when a listener synchronously refills the same key; cover this reentry in a regression test.
+
 ## 0.13.3
 
 - Remember each session's right-side plan panel choice, respect the current sidebar when switching sessions or pages, and reuse the resolved binding without another query.

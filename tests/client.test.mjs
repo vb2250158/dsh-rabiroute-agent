@@ -402,6 +402,21 @@ test('an existing non-Rabi sidebar tab is not replaced by delayed plan discovery
   assert.equal(h.renderPlanLauncher('session-with-files').type, 'Button')
 })
 
+test('plan event finishes when a launcher immediately refills its invalidated cache entry', async () => {
+  const h = harness()
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ data: { available: true, roleId: 'Rabi', planId: 'plan-event', url: 'http://localhost/plan-event' } }) }))
+  h.renderPlanLauncher('session-event')
+  await flush()
+  assert.equal(h.panelCalls.length, 1)
+  h.emitPlanChange({ type: 'plan_changed', roleId: 'Rabi', planId: 'plan-event' })
+  await flush()
+  assert.equal(h.panelCalls.length, 2)
+  h.remount()
+  h.renderPlanLauncher('session-event')
+  await flush()
+  assert.equal(h.panelCalls.length, 2, 'the replacement cache entry is retained')
+})
+
 test('question wrapper reuses the official composer and keeps its answer path', () => {
   const h = harness()
   const original = {

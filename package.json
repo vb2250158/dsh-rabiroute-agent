@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.13.3",
+  "version": "0.13.4",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
