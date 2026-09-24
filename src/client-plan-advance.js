@@ -2,8 +2,8 @@ import * as React from 'react'
 import { Button, Input, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 
 const advanceCopy = {
-  zh: { settings: '推进设置', check: '检查推进', close: '关闭', loading: '加载中…', retry: '重试', rule: '状态规则', save: '保存', saved: '已保存', enabled: '自动推进', startup: '启动后检查', events: '数据变化和会话结束后检查', due: '检查到期计划', on: '开启', off: '关闭', prompt: '推进提示词', editPrompt: '编辑推进提示词', statusDescription: '人格状态说明', mechanism: 'Rabi 按所选触发条件检查计划、反馈和原绑定会话；符合规则且会话空闲时，把下方该状态的推进提示词、当前状态说明和计划身份排队送给原会话，由 Agent 重新读取计划后继续。这里不会直接修改计划状态。', globalDescription: '自动推进总开关及检查时机', ruleDescription: '每个状态单独设置动作、触发条件和提示词；状态说明由 Rabi 人格工作流统一管理。', inspect: '只检查与回写', continue: '继续已授权工作', changed: '计划有新变化', feedback: '收到新反馈', dueCondition: '计划到期', cooldown: '冷却时间（分钟）', maxRuns: '每个步骤最多推进次数', run: '推进选中项', next: '检查下一页', select: '选择', preview: '查看提示词', eligible: '可推进', role: '人格', empty: '没有符合规则的计划', pending: '正在处理…', error: '操作失败', inherited: '未启用状态规则', accepted: '已接收', skipped: '已跳过', uncertain: '结果待核对', rule_disabled: '规则未开启', inactive_plan: '计划已暂停或结束', binding_mismatch: '绑定不匹配', automation_disabled: '自动推进未开启', missing_current_step: '缺少当前步骤', approval_gate: '等待审批答复，只能检查', waiting_feedback: '等待新反馈', not_due: '尚未到期', delivery_uncertain: '上次投递结果待核对', already_consumed: '该变化已处理', cooldownReason: '冷却中', step_limit: '本步骤已达推进上限', session_running: '会话正在运行', session_unavailable: '会话暂不可用', session_reserved: '会话正在派发', changed_since_check: '计划已变化，请重新检查' },
-  en: { settings: 'Advance settings', check: 'Check advancement', close: 'Close', loading: 'Loading…', retry: 'Retry', rule: 'Status rule', save: 'Save', saved: 'Saved', enabled: 'Automatic advancement', startup: 'Check after startup', events: 'Check changes and completed turns', due: 'Check due plans', on: 'On', off: 'Off', prompt: 'Status prompt', editPrompt: 'Edit advancement prompt', statusDescription: 'Persona status description', mechanism: 'Rabi checks plans, feedback, and the originally bound session on the selected triggers. When a rule matches and that session is idle, Rabi queues this status prompt, its description, and plan identity to the original session. The agent then rereads the plan. This setting does not directly change plan status.', globalDescription: 'Master switch and check timing', ruleDescription: 'Set action, trigger, and prompt per status. The Rabi persona workflow owns status descriptions.', inspect: 'Inspect and update only', continue: 'Continue authorized work', changed: 'Plan changed', feedback: 'New feedback', dueCondition: 'Plan is due', cooldown: 'Cooldown (minutes)', maxRuns: 'Maximum runs per step', run: 'Advance selected', next: 'Check next page', select: 'Select', preview: 'Preview prompt', eligible: 'Ready', role: 'Persona', empty: 'No matching plans', pending: 'Working…', error: 'Operation failed', inherited: 'Status rule disabled', accepted: 'Accepted', skipped: 'Skipped', uncertain: 'Outcome uncertain', rule_disabled: 'Rule disabled', inactive_plan: 'Paused or terminal', binding_mismatch: 'Binding mismatch', automation_disabled: 'Automation disabled', missing_current_step: 'Missing current step', approval_gate: 'Approval gate: inspect feedback only', waiting_feedback: 'Waiting for feedback', not_due: 'Not due', delivery_uncertain: 'Previous delivery uncertain', already_consumed: 'Already consumed', cooldownReason: 'Cooling down', step_limit: 'Step run limit reached', session_running: 'Session running', session_unavailable: 'Session unavailable', session_reserved: 'Dispatch in progress', changed_since_check: 'Plan changed; check again' },
+  zh: { settings: '推进设置', check: '检查推进', close: '关闭', loading: '加载中…', retry: '重试', rule: '状态规则', save: '保存', saved: '已保存', enabled: '自动推进', startup: '启动后检查', events: '数据变化和会话结束后检查', due: '检查到期计划', on: '开启', off: '关闭', prompt: '推进提示词', editPrompt: '编辑推进提示词', statusDescription: '人格状态说明', mechanism: 'Rabi 按所选触发条件检查计划、反馈和原绑定会话；符合规则且会话空闲时，把下方该状态的推进提示词、当前状态说明和计划身份排队送给原会话，由 Agent 重新读取计划后继续。这里不会直接修改计划状态。', globalDescription: '自动推进总开关及检查时机', ruleDescription: '每个状态单独设置动作、触发条件和提示词；状态说明由 Rabi 人格工作流统一管理。', inspect: '只检查与回写', continue: '继续已授权工作', changed: '计划有新变化', feedback: '收到新反馈', dueCondition: '计划到期', cooldown: '冷却时间（分钟）', maxRuns: '每个步骤最多推进次数', run: '推进选中项', runAllIdle: '推进所有非运行中的会话', runAllDescription: '逐页检查当前人格工作区；仅推进符合状态规则的空闲原会话，每个会话本轮最多派发一次。', runAllProgress: '已检查 {scanned} 个计划，已接收 {accepted} 个会话，跳过 {skipped} 项，待核对 {uncertain} 项', next: '检查下一页', select: '选择', preview: '查看提示词', eligible: '可推进', role: '人格', empty: '没有符合规则的计划', pending: '正在处理…', error: '操作失败', inherited: '未启用状态规则', accepted: '已接收', skipped: '已跳过', uncertain: '结果待核对', rule_disabled: '规则未开启', inactive_plan: '计划已暂停或结束', binding_mismatch: '绑定不匹配', automation_disabled: '自动推进未开启', missing_current_step: '缺少当前步骤', approval_gate: '等待审批答复，只能检查', waiting_feedback: '等待新反馈', not_due: '尚未到期', delivery_uncertain: '上次投递结果待核对', already_consumed: '该变化已处理', cooldownReason: '冷却中', step_limit: '本步骤已达推进上限', session_running: '会话正在运行', session_unavailable: '会话暂不可用', session_reserved: '会话正在派发', changed_since_check: '计划已变化，请重新检查' },
+  en: { settings: 'Advance settings', check: 'Check advancement', close: 'Close', loading: 'Loading…', retry: 'Retry', rule: 'Status rule', save: 'Save', saved: 'Saved', enabled: 'Automatic advancement', startup: 'Check after startup', events: 'Check changes and completed turns', due: 'Check due plans', on: 'On', off: 'Off', prompt: 'Status prompt', editPrompt: 'Edit advancement prompt', statusDescription: 'Persona status description', mechanism: 'Rabi checks plans, feedback, and the originally bound session on the selected triggers. When a rule matches and that session is idle, Rabi queues this status prompt, its description, and plan identity to the original session. The agent then rereads the plan. This setting does not directly change plan status.', globalDescription: 'Master switch and check timing', ruleDescription: 'Set action, trigger, and prompt per status. The Rabi persona workflow owns status descriptions.', inspect: 'Inspect and update only', continue: 'Continue authorized work', changed: 'Plan changed', feedback: 'New feedback', dueCondition: 'Plan is due', cooldown: 'Cooldown (minutes)', maxRuns: 'Maximum runs per step', run: 'Advance selected', runAllIdle: 'Advance all idle sessions', runAllDescription: 'Check every page in this persona workspace. Dispatch only eligible original sessions, once per session in this pass.', runAllProgress: 'Checked {scanned} plans; accepted {accepted} sessions; skipped {skipped}; uncertain {uncertain}', next: 'Check next page', select: 'Select', preview: 'Preview prompt', eligible: 'Ready', role: 'Persona', empty: 'No matching plans', pending: 'Working…', error: 'Operation failed', inherited: 'Status rule disabled', accepted: 'Accepted', skipped: 'Skipped', uncertain: 'Outcome uncertain', rule_disabled: 'Rule disabled', inactive_plan: 'Paused or terminal', binding_mismatch: 'Binding mismatch', automation_disabled: 'Automation disabled', missing_current_step: 'Missing current step', approval_gate: 'Approval gate: inspect feedback only', waiting_feedback: 'Waiting for feedback', not_due: 'Not due', delivery_uncertain: 'Previous delivery uncertain', already_consumed: 'Already consumed', cooldownReason: 'Cooling down', step_limit: 'Step run limit reached', session_running: 'Session running', session_unavailable: 'Session unavailable', session_reserved: 'Dispatch in progress', changed_since_check: 'Plan changed; check again' },
 }
 const defaultAdvanceRule = () => ({ enabled: false, prompt: '', action: 'inspect', condition: 'changed', cooldownMinutes: 10, maxRunsPerStep: 3 })
 async function advanceCall(cwd, roleId, action, body, signal) {
@@ -13,6 +13,38 @@ async function advanceCall(cwd, roleId, action, body, signal) {
   return value.data
 }
 
+async function advanceAllIdle(cwd, roleId, onProgress, signal) {
+  const seenSessions = new Set(), seenCursors = new Set()
+  const eligible = []
+  const progress = { scanned: 0, accepted: 0, skipped: 0, uncertain: 0 }
+  let cursor = ''
+  do {
+    if (seenCursors.has(cursor)) throw new Error('Repeated plan cursor')
+    seenCursors.add(cursor)
+    const page = await advanceCall(cwd, roleId, 'check', { cursor }, signal)
+    for (const item of page.items) {
+      progress.scanned++
+      if (item.eligible && item.sessionId && !seenSessions.has(item.sessionId)) {
+        seenSessions.add(item.sessionId)
+        eligible.push(item)
+      } else progress.skipped++
+    }
+    onProgress({ ...progress })
+    cursor = page.nextCursor || ''
+  } while (cursor)
+  for (let index = 0; index < eligible.length; index += 20) {
+    const batch = eligible.slice(index, index + 20)
+    const result = await advanceCall(cwd, roleId, 'run', { planIds: batch.map(item => item.planId), expected: Object.fromEntries(batch.map(item => [item.planId, item.fingerprint])) }, signal)
+    for (const item of result.items) {
+      if (item.state === 'accepted') progress.accepted++
+      else if (item.state === 'uncertain') progress.uncertain++
+      else progress.skipped++
+    }
+    onProgress({ ...progress })
+  }
+  return progress
+}
+
 /** Settings and preview are projections of the persona-owned API, never local policy storage. */
 export function RabiAdvanceDialog({ cwd, roleIds, mode, t: parentT, onClose }) {
   const t = key => (parentT('close') === '关闭' ? advanceCopy.zh : advanceCopy.en)[key] || key
@@ -20,8 +52,11 @@ export function RabiAdvanceDialog({ cwd, roleIds, mode, t: parentT, onClose }) {
   const [reload, setReload] = React.useState(0)
   const [data, setData] = React.useState(null), [error, setError] = React.useState(''), [busy, setBusy] = React.useState(false)
   const [selected, setSelected] = React.useState([]), [expanded, setExpanded] = React.useState('auto'), [saved, setSaved] = React.useState(false)
+  const [bulkProgress, setBulkProgress] = React.useState(null)
+  const bulkController = React.useRef(null)
+  React.useEffect(() => () => bulkController.current?.abort(), [])
   React.useEffect(() => {
-    const controller = new AbortController(); setData(null); setError(''); setSelected([]); setSaved(false)
+    const controller = new AbortController(); setData(null); setError(''); setSelected([]); setSaved(false); setBulkProgress(null)
     advanceCall(cwd, roleId, mode, mode === 'check' ? {} : undefined, controller.signal).then(setData).catch(e => { if (!controller.signal.aborted) setError(e.message) })
     return () => controller.abort()
   }, [cwd, roleId, mode, reload])
@@ -31,7 +66,7 @@ export function RabiAdvanceDialog({ cwd, roleIds, mode, t: parentT, onClose }) {
   const reason = key => t(key === 'cooldown' ? 'cooldownReason' : key)
   const firstStatus = data?.statuses?.find(status => status.state === 'enabled' && data.policy.rules[status.key]?.enabled)?.key || data?.statuses?.find(status => status.state === 'enabled')?.key
   const openStatus = expanded === 'auto' ? firstStatus : expanded
-  return React.createElement(Modal, { open: true, title: t(mode), closeLabel: t('close'), onClose, className: 'rabi-advance-dialog' },
+  return React.createElement(Modal, { open: true, title: t(mode), closeLabel: t('close'), onClose: () => { bulkController.current?.abort(); onClose() }, className: 'rabi-advance-dialog' },
     React.createElement('div', { style: { display: 'grid', gap: 10, minWidth: 0 }, 'data-rabi-advance': mode },
       React.createElement('style', null, '.rabi-advance-dialog{width:min(760px,calc(100vw - 40px))}.rabi-advance-dialog textarea{box-sizing:border-box;width:100%;min-height:120px;background:var(--dsw-alias-bg-base);color:inherit;border:1px solid var(--dsw-alias-border-l4);border-radius:6px;padding:8px}'),
       roleIds.length > 1 ? React.createElement('div', { style: { display: 'flex', gap: 6 } }, ...roleIds.map(id => React.createElement(Button, { key: id, size: 'sm', disabled: busy, 'aria-pressed': id === roleId, onClick: () => setRoleId(id) }, id))) : React.createElement('span', null, t('role') + ': ' + roleId),
@@ -58,16 +93,25 @@ export function RabiAdvanceDialog({ cwd, roleIds, mode, t: parentT, onClose }) {
         saved ? React.createElement('div', { role: 'status' }, t('saved')) : null,
         data.runtimeErrors && Object.keys(data.runtimeErrors).length ? React.createElement('div', { role: 'alert' }, Object.values(data.runtimeErrors).join('\n')) : null
       ) : React.createElement(React.Fragment, null,
+        React.createElement('p', { style: { margin: 0, fontSize: 12, opacity: 0.8 } }, t('runAllDescription')),
         React.createElement('div', { style: { maxHeight: '55vh', overflow: 'auto', display: 'grid', gap: 8 } }, ...(data.items || []).map(item => React.createElement('article', { key: item.planId, style: { padding: 8, border: '1px solid var(--dsw-alias-border-l4)', borderRadius: 6 } },
           React.createElement('div', null, item.title || item.planId),
           React.createElement('div', null, item.label, ' · ', item.eligible ? t('eligible') : reason(item.reason || item.state)),
           item.eligible ? toggle(t('select'), selected.includes(item.planId), value => setSelected(old => value ? [...old, item.planId] : old.filter(id => id !== item.planId))) : null,
           item.prompt ? React.createElement('details', null, React.createElement('summary', null, t('preview')), React.createElement('pre', { style: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, item.prompt)) : null)),
           !data.items?.length ? React.createElement('div', null, t('empty')) : null),
-        React.createElement('div', { style: { display: 'flex', gap: 8 } },
+        React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
           React.createElement(Button, { disabled: busy || !selected.length, onClick: () => action(async () => {
             const items = data.items.filter(item => selected.includes(item.planId)); const result = await advanceCall(cwd, roleId, 'run', { planIds: items.map(item => item.planId), expected: Object.fromEntries(items.map(item => [item.planId, item.fingerprint])) });
             setData({ items: result.items.map(item => ({ ...items.find(old => old.planId === item.planId), ...item, eligible: false })), nextCursor: data.nextCursor }); setSelected([])
           }) }, t(busy ? 'pending' : 'run')),
-          React.createElement(Button, { disabled: busy || !data.nextCursor, onClick: () => action(async () => { setData(await advanceCall(cwd, roleId, 'check', { cursor: data.nextCursor })); setSelected([]) }) }, t('next'))))))
+          React.createElement(Button, { disabled: busy, onClick: () => { if (bulkController.current) return; void action(async () => {
+            const controller = new AbortController(); bulkController.current = controller; setBulkProgress({ scanned: 0, accepted: 0, skipped: 0, uncertain: 0 })
+            try {
+              await advanceAllIdle(cwd, roleId, setBulkProgress, controller.signal)
+              setData(await advanceCall(cwd, roleId, 'check', {}, controller.signal)); setSelected([])
+            } finally { bulkController.current = null }
+          }) } }, t('runAllIdle')),
+          React.createElement(Button, { disabled: busy || !data.nextCursor, onClick: () => action(async () => { setData(await advanceCall(cwd, roleId, 'check', { cursor: data.nextCursor })); setSelected([]) }) }, t('next'))),
+        bulkProgress ? React.createElement('div', { role: 'status' }, t('runAllProgress').replace(/\{(scanned|accepted|skipped|uncertain)\}/g, (_, key) => String(bulkProgress[key]))) : null)))
 }

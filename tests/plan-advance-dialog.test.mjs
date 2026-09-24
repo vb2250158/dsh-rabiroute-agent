@@ -22,6 +22,7 @@ test('advance settings explain dispatch and expose the persona description and e
     Fragment: 'Fragment',
     createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
     useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] },
+    useRef: initial => { const index = cursor++; if (!(index in states)) states[index] = { current: initial }; return states[index] },
     useEffect: (fn, deps) => { const index = cursor++; const previous = states[index]; if (!previous || deps.some((value, i) => !Object.is(value, previous.deps[i]))) { previous?.dispose?.(); effects.push(() => { states[index] = { deps, dispose: fn() } }) } },
   }
   const context = { React, Button: 'Button', Input: 'Input', Modal: 'Modal', URLSearchParams, AbortController, fetch: async (url, init) => {
@@ -45,4 +46,35 @@ test('advance settings explain dispatch and expose the persona description and e
   const save = nodes(tree, 'Button').find(node => node.children[0] === '保存')
   await save.props.onClick()
   assert.equal(JSON.parse(calls.at(-1).init.body).policy.rules.analysis.prompt, '读取当前计划并核对反馈')
+})
+
+test('advance all checks every page and dispatches each idle session once', async () => {
+  const calls = [], progress = []
+  const pages = {
+    '': { items: [
+      { planId: 'plan-a', sessionId: 'session-a', eligible: true, fingerprint: 'fa' },
+      { planId: 'plan-a2', sessionId: 'session-a', eligible: true, fingerprint: 'fa2' },
+      { planId: 'plan-busy', sessionId: 'session-busy', eligible: false, reason: 'session_running' }
+    ], nextCursor: 'page-2' },
+    'page-2': { items: [
+      { planId: 'plan-a3', sessionId: 'session-a', eligible: true, fingerprint: 'fa3' },
+      { planId: 'plan-b', sessionId: 'session-b', eligible: true, fingerprint: 'fb' }
+    ], nextCursor: '' },
+  }
+  const context = { URLSearchParams, AbortController, fetch: async (url, init) => {
+    const action = new URL(url, 'http://localhost').searchParams.get('action')
+    const body = JSON.parse(init.body)
+    calls.push({ action, body })
+    return { ok: true, json: async () => ({ code: 0, data: action === 'check' ? pages[body.cursor] : { items: body.planIds.map(planId => ({ planId, state: 'accepted' })) } }) }
+  } }
+  vm.createContext(context)
+  vm.runInContext(source + '\nthis.advanceAllIdle = advanceAllIdle', context)
+  const result = await context.advanceAllIdle('C:\\example', 'role-one', value => progress.push(value))
+  assert.deepEqual(calls.filter(call => call.action === 'check').map(call => call.body.cursor), ['', 'page-2'])
+  assert.deepEqual(calls.filter(call => call.action === 'run').map(call => call.body.planIds), [['plan-a', 'plan-b']])
+  assert.deepEqual(calls.filter(call => call.action === 'run').map(call => call.body.expected), [{ 'plan-a': 'fa', 'plan-b': 'fb' }])
+  assert.equal(result.scanned, 5)
+  assert.equal(result.accepted, 2)
+  assert.equal(result.skipped, 3)
+  assert.equal(progress.length, 3)
 })

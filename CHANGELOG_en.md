@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.8
+
+- Add “Advance all idle sessions” to Check advancement. It checks every page in the current persona workspace, preserves existing eligibility rules, dispatches at most once per original idle session per pass, and reports checked, accepted, skipped, and uncertain counts.
+
 ## 0.13.7
 
 - Explain advancement triggers, checks, and original-session dispatch; initially expand a status rule and show its persona description beside the editable prompt.
