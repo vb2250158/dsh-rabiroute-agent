@@ -1,6 +1,6 @@
 English | [简体中文](README.md)
 
-v0.13.6
+v0.13.7
 
 A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles are display-only. Opening a bound session loads its associated plan through the session panel; multiple bindings offer a session choice. Discovery scans no plans. Loaded pages are cached for the plugin lifetime; closing cancels the active read but retains one lightweight event subscription. Reopening an unchanged page makes no query. Role-scoped events reconcile changed rows only; inactive pages reconcile on reopening. Server-owned order, counts, and facets remain authoritative. Reconnect reconciles cached state; failures retain rows with an error. Configure `workspacePlanCachePages` (32) and `workspacePlanEventDelayMs` (200) to bound retained pages and coalesce events. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.
 
@@ -63,6 +63,8 @@ Rabi owns synthesis and defaults; this plugin owns reply extraction, same-origin
 Voice input posts to same-origin `POST /rabiroute/speech/asr`. After Manager identity checks, Host transcribes the browser WAV with Rabi's **current default ASR** (the preloaded `faster-whisper/small`, ~0.5 s hot, faster than Qwen3-ASR 0.6B) and writes the text back into the official controlled field. DSH does not store ASR settings, pick a model, start speech services or fake option clicks. Failures are shown as stated; empty transcripts are not submitted. Restart DSH and refresh the page.
 
 The workspace Rabi plans dialog provides Check advancement and Advance settings. Persona-owned workspace rules configure each plan status with its own prompt, trigger condition, action, cooldown, and per-step run limit. Automation is off by default. When enabled, it observes plan and feedback changes and completed sessions, with optional startup and due checks. The check view previews eligible plans and the exact delivery prompt before sending selected items to their original bound DSH sessions in queue mode. Approval gates, paused or terminal plans, mismatched bindings, and busy sessions are skipped. Rabi persists dispatch receipts to prevent replay of the same change; uncertain outcomes stop automatic retries pending verification.
+
+The settings dialog explains the trigger and dispatch path, initially expands a configurable status, and shows its persona-owned description beside the editable prompt. Rabi combines that description with the rule prompt, plan and step identity, and authorization constraints; the agent rereads the current plan before acting.
 
 ## Purpose and development boundaries
 

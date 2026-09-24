@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.7
+
+- Explain advancement triggers, checks, and original-session dispatch; initially expand a status rule and show its persona description beside the editable prompt.
+
 ## 0.13.6
 
 - Restore verified plan identities and a credential-free origin from browser session storage before background reconciliation after reload. Previously open panels reopen immediately; credential-bearing URLs are never persisted.
