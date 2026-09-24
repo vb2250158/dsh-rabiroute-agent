@@ -14,7 +14,8 @@ export const rabiPlanLocales = {
     planNoRoute: '绑定的 Rabi 人格 {roleId} 没有对应的路由，无法定位计划页面。',
     planNoSession: '缺少会话标识，无法读取 Rabi 绑定。',
     planUnreachable: 'Rabi Manager 当前不可用：{error}',
-    planUnreachableHint: '面板不会显示缓存或推断的计划；请确认 Rabi Manager 正在运行后重试。',
+    planUnreachableHint: '此前没有确认过该会话的计划；请确认 Rabi Manager 正在运行后重试。',
+    planStale: '正在显示上次确认的计划；Rabi 当前不可用，绑定状态尚未重新核对。',
   },
   en: {
     tab: 'Rabi plan',
@@ -28,6 +29,7 @@ export const rabiPlanLocales = {
     planNoRoute: 'The bound Rabi persona {roleId} has no matching route, so its plan page cannot be located.',
     planNoSession: 'No session identity was supplied, so the Rabi binding cannot be read.',
     planUnreachable: 'Rabi Manager is unavailable: {error}',
-    planUnreachableHint: 'The panel never shows a cached or inferred plan; start Rabi Manager and try again.',
+    planUnreachableHint: 'No plan was previously confirmed for this session; start Rabi Manager and try again.',
+    planStale: 'Showing the last confirmed plan; Rabi is unavailable and the binding has not been rechecked.',
   },
 }

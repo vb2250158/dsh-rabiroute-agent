@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.5
+
+- Keep verified panel resolutions per session without the 32-entry eviction. Reconcile relevant plan events in the background, retain the last verified page with a stale notice on failure, and avoid showing another session's plan while switching.
+
 ## 0.13.4
 
 - Stop plan-event cache invalidation from iterating forever when a listener synchronously refills the same key; cover this reentry in a regression test.

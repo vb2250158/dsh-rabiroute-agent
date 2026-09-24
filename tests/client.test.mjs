@@ -289,6 +289,61 @@ test('reopening an unchanged session reuses its panel resolution, while a matchi
   assert.equal(h.panelCalls.length, 2)
 })
 
+test('switching between many sessions keeps their verified bindings without a loading flash', async () => {
+  const h = harness()
+  h.setPanelResponse(async url => {
+    const sessionId = new URL(url, 'http://localhost').searchParams.get('sessionId')
+    return { ok: true, json: async () => ({ data: { available: true, roleId: 'Rabi', planId: sessionId, url: `http://localhost/plan/${sessionId}` } }) }
+  })
+  h.renderPlanBody('session-0')
+  await flush()
+  for (let index = 1; index < 40; index++) {
+    h.remount()
+    h.renderPlanBody(`session-${index}`)
+    await flush()
+  }
+  h.remount()
+  assert.equal(nodes(h.renderPlanBody('session-0'), 'iframe')[0].props.src, 'http://localhost/plan/session-0')
+  assert.equal(h.panelCalls.length, 40)
+  assert.equal(nodes(h.renderPlanBody('session-40'), 'iframe').length, 0, 'a new session never inherits the prior frame')
+  await flush()
+  assert.equal(nodes(h.renderPlanBody('session-40'), 'iframe')[0].props.src, 'http://localhost/plan/session-40')
+  assert.equal(h.panelCalls.length, 41)
+  assert.equal(nodes(h.renderPlanBody('session-1'), 'iframe')[0].props.src, 'http://localhost/plan/session-1')
+  assert.equal(h.panelCalls.length, 41)
+})
+
+test('plan event reconciles in the background and retains the last verified frame if Rabi is unavailable', async () => {
+  const h = harness()
+  const oldUrl = 'http://localhost/plan/old'
+  let resolveRefresh
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ data: { available: true, roleId: 'Rabi', planId: 'plan-a', url: oldUrl } }) }))
+  h.renderPlanBody('session-a')
+  await flush()
+  h.setPanelResponse(() => new Promise(resolve => { resolveRefresh = resolve }))
+  h.emitPlanChange({ type: 'plan_changed', roleId: 'Rabi', planId: 'plan-a' })
+  assert.equal(nodes(h.renderPlanBody('session-a'), 'iframe')[0].props.src, oldUrl)
+  assert.equal(h.panelCalls.length, 2)
+  assert.equal(nodes(h.renderPlanBody('session-a'), 'iframe')[0].props.src, oldUrl)
+  resolveRefresh({ ok: true, json: async () => ({ data: { available: true, roleId: 'Rabi', planId: 'plan-b', url: 'http://localhost/plan/new' } }) })
+  await flush()
+  assert.equal(nodes(h.renderPlanBody('session-a'), 'iframe')[0].props.src, 'http://localhost/plan/new')
+
+  h.setPanelResponse(async () => { throw new Error('offline') })
+  h.emitPlanChange({ type: 'plan_changed', roleId: 'Rabi', planId: 'plan-b' })
+  h.renderPlanBody('session-a')
+  await flush()
+  const stale = h.renderPlanBody('session-a')
+  assert.equal(nodes(stale, 'iframe')[0].props.src, 'http://localhost/plan/new')
+  assert.ok(JSON.stringify(stale).includes(h.planT('planStale')))
+
+  h.setPanelResponse(async () => ({ ok: true, json: async () => ({ data: { available: false, reason: 'unbound', roleId: '' } }) }))
+  h.emitPlanChange({ type: 'ready' })
+  h.renderPlanBody('session-a')
+  await flush()
+  assert.equal(nodes(h.renderPlanBody('session-a'), 'iframe').length, 0, 'a confirmed unbind replaces the old frame')
+})
+
 test('an unbound session, a session without a bound plan each report their own reason', async () => {
   const h = harness()
   h.renderPlanBody('session-2')
