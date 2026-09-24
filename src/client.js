@@ -214,10 +214,13 @@ export function apply(ctx) {
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
     name: 'sidebar.right.pane.tab', key: RABI_PLAN_TAB_ID, locale: RABI_PLAN_NS,
   }, RabiPlanBody)), 'dsh-rabiroute-agent: plan body')
-  // The entry appears only where a Rabi binding exists, and opens the panel once
-  // for that session; both decisions come from the Host route, not from local state.
+  // The Host owns the binding; the sidebar owns its live layout. The entry only
+  // remembers the user's per-session panel choice across view remounts.
   ctx.effect(() => ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions', id: 'rabiroute-agent-plan', order: 30, locale: RABI_PLAN_NS,
-    inject: () => ({ openRabiPlanTab: () => { ctx.sidebarRight.openTab(RABI_PLAN_KIND) } }),
+    inject: () => ({
+      openRabiPlanTab: () => { ctx.sidebarRight.openTab(RABI_PLAN_KIND) },
+      getRabiPanelView: () => ({ expanded: ctx.sidebarRight.isExpanded(), activeKind: ctx.sidebarRight.active()?.kind }),
+    }),
   }, RabiPlanLauncher)), 'dsh-rabiroute-agent: plan launcher')
 }

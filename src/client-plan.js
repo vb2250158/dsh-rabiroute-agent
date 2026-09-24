@@ -18,15 +18,46 @@ export const RABI_PLAN_TAB_ID = 'dsh-rabiroute-agent/plan'
 /** The Host route answering the binding question; same origin, so no CORS policy is needed. */
 export const RABI_PLAN_PANEL_PATH = '/rabiroute/plan-panel'
 
-/**
- * Sessions whose panel was already auto-opened once. Auto-opening is a courtesy
- * for a session the user just entered; repeating it on every switch back would
- * keep re-opening a column the user closed on purpose.
- */
-const rabiPlanAutoOpened = new Set()
+const PANEL_VISIBILITY_PREFIX = 'dsh-rabiroute-agent:plan-visibility:'
+const panelVisibility = new Map()
 const panelSnapshots = new Map()
 const panelListeners = new Map()
 let panelEvents
+
+function savedPanelVisibility(sessionId) {
+  if (panelVisibility.has(sessionId)) return panelVisibility.get(sessionId)
+  let value
+  try { value = sessionStorage.getItem(PANEL_VISIBILITY_PREFIX + sessionId) } catch { /* Browser storage is optional. */ }
+  if (value === 'open' || value === 'closed') panelVisibility.set(sessionId, value)
+  return value
+}
+
+function savePanelVisibility(sessionId, value) {
+  if (savedPanelVisibility(sessionId) === value) return
+  panelVisibility.set(sessionId, value)
+  try { sessionStorage.setItem(PANEL_VISIBILITY_PREFIX + sessionId, value) } catch { /* Memory still tracks this tab. */ }
+}
+
+/** Observe only the right panel's tab strip and expanded attribute, never the chat transcript. */
+function watchPlanPanelVisibility(sessionId, title) {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return () => {}
+  const panel = document.querySelector('[data-sidebar-right-panel]')
+  if (!panel) return () => {}
+  let sawPlanTab = false
+  const read = () => {
+    if (!panel.isConnected) return
+    const tab = Array.from(panel.querySelectorAll('[data-dockkit-tab]'))
+      .find(node => node.querySelector('[data-dockkit-tab-title]')?.textContent === title)
+    if (tab) sawPlanTab = true
+    if (!sawPlanTab) return
+    savePanelVisibility(sessionId,
+      panel.hasAttribute('data-sidebar-right-open') && tab?.getAttribute('aria-selected') === 'true' ? 'open' : 'closed')
+  }
+  const observer = new MutationObserver(read)
+  observer.observe(panel, { attributes: true, attributeFilter: ['data-sidebar-right-open', 'aria-selected'], childList: true, subtree: true })
+  read()
+  return () => observer.disconnect()
+}
 
 function panelSnapshot(sessionId) {
   const value = panelSnapshots.get(sessionId)
@@ -204,25 +235,31 @@ export function RabiPlanBody({ sessionId, t }) {
  * column that has nothing to show.
  * @param props - framework props plus the panel-opening callback from `inject`.
  */
-export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab }) {
-  const [state, setState] = React.useState({ phase: 'hidden' })
+export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab, getRabiPanelView }) {
+  const [state, setState] = React.useState(() => panelSnapshot(sessionId)?.data?.roleId ? { phase: 'ready' } : { phase: 'hidden' })
   // The callback is held in a ref so a re-created inject face cannot re-run the read.
   const open = React.useRef(openRabiPlanTab)
   open.current = openRabiPlanTab
+  const view = React.useRef(getRabiPanelView)
+  view.current = getRabiPanelView
+  React.useEffect(() => state.phase === 'ready' ? watchPlanPanelVisibility(sessionId, t('tab')) : undefined, [sessionId, state.phase, t])
   React.useEffect(() => {
     let active = true
     cachedPanelState(sessionId)
       .then(data => {
         if (!active) return
         // A roleId is what "this session is bound to a Rabi persona" looks like from here.
-        if (!data.roleId) return
-        setState({ phase: 'ready' })
-        if (!data.available || rabiPlanAutoOpened.has(sessionId)) return
+        setState({ phase: data.roleId ? 'ready' : 'hidden' })
+        if (!data.roleId || !data.available || savedPanelVisibility(sessionId) === 'closed') return
+        const current = view.current?.()
+        if (current?.activeKind === RABI_PLAN_KIND) {
+          savePanelVisibility(sessionId, current.expanded ? 'open' : 'closed')
+          return
+        }
+        if (current?.activeKind) return
         try {
           open.current()
-          // Only a successful open counts: a column that was not mounted yet must
-          // stay eligible, so the next render can still open it.
-          rabiPlanAutoOpened.add(sessionId)
+          savePanelVisibility(sessionId, 'open')
         } catch {
           // Opening can refuse while the session's panel is not mounted; the
           // button remains, so the user can open it deliberately.
@@ -233,7 +270,7 @@ export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab }) {
   }, [sessionId])
   React.useEffect(() => watchPanelSnapshot(sessionId, () => {
     // A changed binding needs the launcher to re-read; the body owns the visible refresh.
-    cachedPanelState(sessionId).then(data => { if (data.roleId) setState({ phase: 'ready' }) })
+    cachedPanelState(sessionId).then(data => setState({ phase: data.roleId ? 'ready' : 'hidden' }))
       .catch(() => setState({ phase: 'hidden' }))
   }), [sessionId])
 
@@ -248,6 +285,6 @@ export function RabiPlanLauncher({ sessionId, t, openRabiPlanTab }) {
       style: rabiClientStyles.planLauncherIcon,
     }),
     'aria-label': t('launcherHint'), title: t('launcherHint'),
-    onClick: () => { try { open.current() } catch { /* the sidebar reports its own refusal */ } },
+    onClick: () => { try { open.current(); savePanelVisibility(sessionId, 'open') } catch { /* the sidebar reports its own refusal */ } },
   })
 }

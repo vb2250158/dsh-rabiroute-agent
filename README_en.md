@@ -1,6 +1,6 @@
 English | [简体中文](README.md)
 
-v0.13.1
+v0.13.3
 
 A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles are display-only. Opening a bound session loads its associated plan through the session panel; multiple bindings offer a session choice. Discovery scans no plans. Loaded pages are cached for the plugin lifetime; closing cancels the active read but retains one lightweight event subscription. Reopening an unchanged page makes no query. Role-scoped events reconcile changed rows only; inactive pages reconcile on reopening. Server-owned order, counts, and facets remain authoritative. Reconnect reconciles cached state; failures retain rows with an error. Configure `workspacePlanCachePages` (32) and `workspacePlanEventDelayMs` (200) to bound retained pages and coalesce events. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.
 
@@ -105,7 +105,7 @@ When a session is bound to a Rabi **persona**, the right Sidebar gains a "Rabi p
 | Entry | **Rabi's icon** beside the session title (shipped in this plugin, inlined at 64px, no runtime request). It appears once the session has a Rabi **persona binding**; with no `roleId` (unbound, or Manager unreachable) it stays hidden. |
 | Why "a plan exists" is no longer the condition | 0.2.0 gated the entry on availability, which hid it in the normal interval between "the session is bound" and "Rabi has recorded a plan" — exactly when an entry is wanted. The entry now follows the binding; the panel explains an empty state. |
 | Auto-open | Only when a plan really is bound, once per session. A bound session with no plan yet does not auto-open, so no empty column appears. |
-| Closing | Closing and collapsing belong to DSH's own right column (each page has a close, the column collapses). A manual close is not undone by switching sessions: auto-open happens once per session. |
+| Closing and switching | The plugin records each session's panel choice when the user closes, collapses, or switches right-side tabs. Returning to a session does not reopen a plan the user closed. DSH still owns the current layout; the plugin retains only the choice in browser session storage, including across page reloads. |
 | Reopening | The icon button calls `sidebarRight.openTab`, the same path auto-open uses. |
 
 **Icon source**: `RabiRoute/assets/rabiroute-icon.png`, downscaled to 64px and inlined into the client bundle (`src/plan-icon.js`, ~4 KB). It is not fetched at runtime: the DSH client has no dependable URL for Rabi's static assets, and a fetch would blink an empty button.

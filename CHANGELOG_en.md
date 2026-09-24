@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.3
+
+- Remember each session's right-side plan panel choice, respect the current sidebar when switching sessions or pages, and reuse the resolved binding without another query.
+
 ## 0.13.2
 
 - Reuse the resolved binding in the session plan panel and invalidate only affected entries on plan events. Rabi Web reuses full details by view revision.
