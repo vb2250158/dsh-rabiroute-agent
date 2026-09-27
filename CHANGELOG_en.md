@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.9
+
+- Bulk advancement reuses the current check instead of rescanning its first page. Search and dispatch have separate progress bars and counts, with stop and recheck actions. Empty batches cannot be started, and requests resolve only the selected workspace.
+
 ## 0.13.8
 
 - Add “Advance all idle sessions” to Check advancement. It checks every page in the current persona workspace, preserves existing eligibility rules, dispatches at most once per original idle session per pass, and reports checked, accepted, skipped, and uncertain counts.

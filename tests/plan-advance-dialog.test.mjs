@@ -51,12 +51,12 @@ test('advance settings explain dispatch and expose the persona description and e
 test('advance all checks every page and dispatches each idle session once', async () => {
   const calls = [], progress = []
   const pages = {
-    '': { items: [
+    '': { total: 5, items: [
       { planId: 'plan-a', sessionId: 'session-a', eligible: true, fingerprint: 'fa' },
       { planId: 'plan-a2', sessionId: 'session-a', eligible: true, fingerprint: 'fa2' },
       { planId: 'plan-busy', sessionId: 'session-busy', eligible: false, reason: 'session_running' }
     ], nextCursor: 'page-2' },
-    'page-2': { items: [
+    'page-2': { total: 5, items: [
       { planId: 'plan-a3', sessionId: 'session-a', eligible: true, fingerprint: 'fa3' },
       { planId: 'plan-b', sessionId: 'session-b', eligible: true, fingerprint: 'fb' }
     ], nextCursor: '' },
@@ -69,12 +69,71 @@ test('advance all checks every page and dispatches each idle session once', asyn
   } }
   vm.createContext(context)
   vm.runInContext(source + '\nthis.advanceAllIdle = advanceAllIdle', context)
-  const result = await context.advanceAllIdle('C:\\example', 'role-one', value => progress.push(value))
-  assert.deepEqual(calls.filter(call => call.action === 'check').map(call => call.body.cursor), ['', 'page-2'])
+  const result = await context.advanceAllIdle('C:\\example', 'role-one', value => progress.push(value), undefined, pages[''])
+  assert.deepEqual(calls.filter(call => call.action === 'check').map(call => call.body.cursor), ['page-2'])
   assert.deepEqual(calls.filter(call => call.action === 'run').map(call => call.body.planIds), [['plan-a', 'plan-b']])
   assert.deepEqual(calls.filter(call => call.action === 'run').map(call => call.body.expected), [{ 'plan-a': 'fa', 'plan-b': 'fb' }])
   assert.equal(result.scanned, 5)
+  assert.equal(result.total, 5)
+  assert.equal(result.phase, 'done')
   assert.equal(result.accepted, 2)
   assert.equal(result.skipped, 3)
-  assert.equal(progress.length, 3)
+  assert.deepEqual(progress.map(item => item.phase), ['scan', 'scan', 'scan', 'dispatch', 'dispatch', 'done'])
+  assert.equal(progress.at(-2).attempted, 2)
+})
+
+test('bulk scan cancellation prevents the next page and any dispatch', async () => {
+  const calls = [], controller = new AbortController()
+  const context = { URLSearchParams, AbortController, fetch: async url => { calls.push(url); throw new Error('Unexpected request') } }
+  vm.createContext(context)
+  vm.runInContext(source + '\nthis.advanceAllIdle = advanceAllIdle', context)
+  const firstPage = { total: 40, items: [{ planId: 'plan-a', sessionId: 'session-a', eligible: true, fingerprint: 'fa' }], nextCursor: '20' }
+  await assert.rejects(context.advanceAllIdle('C:\\example', 'role-one', progress => { if (progress.scanned) controller.abort() }, controller.signal, firstPage), { name: 'AbortError' })
+  assert.equal(calls.length, 0)
+})
+
+test('check dialog disables empty bulk runs and shows search and dispatch progress', async () => {
+  const states = [], effects = [], calls = []
+  let cursor = 0, finishRun
+  const firstPage = { total: 1, items: [{ planId: 'plan-a', sessionId: 'session-a', eligible: true, fingerprint: 'fa' }], nextCursor: '' }
+  const React = {
+    Fragment: 'Fragment',
+    createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+    useState: initial => { const index = cursor++; if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] },
+    useRef: initial => { const index = cursor++; if (!(index in states)) states[index] = { current: initial }; return states[index] },
+    useEffect: (fn, deps) => { const index = cursor++; const previous = states[index]; if (!previous || deps.some((value, i) => !Object.is(value, previous.deps[i]))) { previous?.dispose?.(); effects.push(() => { states[index] = { deps, dispose: fn() } }) } },
+  }
+  const context = { React, Button: 'Button', Input: 'Input', Modal: 'Modal', URLSearchParams, AbortController, fetch: async (url, init) => {
+    const action = new URL(url, 'http://localhost').searchParams.get('action')
+    calls.push(action)
+    if (action === 'run') return new Promise(resolve => { finishRun = () => resolve({ ok: true, json: async () => ({ code: 0, data: { items: [{ planId: 'plan-a', state: 'accepted' }] } }) }) })
+    return { ok: true, json: async () => ({ code: 0, data: firstPage }) }
+  } }
+  vm.createContext(context)
+  vm.runInContext(source + '\nthis.Dialog = RabiAdvanceDialog', context)
+  const render = () => { cursor = 0; return context.Dialog({ cwd: 'C:\\example', roleIds: ['role-one'], mode: 'check', t: () => '关闭', onClose() {} }) }
+  render()
+  while (effects.length) effects.shift()()
+  await new Promise(resolve => setImmediate(resolve))
+  let tree = render()
+  const bulk = nodes(tree, 'Button').find(node => node.children[0] === '推进所有非运行中的会话')
+  assert.equal(bulk.props.disabled, false)
+  bulk.props.onClick()
+  await new Promise(resolve => setImmediate(resolve))
+  tree = render()
+  assert.match(JSON.stringify(tree), /启动推进：已处理 0\/1 个会话/)
+  assert.equal(nodes(tree, 'progress')[0].props.value, 0)
+  assert.deepEqual(calls, ['check', 'run'])
+  finishRun()
+  await new Promise(resolve => setImmediate(resolve))
+  tree = render()
+  assert.match(JSON.stringify(tree), /推进检查完成/)
+  assert.equal(nodes(tree, 'progress')[0].props.value, 1)
+  assert.equal(nodes(tree, 'Button').find(node => node.children[0] === '推进所有非运行中的会话').props.disabled, true)
+  assert.deepEqual(calls, ['check', 'run'])
+  states[3] = { total: 1, items: [{ planId: 'plan-a', eligible: false, reason: 'step_limit' }], nextCursor: '' }
+  states[9] = null
+  tree = render()
+  assert.equal(nodes(tree, 'Button').find(node => node.children[0] === '推进所有非运行中的会话').props.disabled, true)
+  assert.match(JSON.stringify(tree), /当前没有可推进的空闲会话/)
 })

@@ -1,5 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
+import { Readable } from 'node:stream'
 import { createPlanAdvanceHost } from '../src/plan-advance.js'
 
 const workspace = 'C:\\example\\project'
@@ -47,5 +49,29 @@ test('automatic advancement is disabled by default without scanning plans', asyn
     await new Promise(resolve => setTimeout(resolve, 20))
     assert.equal(calls.length, 1)
     assert.match(calls[0], /\/settings/)
+  } finally { host.dispose() }
+})
+
+test('manual check resolves only the requested workspace and its sessions', async () => {
+  const rolesRead = [], requests = []
+  const host = createPlanAdvanceHost({},
+    async () => [
+      { sessionId: 'session-one', cwd: workspace, blank: false },
+      { sessionId: 'session-other', cwd: 'C:\\other\\project', blank: false }
+    ],
+    async params => { rolesRead.push(params.get('cwd')); return { roleIds: ['role-one'] } },
+    { request: async (path, init) => { requests.push({ path, body: JSON.parse(init.body) }); return result({ items: [], nextCursor: '' }) } })
+  try {
+    const request = Readable.from([JSON.stringify({})])
+    request.url = '/rabiroute/plan-advance?cwd=' + encodeURIComponent(workspace) + '&roleId=role-one&action=check'
+    request.method = 'POST'
+    const response = new EventEmitter()
+    response.destroyed = false
+    response.writeHead = status => { response.status = status }
+    response.end = body => { response.body = JSON.parse(body) }
+    await host.handler(request, response)
+    assert.equal(response.status, 200)
+    assert.deepEqual(rolesRead, ['c:/example/project'])
+    assert.deepEqual(requests[0].body.sessionIds, ['session-one'])
   } finally { host.dispose() }
 })
