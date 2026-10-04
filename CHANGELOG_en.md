@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.10
+
+- Update DSH compatibility requirements and interfaces for 0.2.1-alpha.1.
+
 ## 0.13.9
 
 - Bulk advancement reuses the current check instead of rescanning its first page. Search and dispatch have separate progress bars and counts, with stop and recheck actions. Empty batches cannot be started, and requests resolve only the selected workspace.
