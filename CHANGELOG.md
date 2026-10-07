@@ -1,5 +1,10 @@
 # 更新日志
 
+## 0.13.12 (2026-10-07)
+
+- 为插件列表提供中英文名称与说明，并发布独立的 SVG 图标。
+- Publish English and Chinese plugin display metadata and a dedicated SVG icon.
+
 ## 0.13.11
 
 - Align maintenance lockfiles and peer versions with the DSH 0.2 runtime.

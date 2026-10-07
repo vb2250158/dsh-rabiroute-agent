@@ -1,6 +1,6 @@
 English | [简体中文](README.md)
 
-v0.13.11
+v0.13.12
 
 A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles are display-only. Opening a bound session loads its associated plan through the session panel; multiple bindings offer a session choice. Discovery scans no plans. Loaded pages are cached for the plugin lifetime; closing cancels the active read but retains one lightweight event subscription. Reopening an unchanged page makes no query. Role-scoped events reconcile changed rows only; inactive pages reconcile on reopening. Server-owned order, counts, and facets remain authoritative. Reconnect reconciles cached state; failures retain rows with an error. Configure `workspacePlanCachePages` (32) and `workspacePlanEventDelayMs` (200) to bound retained pages and coalesce events. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.
 
@@ -236,3 +236,7 @@ Exact absolute-path matching normalizes Windows case, separators and extended pa
 `workspaceSkillsEnabled` defaults to true. Positive integer `workspaceSkillCacheMs` defaults to 30000. Expiry invalidates the DSH registry; bodies are read on demand. Failed discovery is never cached as an empty catalog. Other providers remain available. Loading rechecks workspace and active status. Disposal aborts requests and clears timers. Resources remain opaque Rabi resources, not local DSH paths.
 
 Run `node --test tests/workspace-skills.test.mjs`. Set `DSH_SOURCE_ROOT` to a built DSH checkout and run `node --test tests/workspace-skills-registry.test.mjs` for registry, catalog, loader, explicit invocation, expiry and disposal coverage.
+
+## Plugin display metadata
+
+The plugin list shows **RabiRoute integration** in English and **RabiRoute 接入** in Chinese, following the DSH interface language. `locale/en.json` and `locale/zh.json` provide the title and description; `icon.svg` supplies self-contained artwork. The package exports and publishes these resources. The icon is adapted from Lucide; see [ICON_LICENSE.txt](ICON_LICENSE.txt).

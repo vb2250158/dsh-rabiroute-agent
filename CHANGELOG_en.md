@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.12 (2026-10-07)
+
+- Publish English and Chinese plugin display metadata and a dedicated SVG icon.
+
 ## 0.13.11
 
 - Align maintenance lockfiles and peer versions with DSH 0.2.

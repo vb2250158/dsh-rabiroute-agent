@@ -1,13 +1,15 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.13.11",
+  "version": "0.13.12",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
     "./message-mode": "./lib/message-mode.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
   },
   "files": [
     "lib",
@@ -25,7 +27,10 @@
     "PLAN-RESOURCES_en.md",
     "EMBEDDED-PLAN.md",
     "EMBEDDED-PLAN_en.md",
-    "docs"
+    "docs",
+    "locale",
+    "icon.svg",
+    "ICON_LICENSE.txt"
   ],
   "dependencies": {},
   "peerDependencies": {
@@ -75,5 +80,6 @@
   },
   "devDependencies": {
     "jsdom": "^29.1.1"
-  }
+  },
+  "icon": "./icon.svg"
 }
