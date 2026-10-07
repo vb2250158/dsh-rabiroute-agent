@@ -125,12 +125,14 @@ test('packaged badge uses the row identity and labels stale/conflicting snapshot
     useSyncExternalStore: (_, get) => get() }
   const client = entry.factory(name => name === 'react' ? react : { Tag: 'Tag', Tooltip: 'Tooltip' })
   const rows = [], cleanups = []
-  client.apply({
+  const ctx = {
     sessions: {}, effect: fn => { cleanups.push(fn()) },
+    inject: dependencies => { assert.deepEqual(Array.from(dependencies), ['remote', 'remote.speech']) },
     locale: { register: () => () => {}, bind: () => key => key },
     sidebarRightTabs: { register: () => () => {} }, sidebarRight: {},
     slots: { entries: () => [], inject: (_, fn) => fn(), register: (spec, view) => { rows.push({ spec, view }); return () => {} } },
-  })
+  }
+  client.apply(ctx)
   const badge = rows.find(row => row.spec.name === 'sidebar.workspaces.session.badges')
   assert.ok(badge)
   const render = (id, data) => badge.view({ sessionId: id, t: key => key,

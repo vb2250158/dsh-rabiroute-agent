@@ -1,0 +1,77 @@
+/** Local companion integration smoke; maintained by the RabiRoute plugin checkout. */
+import { chromium } from 'playwright'
+import { expect, it } from 'vitest'
+import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
+import type {} from '@deepseek-ai/dsh-experimental-speech-to-text'
+import { fileURLToPath } from 'node:url'
+import { launchWebScaffold } from './scaffold.ts'
+import { connectFreshWorkspaceZh, ZH_BROWSER_LOCALE } from './support.ts'
+
+class ReadbackAdapter extends LlmAdapter {
+  async listModels(provider: string) { return [{ provider, id: 'reply', name: 'Readback reply' }] }
+  async *stream(_options: GenerateOptions): AsyncIterable<StreamChunk> {
+    yield { type: 'block-start', index: 0, blockType: 'reasoning' }
+    yield { type: 'block-end', index: 0, block: { type: 'reasoning', text: 'Private reasoning' } }
+    yield { type: 'block-start', index: 1, blockType: 'text' }
+    yield { type: 'block-end', index: 1, block: { type: 'text', text: '朗读测试完成' } }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+}
+
+function wave(): Buffer {
+  const bytes = Buffer.alloc(44 + 6400)
+  bytes.write('RIFF', 0); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8)
+  bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(1, 22)
+  bytes.writeUInt32LE(16000, 24); bytes.writeUInt32LE(32000, 28); bytes.writeUInt16LE(2, 32); bytes.writeUInt16LE(16, 34)
+  bytes.write('data', 36); bytes.writeUInt32LE(6400, 40)
+  return bytes
+}
+
+it('built plugin observes saved preference, plays a new reply, and ignores replayed history', async () => {
+  const scaffold = await launchWebScaffold({
+    extraOverlayPath: [fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url))],
+    profile: { packages: [{ dir: process.env.DSH_RABI_PLUGIN_ROOT!, enabled: true }],
+      bundles: ['@deepseek-ai/dsh-experimental-voice-input-bundle'] },
+  })
+  const browser = await chromium.launch()
+  const requests: string[] = []
+  try {
+    scaffold.ctx.effect(() => scaffold.ctx.llm.registerAdapter(['readback-test'], new ReadbackAdapter()))
+    await scaffold.ctx.agentDefaultModel.saveSelection({ provider: 'readback-test', model: 'reply' })
+    await scaffold.ctx.get('speechToText')!.configure({ autoRead: true })
+    const page = await browser.newPage({ viewport: { width: 1360, height: 900 }, locale: ZH_BROWSER_LOCALE })
+    await page.addInitScript(`window.__readTest = { played: 0, ended: 0 }; const NativeAudio = window.Audio;
+      window.Audio = function(url) { const audio = new NativeAudio(url);
+        audio.addEventListener('play', () => window.__readTest.played++);
+        audio.addEventListener('ended', () => window.__readTest.ended++); return audio; };`)
+    await page.route('**/rabiroute/speech', async route => {
+      requests.push(route.request().postDataJSON().text)
+      await route.fulfill({ status: 200, contentType: 'audio/wav', body: wave() })
+    })
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    const scripts: import('playwright').Response[] = []
+    page.on('response', response => { if (response.request().resourceType() === 'script' && response.url().includes('/plugins/')) scripts.push(response) })
+    await page.goto(scaffold.authenticatedUrl)
+    await connectFreshWorkspaceZh(page, scaffold.workspaceCwd)
+    const bundled = await Promise.all(scripts.map(async response => ({ status: response.status(), code: await response.text() })))
+    expect(bundled.some(response => response.status === 200 && response.code.includes('registerRabiAutoSpeech'))).toBe(true)
+    const input = page.locator('[data-composer-input]').first()
+    await input.fill('测试自动朗读')
+    await input.press('Enter')
+    await expect.poll(() => page.getByText('朗读测试完成', { exact: true }).count()).toBeGreaterThan(0)
+    await expect.poll(() => requests.length, { timeout: 15000 }).toBe(1)
+    expect(requests).toEqual(['朗读测试完成'])
+    await expect.poll(() => page.evaluate('window.__readTest.played')).toBe(1)
+    await expect.poll(() => page.evaluate('window.__readTest.ended')).toBe(1)
+    await page.reload()
+    await input.waitFor()
+    expect(await page.evaluate('window.__readTest.played')).toBe(0)
+    expect(requests.length).toBe(1)
+    await input.fill('再测试一轮')
+    await input.press('Enter')
+    await expect.poll(() => requests.length, { timeout: 15000 }).toBe(2)
+    await expect.poll(() => page.evaluate('window.__readTest.ended')).toBe(1)
+    expect(errors).toEqual([])
+  } finally { await browser.close(); await scaffold.close() }
+})

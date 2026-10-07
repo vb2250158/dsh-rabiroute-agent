@@ -1,5 +1,10 @@
 # 更新日志
 
+## 0.13.14 (2026-10-07)
+
+- 订阅语音服务的自动朗读偏好，依次播放当前会话新完成的回复；退出时取消合成与播放。
+- Observe Speech service's automatic reading preference and play new replies serially, cancelling synthesis and playback on exit.
+
 ## 0.13.13 (2026-10-07)
 
 - 缩小图标绘制内容约三分之一，增加方框内的留白。

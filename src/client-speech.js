@@ -18,7 +18,7 @@ export function speechTime(seconds) {
 }
 
 /** Compact browser player; synthesis and voice defaults remain owned by Rabi. */
-export function RabiSpeechAction({ sessionId, messageId, useTrajectory, t }) {
+export function RabiSpeechAction({ sessionId, messageId, useTrajectory, t, autoPlay = false, onFinished }) {
   const text = useTrajectory(snapshot => rabiReplyText(snapshot, messageId))
   const [busy, setBusy] = React.useState(false)
   const [notice, setNotice] = React.useState(null)
@@ -76,7 +76,8 @@ export function RabiSpeechAction({ sessionId, messageId, useTrajectory, t }) {
         setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
         setPlaying(!audio.paused && !audio.ended)
       }
-      audio.onloadedmetadata = audio.ondurationchange = audio.ontimeupdate = audio.onplay = audio.onpause = audio.onended = update
+      audio.onloadedmetadata = audio.ondurationchange = audio.ontimeupdate = audio.onplay = audio.onpause = update
+      audio.onended = () => { update(); onFinished?.() }
       audio.onerror = () => {
         if (media.current !== current) return
         releaseAudio(); setReady(false); setPlaying(false); setNotice(t('playback'))
@@ -89,6 +90,7 @@ export function RabiSpeechAction({ sessionId, messageId, useTrajectory, t }) {
       if (pending.current === controller) { pending.current = null; setBusy(false) }
     }
   }
+  React.useEffect(() => { if (autoPlay) void play() }, [autoPlay])
   if (!text.trim()) return null
   const label = busy ? 'busy' : ready ? playing ? 'pause' : 'resume' : 'play'
   const path = ready ? playing ? 'M8 5v14 M16 5v14' : 'm8 5 11 7-11 7V5Z' : 'M11 5 6 9H3v6h3l5 4V5Z M15 8a6 6 0 0 1 0 8 M18 5a10 10 0 0 1 0 14'

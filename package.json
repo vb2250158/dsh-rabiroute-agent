@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.13.13",
+  "version": "0.13.14",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -76,7 +76,8 @@
   },
   "scripts": {
     "build": "node tests/build.mjs",
-    "test": "node tests/build.mjs && node --test tests/*.test.mjs"
+    "test": "node tests/build.mjs && node --test tests/*.test.mjs",
+    "test:browser": "node tests/build.mjs && node tests/run-auto-speech-browser.mjs"
   },
   "devDependencies": {
     "jsdom": "^29.1.1"
