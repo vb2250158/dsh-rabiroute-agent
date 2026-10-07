@@ -2,7 +2,7 @@
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.12
+v0.13.13
 
 工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划。已加载页面在插件生命周期内缓存；关闭取消当前读取，保留一个轻量事件订阅。无变更时再次打开不查询；变更按角色失效，当前页只传输和合并变动行，关闭的页下次打开再校验。顺序、计数和筛选项由服务端核对，断线重连重新校验；失败保留旧数据并显示错误。`workspacePlanCachePages`（默认 32）限制缓存页数，`workspacePlanEventDelayMs`（默认 200）控制事件合并时间，均可在插件配置中调整。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
 
@@ -248,3 +248,5 @@ Rabi 增强默认通过 DSH 的 `skills.registerProvider` 加入人格技能。�
 ## Plugin display metadata
 
 The plugin list shows **RabiRoute integration** in English and **RabiRoute 接入** in Chinese, following the DSH interface language. `locale/en.json` and `locale/zh.json` provide the title and description; `icon.svg` supplies self-contained artwork. The package exports and publishes these resources. The icon is adapted from Lucide; see [ICON_LICENSE.txt](ICON_LICENSE.txt).
+
+The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.

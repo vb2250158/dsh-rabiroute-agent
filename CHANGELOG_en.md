@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.13 (2026-10-07)
+
+- Reduce icon artwork by one third with a centered, padded viewBox.
+
 ## 0.13.12 (2026-10-07)
 
 - Publish English and Chinese plugin display metadata and a dedicated SVG icon.
