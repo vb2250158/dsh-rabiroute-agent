@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.15
+
+- Move automatic reading controls to the independent dsh-speech-service plugin and remove the dependency on local upstream speech preference changes.
+- Retain the existing manual player and Rabi synthesis endpoint.
+
 ## 0.13.14 (2026-10-07)
 
 - 订阅语音服务的自动朗读偏好，依次播放当前会话新完成的回复；退出时取消合成与播放。
