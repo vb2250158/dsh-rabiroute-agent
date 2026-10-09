@@ -1,10 +1,10 @@
 English | [简体中文](README.md)
 
-v0.13.16
+v0.13.17
 
 A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles are display-only. Opening a bound session loads its associated plan through the session panel; multiple bindings offer a session choice. Discovery scans no plans. Loaded pages are cached for the plugin lifetime; closing cancels the active read but retains one lightweight event subscription. Reopening an unchanged page makes no query. Role-scoped events reconcile changed rows only; inactive pages reconcile on reopening. Server-owned order, counts, and facets remain authoritative. Reconnect reconciles cached state; failures retain rows with an error. Configure `workspacePlanCachePages` (32) and `workspacePlanEventDelayMs` (200) to bound retained pages and coalesce events. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.
 
-Plan-bound sidebar titles omit up to two leading `[category]` tags. Durable titles, search indexes, and hover details remain intact. Titles share the badge cache and event subscription without additional requests. Requires the host `sidebar.workspaces.session.title` presentation slot.
+Session titles retain the host display. Plan state uses the current public row slots and requires no local title or badge patches.
 
 ## Plan context (0.9.5)
 
@@ -21,9 +21,9 @@ User images and files are archived to a single bound plan automatically. With mu
 
 Badge refresh merges validated pages immediately and retains known bindings after later failures. Only a complete scan removes missing bindings. The background `planStatusTimeoutMs` budget defaults to 120 seconds; cache HTTP reads still return immediately.
 
-## Session plan-status badges (0.9.3)
+## Session plan-status markers (0.13.17)
 
-Grouped, flat and search session rows display the status of their bound Rabi plan. This plugin owns retrieval, caching and rendering. The host must expose the generic `sidebar.workspaces.session.badges` slot with the actual row's `sessionId`; older hosts without that slot retain other features without badges.
+Idle, plan-bound rows in grouped and flat lists show a status-colored square within the 16px leading cell. Host activity, unread and interaction indicators take precedence. Hovering a row displays the full Rabi plan status and an explicit stale-cache notice when needed. Archived rows expose plan state only in their hover cards; search results retain the host presentation. The public root-scoped `sidebar.session.row.leading` and `sidebar.session.row.hover` slots receive the actual row `sessionId` without activating listed sessions. This plugin owns retrieval, caching and rendering; Rabi supplies labels and palettes.
 
 `GET /rabiroute/plan-statuses` returns cached data immediately and refreshes in the background on demand. All sessions share one paginated summary scan, without plan bodies or blocking session navigation and Agent execution. Defaults are `planStatusCacheMs: 60000`, `planStatusTimeoutMs: 15000` and `planStatusMaxPages: 24`. One same-origin `GET /rabiroute/plan-events` stream coalesces Manager plan and status-catalog notifications. Healthy snapshots are not polled. Reconnect calibrates the cache; hidden pages, no subscribers and disposal close the stream. Badges may take a few seconds to appear on first load.
 

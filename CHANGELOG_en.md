@@ -2,6 +2,12 @@
 
 English | [简体中文](CHANGELOG.md)
 
+## 0.13.17 (2026-10-09)
+
+- Restore plan state through public row slots: a colored marker for idle rows and full status with stale-cache information in the hover card.
+- Preserve host activity and interaction precedence; share the cache through framework subscription hooks with reversible disposal.
+- Remove obsolete local badge and title slot dependencies; retain host titles and search presentation.
+
 ## 0.13.16 (2026-10-09)
 
 - Allow exact GET help and send-capability endpoints without expanding write permissions or relaxing authentication.

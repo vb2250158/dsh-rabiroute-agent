@@ -117,53 +117,50 @@ test('HTTP handler responds without awaiting a blocked Manager', async () => {
   assert.equal(status, 405); assert.equal(calls, 1)
 })
 
-test('packaged badge uses the row identity and labels stale/conflicting snapshots', async () => {
+test('packaged row seats share hooks, select the actual row and expose stale/conflicting status', async () => {
   let entry
   const bundle = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
   vm.runInNewContext(bundle, { window: { __ModuleLoader__: { load: value => { entry = value } } }, setTimeout, clearTimeout, AbortController })
-  const react = { memo: value => value, createElement: (type, props, ...children) => ({ type, props, children }),
-    useSyncExternalStore: (_, get) => get() }
-  const client = entry.factory(name => name === 'react' ? react : { Tag: 'Tag', Tooltip: 'Tooltip' })
-  const rows = [], cleanups = []
+  const react = { memo: value => value, createElement: (type, props, ...children) => ({ type, props, children }) }
+  const client = entry.factory(name => name === 'react' ? react : { Tag: 'Tag' })
+  const rows = [], cleanups = [], released = []
   const ctx = {
     sessions: {}, effect: fn => { cleanups.push(fn()) },
     inject: dependencies => { assert.deepEqual(Array.from(dependencies), ['remote', 'remote.speech']) },
     locale: { register: () => () => {}, bind: () => key => key },
     sidebarRightTabs: { register: () => () => {} }, sidebarRight: {},
-    slots: { entries: () => [], inject: (_, fn) => fn(), register: (spec, view) => { rows.push({ spec, view }); return () => {} } },
+    slots: { entries: () => [], inject: (name, fn) => { const dispose = fn(); return () => { released.push(name); dispose() } },
+      register: (spec, view) => { rows.push({ spec, view }); return () => {} } },
   }
   client.apply(ctx)
-  const badge = rows.find(row => row.spec.name === 'sidebar.workspaces.session.badges')
-  assert.ok(badge)
-  const render = (id, data) => badge.view({ sessionId: id, t: key => key,
-    statusStore: { subscribe() {}, getSnapshot: () => data } })
+  const marker = rows.find(row => row.spec.name === 'sidebar.session.row.leading')
+  const badge = rows.find(row => row.spec.name === 'sidebar.session.row.hover')
+  assert.ok(marker); assert.ok(badge)
+  assert.equal(rows.some(row => /session\.(badges|title)$/.test(row.spec.name)), false)
+  const store = marker.spec.inject().hooks.rabiPlanStatus
+  assert.equal(store, badge.spec.inject().hooks.rabiPlanStatus)
+  assert.equal('statusStore' in marker.spec.inject(), false)
+  const render = (row, sessionId, data) => row.view({ sessionId, t: key => key, useRabiPlanStatus: selector => selector(data) })
   const palette = { accent: '#0891b2', background: '#ecfeff', foreground: '#0e7490' }
-  const data = { entries: { 'session-a': { status: '分析中', palette }, 'session-b': { status: '完成' } }, stale: false }
-  const a = render('session-a', data), b = render('session-b', data)
-  assert.equal(a.children[0].children[0].children[0], '分析中')
-  assert.deepEqual(render('session-a', { ...data, stale: true }).children, a.children)
-  assert.match(a.children[0].children[0].props.style.background, /#0891b2/)
-  assert.equal(b.children[0].children[0].children[0], '完成')
-  assert.equal(render('unbound', data), null)
-  assert.match(render('session-b', { ...data, stale: true }).props.label, /stale/)
-  assert.equal(render('session-a', { entries: { 'session-a': { conflict: true } } }).children[0].children[0].children[0], 'conflict')
-  const title = rows.find(row => row.spec.name === 'sidebar.workspaces.session.title')
-  assert.ok(title)
-  assert.equal(title.spec.inject().statusStore, badge.spec.inject().statusStore)
-  const renderTitle = (sessionId, text, snapshot = data) => title.view({ sessionId, title: text,
-    statusStore: { subscribe() {}, getSnapshot: () => snapshot } })
-  assert.equal(renderTitle('session-a', '[PangHu][Bug] 月卡购买'), '月卡购买')
-  assert.equal(renderTitle('session-b', '[RabiRoute] 长期维护'), '长期维护')
-  assert.equal(renderTitle('unbound', '[PangHu][Bug] 月卡购买'), '[PangHu][Bug] 月卡购买')
-  assert.equal(renderTitle('session-a', '[PangHu][Bug] 月卡购买', { entries: {} }), '[PangHu][Bug] 月卡购买')
-  assert.equal(renderTitle('session-a', '[PangHu][Bug] 月卡购买', { ...data, stale: true }), '月卡购买')
-  assert.equal(renderTitle('session-a', '[PangHu] [Bug] [保留] 月卡购买'), '[保留] 月卡购买')
-  assert.equal(renderTitle('session-a', '[PangHu][Bug] '), '[PangHu][Bug] ')
-  assert.equal(renderTitle('session-a', '正文 [Bug]'), '正文 [Bug]')
-  assert.equal(renderTitle('session-a', '[PangHu][Bug] 月卡购买', { entries: { 'session-a': { conflict: true } } }), '月卡购买')
+  const data = { entries: { 'session-a': { status: '分析中', label: '等待审核', palette }, 'session-b': { status: '完成' } }, stale: false }
+  const a = render(marker, 'session-a', data), b = render(badge, 'session-b', data)
+  assert.equal(a.props['aria-label'], 'plan: 等待审核')
+  assert.equal(a.props.style.color, palette.accent)
+  assert.ok(parseInt(a.props.style.width) <= 16)
+  assert.equal(b.children[1].children[0], '完成')
+  assert.equal(render(marker, 'unbound', data), null)
+  assert.equal(render(badge, 'unbound', data), null)
+  assert.equal(render(badge, 'session-a', {entries: {'session-a': {status: ''}}}), null)
+  const stale = render(badge, 'session-a', { ...data, stale: true })
+  assert.match(stale.props['aria-label'], /stale/)
+  assert.equal(stale.children[1].children[0], '等待审核')
+  assert.equal(stale.children[2].children[0], 'stale')
+  assert.equal(render(badge, 'session-a', { entries: { 'session-a': { conflict: true } } }).children[1].children[0], 'conflict')
   cleanups.reverse().forEach(dispose => dispose?.())
+  assert.ok(released.includes('sidebar.session.row.leading'))
+  assert.ok(released.includes('sidebar.session.row.hover'))
+  assert.equal(store.subscribe(() => {})(), undefined)
 })
-
 
 test('cold refresh exposes completed pages while slower pages remain pending', async () => {
   let finish, progress
