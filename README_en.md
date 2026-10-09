@@ -1,6 +1,6 @@
 English | [简体中文](README.md)
 
-v0.13.15
+v0.13.16
 
 A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles are display-only. Opening a bound session loads its associated plan through the session panel; multiple bindings offer a session choice. Discovery scans no plans. Loaded pages are cached for the plugin lifetime; closing cancels the active read but retains one lightweight event subscription. Reopening an unchanged page makes no query. Role-scoped events reconcile changed rows only; inactive pages reconcile on reopening. Server-owned order, counts, and facets remain authoritative. Reconnect reconciles cached state; failures retain rows with an error. Configure `workspacePlanCachePages` (32) and `workspacePlanEventDelayMs` (200) to bound retained pages and coalesce events. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.
 
@@ -8,9 +8,10 @@ Plan-bound sidebar titles omit up to two leading `[category]` tags. Durable titl
 
 ## Plan context (0.9.5)
 
-Official `systemPrompt.context` includes the session's bound plan summaries when user input reaches the model: title, status, current step, progress, update time, and executable `rabiroute_manager_api` detail arguments. Multiple plans keep their own identities. User text is unchanged; logged context snapshots supersede older values, and unbinding clears the current context.
+Official `systemPrompt.context` includes the session's bound plan summaries when user input reaches the model: title, status, current step, progress, and executable `rabiroute_manager_api` detail arguments. Multiple plans keep their own identities. Assembly runs at the same pre-step boundary as the DSH system prompt. Binding, status, or progress changes update the snapshot; compaction reinjects it after removing the retained copy. An unknown binding adds no placeholder. Cache refresh, read time, and title or label changes alone do not trigger a new snapshot. User text is unchanged; the official runtime context appends and logs changed snapshots, and unbinding appends a cleared marker without rewriting earlier request history.
 
-Context assembly shares the sidebar's event-invalidated TTL cache and never waits for Manager or fetches plan bodies. Cold or failed reads are explicitly unavailable or stale. `planContextEnabled` defaults to true, `planContextMaxPlans` to 16, and `planContextTextLimit` to 300. Rabi remains authoritative; this plugin only adapts DSH context assembly and durable logging.
+Context assembly shares the sidebar's event-invalidated TTL cache and never waits for Manager or fetches plan bodies. A cold cache supplies no plan summary; an existing summary notes that it may be stale. `planContextEnabled` defaults to true, `planContextMaxPlans` to 16, and `planContextTextLimit` to 300. Rabi remains authoritative; this plugin only adapts DSH context assembly and durable logging.
+
 
 # dsh-rabiroute-agent
 
@@ -69,6 +70,12 @@ Voice input posts to same-origin `POST /rabiroute/speech/asr`. After Manager ide
 The workspace Rabi plans dialog provides Check advancement and Advance settings. Persona-owned workspace rules configure each plan status with its own prompt, trigger condition, action, cooldown, and per-step run limit. Automation is off by default. When enabled, it observes plan and feedback changes and completed sessions, with optional startup and due checks. The check view previews eligible plans and the exact delivery prompt before sending selected items to their original bound DSH sessions in queue mode. Advance all idle sessions reuses the current check and continues page by page, sending at most once per eligible original idle session per pass. Search and dispatch have separate progress bars; an empty batch is disabled and can be checked again. Approval gates, paused or terminal plans, mismatched bindings, and busy sessions are skipped. Rabi persists dispatch receipts to prevent replay of the same change; uncertain outcomes stop automatic retries pending verification.
 
 The settings dialog explains the trigger and dispatch path, initially expands a configurable status, and shows its persona-owned description beside the editable prompt. Rabi combines that description with the rule prompt, plan and step identity, and authorization constraints; the agent rereads the current plan before acting.
+
+## Unified help and send capabilities (0.13.16)
+
+Use `rabiroute_manager_api` with `GET /api/agent/help` for the Manager's current unified help, or `GET /api/agent/send/capabilities` for send capabilities. Ordinary queries are supported, for example `{"method":"GET","path":"/api/agent/help?topic=send"}`; query semantics follow the current Manager contract.
+
+Only GET on these two exact paths is added, not child paths, other Agent APIs or write methods. Existing `validatePath` checks still apply to paths and queries. Dynamic Host discovery, `/meta` identity/readiness validation, authentication and redirect policy are unchanged. Sending still requires dedicated delivery tools; help content grants no additional tool authority. Source implementation is not proof of runtime loading: publish a pinned commit, install through the managed installer, restart, then verify separately.
 
 ## Purpose and development boundaries
 
@@ -226,6 +233,9 @@ MIT
 
 The question card switch follows live Rabi microphone segmentation, ASR and auto-submit settings. Cancellation, draft edits or navigation stop capture. Recognition success turns the switch off. See [Automatic voice input](AUTO-VOICE.md).
 
+## Skills and host adaptation
+
+[DSH Rabi tools](skills/dsh-rabi-tools/SKILL.md) owns tool mapping and injection diagnostics only. Search, delivery and plans use Rabi shared skills. Packaged skill files are not registered automatically; distribute the skill-catalog.json entries to the host skill directory and verify discovery and reading in a new session.
 
 ### Plan binding without Hook persona state
 

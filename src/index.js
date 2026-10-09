@@ -77,6 +77,8 @@ function validatePath(value, method) {
   try { decoded = decodeURIComponent(raw) } catch { throw new Error('Invalid Manager path encoding.') }
   // Reject encoded separators, repeated encoding and traversal before URL normalization.
   if (/[\\%?#\u0000-\u0020]/u.test(decoded) || /%2f/i.test(raw) || decoded.split('/').some(part => part === '.' || part === '..')) throw new Error('Manager path traversal or encoded separator is not allowed.')
+  const discovery = decoded === '/api/agent/help' || decoded === '/api/agent/send/capabilities'
+  if (discovery && method !== 'GET') throw new Error('Agent help and send capabilities are GET-only.')
   const health = decoded === '/meta'
   const receipt = /^\/api\/agent\/send\/receipts\/[^/]+$/.test(decoded) || decoded === '/api/agent/send/traces'
   const personaRead = /^\/api\/personas(?:\/[^/]+)?$/.test(decoded) || /^\/api\/personas\/messages\/receipts\/[^/]+$/.test(decoded)
@@ -87,7 +89,7 @@ function validatePath(value, method) {
   if (personaSend && method !== 'POST') throw new Error('Persona messages require POST.')
   if ((health || receipt) && method !== 'GET') throw new Error('Health and receipt endpoints are GET-only.')
   const allowed = /^\/api\/(?:roles|message-processing|memory)\/[^/]+(?:\/.*)?$/.test(decoded) || /^\/api\/agent\/requests(?:\/[^/]+)*$/.test(decoded)
-  if (!health && !receipt && !allowed && !personaRead && !personaSend && !sessionBinding) throw new Error('Manager API path is outside the RabiRoute plugin allowlist; use dedicated delivery tools for sending.')
+  if (!discovery && !health && !receipt && !allowed && !personaRead && !personaSend && !sessionBinding) throw new Error('Manager API path is outside the RabiRoute plugin allowlist; use dedicated delivery tools for sending.')
   return { pathname, decoded }
 }
 function requestHeaders(value) {

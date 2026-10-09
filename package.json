@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.13.15",
+  "version": "0.13.16",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -25,6 +25,8 @@
     "AUTO-VOICE.md",
     "PLAN-RESOURCES.md",
     "PLAN-RESOURCES_en.md",
+    "skills",
+    "skill-catalog.json",
     "EMBEDDED-PLAN.md",
     "EMBEDDED-PLAN_en.md",
     "docs",

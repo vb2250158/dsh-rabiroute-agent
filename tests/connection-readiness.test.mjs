@@ -52,6 +52,48 @@ test('post-write health degradation does not invalidate a same-identity receipt'
     assert.equal(result.etag, '"next"'); assert.equal(result.headers['idempotency-key'], 'stable')
   }
 })
+test('thread read-only POST timeout is a failed read, without a post-write identity check', async () => {
+  for (const action of ['list', 'read']) {
+    let metas = 0, business = 0
+    const result = await managerRequest(config, '/api/agent/threads', { method: 'POST', body: JSON.stringify({ action }) }, undefined, { fetch: async url => {
+      if (url.endsWith('/meta')) { metas++; return response(meta()) }
+      business++; throw new Error('thread read timed out')
+    } })
+    assert.equal(business, 1); assert.equal(metas, 1)
+    assert.equal(result.ok, false); assert.equal(result.uncertain, false)
+    assert.equal(result.error.kind, 'request_failed')
+  }
+})
+test('only exact thread list and read POSTs are classified read-only', async () => {
+  for (const [pathname, body] of [
+    ['/api/agent/threads', '{'],
+    ['/api/agent/threads', JSON.stringify({ action: 'send' })],
+    ['/api/agent/threads', JSON.stringify({ action: 'reconcile_delivery' })],
+    ['/api/agent/threads/', JSON.stringify({ action: 'read' })],
+    ['/api/agent/send', JSON.stringify({ action: 'read' })],
+    ['/business', JSON.stringify({ action: 'read' })]
+  ]) {
+    let metas = 0, business = 0
+    const result = await managerRequest(config, pathname, { method: 'POST', body }, undefined, { fetch: async url => {
+      if (url.endsWith('/meta')) { metas++; return response(meta()) }
+      business++; throw new Error('write timed out')
+    } })
+    assert.equal(business, 1); assert.equal(metas, 1)
+    assert.equal(result.ok, false); assert.equal(result.uncertain, true)
+    assert.equal(result.error.kind, 'write_outcome_uncertain')
+  }
+})
+test('read-only thread POST does not mislabel server errors or generation change', async () => {
+  for (const failure of ['http', 'generation']) {
+    let metas = 0
+    const result = await managerRequest(config, '/api/agent/threads', { method: 'POST', body: '{"action":"read"}' }, undefined, { fetch: async url => {
+      if (url.endsWith('/meta')) { metas++; return response({ ...meta(), ...(metas > 1 ? { applicationGenerationId: 'next' } : {}) }) }
+      return response({ code: -1 }, failure === 'http' ? 503 : 200)
+    } })
+    assert.equal(metas, 1); assert.equal(result.uncertain, false)
+    assert.equal(result.error.kind, 'manager_rejected')
+  }
+})
 test('post-write changed or unverifiable identities stay uncertain without replay', async () => {
   for (const mode of ['generation', 'instance', 'missing', 'network']) {
     let metas = 0, business = 0

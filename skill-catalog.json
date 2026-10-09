@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "agentSkills": [
+    {
+      "name": "dsh-rabi-tools",
+      "source": "skills/dsh-rabi-tools",
+      "audience": "dsh",
+      "hosts": [
+        "dsh"
+      ],
+      "install": true
+    }
+  ]
+}

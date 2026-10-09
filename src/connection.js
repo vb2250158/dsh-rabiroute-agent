@@ -66,6 +66,14 @@ export async function resolveManagerBase(config, callerSignal, dependencies = {}
   }
 }
 
+function isReadOnlyThreadPost(pathname, method, body) {
+  if (method !== 'POST' || pathname !== '/api/agent/threads' || typeof body !== 'string') return false
+  try {
+    const request = JSON.parse(body)
+    return request !== null && typeof request === 'object' && !Array.isArray(request) && ['list', 'read'].includes(request.action)
+  } catch { return false }
+}
+
 export async function managerRequest(config, pathname, init = {}, callerSignal, dependencies = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(new Error('RabiRoute operation timed out.')), timeoutBudget(config.requestTimeoutMs))
@@ -93,7 +101,7 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
   }
   let base, before, observedMeta
   const method = String(init.method || 'GET').toUpperCase()
-  const write = method !== 'GET'
+  const write = method !== 'GET' && !isReadOnlyThreadPost(pathname, method, init.body)
   const diagnostic = method === 'GET' && pathname === '/meta'
   try {
     // Only discovery is retried. Even business GETs can update viewedAt.

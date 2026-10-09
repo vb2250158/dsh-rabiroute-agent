@@ -1,5 +1,15 @@
 # Changelog
 
+English | [简体中文](CHANGELOG.md)
+
+## 0.13.16 (2026-10-09)
+
+- Allow exact GET help and send-capability endpoints without expanding write permissions or relaxing authentication.
+- Treat thread list/read POST requests as reads so failures do not imply an uncertain write.
+- Refresh plan context only for binding, status, progress, or compaction changes, not cache timestamps or title changes.
+- Publish the DSH tool-mapping skill and catalog while retaining 0.13.15 API, icons, speech ownership, and bulk advancement.
+- Validation: build, plugin tests, and plan-context integration. Installed runtime verification is separate.
+
 ## 0.13.15
 
 - Move automatic reading controls to the independent dsh-speech-service plugin and remove the dependency on local upstream speech preference changes.
@@ -40,31 +50,24 @@
 
 ## 0.13.6
 
-- Restore verified plan identities and a credential-free origin from browser session storage before background reconciliation after reload. Previously open panels reopen immediately; credential-bearing URLs are never persisted.
+- 0.13.6: Restore verified plan identities and a credential-free origin from browser session storage before background reconciliation after reload. Previously open panels reopen immediately; credential-bearing URLs are never persisted.
 
-## 0.13.5
+- 0.13.5: Keep verified panel resolutions per session without the 32-entry eviction. Reconcile relevant plan events in the background, retain the last verified page with a stale notice on failure, and avoid showing another session's plan while switching.
 
-- Keep verified panel resolutions per session without the 32-entry eviction. Reconcile relevant plan events in the background, retain the last verified page with a stale notice on failure, and avoid showing another session's plan while switching.
+- 0.13.4: Stop plan-event cache invalidation from iterating forever when a listener synchronously refills the same key; cover this reentry in a regression test.
 
-## 0.13.4
+- 0.13.3: Remember each session's right-side plan panel choice, respect the current sidebar when switching sessions or pages, and reuse the resolved binding without another query.
 
-- Stop plan-event cache invalidation from iterating forever when a listener synchronously refills the same key; cover this reentry in a regression test.
+- Assemble plan context alongside the DSH system prompt; refresh it for binding, status, or progress changes and after compaction removes it. Cache refreshes, timestamps, and title or label changes alone add no snapshot; unknown bindings add no placeholder.
 
-## 0.13.3
+- 0.13.2: Reuse the resolved binding in the session plan panel and invalidate only affected entries on plan events. Rabi Web reuses full details by view revision.
 
-- Remember each session's right-side plan panel choice, respect the current sidebar when switching sessions or pages, and reuse the resolved binding without another query.
-
-## 0.13.2
-
-- Reuse the resolved binding in the session plan panel and invalidate only affected entries on plan events. Rabi Web reuses full details by view revision.
-
-## 0.13.1
-
-- Persist a session's selected plan and step across messages and restarts; unbound selections cannot authorize tool edits.
-
-## 0.13.0
+- 0.13.1: Persist plan and step attribution selections across messages and Host restarts without expiry; unbound selections cannot authorize tool edits.
 
 - 0.13.0: Add persona status-specific advancement settings, preview, and selected dispatch to workspace Rabi plans; automation defaults off, with durable deduplication and approval and original-session guards.
+
+- Allow exactly `GET /api/agent/help` and `GET /api/agent/send/capabilities` through `rabiroute_manager_api`, retaining ordinary queries, existing path checks, dynamic discovery, identity validation and authentication. No additional write methods or other APIs are allowed.
+- Add regressions for normal queries, rejected writes, encoded paths, adjacent APIs, mismatched Host identity and unready Manager. Installation and post-restart acceptance remain pending.
 
 ## 0.12.0
 
@@ -106,6 +109,7 @@
 ## 0.9.5
 
 - Add bound-plan context and detail tool arguments using the shared summary cache, with multiple plans, stale indicators and unbinding cleanup.
+
 
 English | [简体中文](CHANGELOG.md)
 
@@ -230,3 +234,7 @@ Multiple bound plans display a selectable directory, retain role routes and Rabi
 
 - Add a question-card automatic voice switch using live Rabi microphone settings and the official draft/submit path.
 - Follow silence segmentation, adaptive thresholds, ASR model and auto-submit policy; cancellation and navigation discard pending submission.
+
+### Skill distribution (Unreleased)
+
+- Add the DSH-only tool skill and distribution catalog; anonymize business-role fixtures while preserving distinct identities.
