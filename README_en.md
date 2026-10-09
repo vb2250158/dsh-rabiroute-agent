@@ -262,3 +262,8 @@ Run `node --test tests/workspace-skills.test.mjs`. Set `DSH_SOURCE_ROOT` to a bu
 The plugin list shows **RabiRoute integration** in English and **RabiRoute 接入** in Chinese, following the DSH interface language. `locale/en.json` and `locale/zh.json` provide the title and description; `icon.svg` supplies self-contained artwork. The package exports and publishes these resources. The icon is adapted from Lucide; see [ICON_LICENSE.txt](ICON_LICENSE.txt).
 
 The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.
+
+
+## Desktop-pet movement (0.13.20)
+
+`rabiroute_manager_api` supports `POST /api/desktop-pet/roles/:roleId/motion` and `GET /api/desktop-pet/roles/:roleId/motion/:requestId`. Read the current Rabi `/api/agent/help` for body, Idempotency-Key and completion semantics. Rabi owns motion and animation; acceptance does not prove arrival. Assistant-mode tools remain unchanged; runtime claim/result APIs are excluded.

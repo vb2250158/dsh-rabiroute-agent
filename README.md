@@ -269,3 +269,8 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供；只开放三个 Rabi 工具，其他工具在模型目录和执行入口都被拒绝，包括后注册的工具。支持正常人格对话，不继承消息处理模式的强制委派规则。
 
 在 Rabi 的 DSH 设置中选择这个会话模式并保存。新会话按所选模式创建，空白会话通过 DSH 的正式选择接口同步；已经开始过对话的会话不能切换模式，需要明确选择新的会话。Rabi 不可用时报告连接问题，不读取文件缓存或改用其他工具。标准会话不受限制。
+
+
+## 桌宠移动（0.13.20）
+
+`rabiroute_manager_api` 支持 `POST /api/desktop-pet/roles/:roleId/motion` 和 `GET /api/desktop-pet/roles/:roleId/motion/:requestId`。请求体、Idempotency-Key 与完成状态从当前 Rabi `/api/agent/help` 获取。移动业务和动画归 Rabi；受理不代表抵达。Rabi助手模式工具集合不变，内部 runtime 接口不开放。

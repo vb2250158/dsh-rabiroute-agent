@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.20 (2026-10-09)
+
+- Allow exact pet motion POST and receipt GET paths; Rabi owns walking, teleport and receipts.
+- Rabi assistant mode retains its three Rabi tools and excludes internal Desktop claim/result APIs.
+
 ## 0.13.19 (2026-10-09)
 
 - Register Rabi assistant mode automatically, exposing only Rabi tools while preserving the bound persona.
