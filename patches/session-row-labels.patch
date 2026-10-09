@@ -1,0 +1,261 @@
+diff --git a/packages/client/ui-workspace/README.md b/packages/client/ui-workspace/README.md
+index b4f3ba4..438b122 100644
+--- a/packages/client/ui-workspace/README.md
++++ b/packages/client/ui-workspace/README.md
+@@ -87,6 +87,8 @@ The first-use directory name and its stored title are fixed, so neither follows
+ 
+ The package is one composition: both target slots are declared by other plugins, so `apply` uses `slots.inject()` to register for each declaration lifetime and re-register after a declaring slot is restored.
+ 
++The browser entry also declares persistent root-scoped `sidebar.session.row.badges` (list) and `sidebar.session.row.title` (single) seats for grouped, flat, and search rows. Badges precede the title even during activity or after archive. Title owners receive the actual row id and display title; an empty seat falls back to the host title, and rendering never rewrites the stored title or rename draft. The original title remains available on hover.
++
+ The browser entry also declares two root-scoped `list` child seats on each Session row: `sidebar.session.row.leading`, rendered only while that row's primary status is idle and left blank on an archived row, and `sidebar.session.row.hover`, mounted only while that row's hover card is open. Both take the row's Session identity and nothing else, so an occupant reads its own data by that id; a Session-scoped seat would force a Session binding, which would activate and retain every listed Session.
+ 
+ Client callers can pass `prompt` and `clearPreviousDraft` in the second argument to `uiWorkspace.startSession`. A prompt is plain text; structured drafts are handled internally during restoration and Workspace transfer. Without clearing, existing text or attachments are preserved; explicit clearing replaces only the target Session's text and inline references, leaving attachments intact. Option values are captured before asynchronous creation and applied to the exact retained binding before navigation commits. Superseded navigation does not write content; a submission-blocked input refuses preparation and keeps the previous selection. Calls without options retain the normal New Session flow. The [draft initialization decision](../../../.agents/notes/implemented/architecture/2026-09-30-structured-draft-initialization.md) describes the input owner's data flow.
+diff --git a/packages/client/ui-workspace/src/client/contract/slots.ts b/packages/client/ui-workspace/src/client/contract/slots.ts
+index 45f8564..f3f353f 100644
+--- a/packages/client/ui-workspace/src/client/contract/slots.ts
++++ b/packages/client/ui-workspace/src/client/contract/slots.ts
+@@ -132,6 +132,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
+      * its trailing status line. Mounted only while that card is open.
+      */
+     'sidebar.session.row.hover': { kind: 'list'; scope: 'root'; owner: SessionRowScheduleOwnerProps }
++    /** Persistent noninteractive badges before the title, independent of activity and archive state. */
++    'sidebar.session.row.badges': { kind: 'list'; scope: 'root'; owner: SessionRowScheduleOwnerProps }
++    /** Display-only title replacement; the stored title and rename draft remain unchanged. */
++    'sidebar.session.row.title': { kind: 'single'; scope: 'root'; owner: { sessionId: SessionId; title: string } }
+     /**
+      * The rows of one Session's "..." menu, in ascending `order`. ui-workspace
+      * registers the shipped rows here — `pin` (100), `rename` (200), `fork`
+@@ -459,6 +463,8 @@ export type WorkspaceBrowserProps =
+     | 'sidebar.workspaces.session.row.action'
+     | 'sidebar.session.row.leading'
+     | 'sidebar.session.row.hover'
++    | 'sidebar.session.row.badges'
++    | 'sidebar.session.row.title'
+   >
+   & PropsStore<WorkspaceViewStoreHandle>
+   & Omit<WorkspaceBrowserInjected, 'hooks'>
+diff --git a/packages/client/ui-workspace/src/client/index.ts b/packages/client/ui-workspace/src/client/index.ts
+index cdf3214..c8c0584 100644
+--- a/packages/client/ui-workspace/src/client/index.ts
++++ b/packages/client/ui-workspace/src/client/index.ts
+@@ -271,6 +271,8 @@ export function apply(ctx: Context): void {
+         'sidebar.workspaces.session.row.action': { kind: 'list', scope: 'root' },
+         'sidebar.session.row.leading': { kind: 'list', scope: 'root' },
+         'sidebar.session.row.hover': { kind: 'list', scope: 'root' },
++        'sidebar.session.row.badges': { kind: 'list', scope: 'root' },
++        'sidebar.session.row.title': { kind: 'single', scope: 'root' },
+       },
+       store: viewStore,
+       inject: browserInjected,
+diff --git a/packages/client/ui-workspace/src/client/rows/Rows.tsx b/packages/client/ui-workspace/src/client/rows/Rows.tsx
+index 9179773..9457169 100644
+--- a/packages/client/ui-workspace/src/client/rows/Rows.tsx
++++ b/packages/client/ui-workspace/src/client/rows/Rows.tsx
+@@ -42,6 +42,8 @@ type RowRenderSlots = PropsRenderSlots<
+   | 'sidebar.workspaces.session.row.action'
+   | 'sidebar.session.row.leading'
+   | 'sidebar.session.row.hover'
++  | 'sidebar.session.row.badges'
++  | 'sidebar.session.row.title'
+ >['renderSlot']
+ 
+ /** Row display title: blank rows show the localized New Session label. */
+@@ -465,16 +467,17 @@ function SessionHoverContent({ node, now, renderSlot, t }: {
+  * @param props.currentId - selected session id.
+  * @param props.onOpen - open the selected session.
+  * @param props.onUnarchive - unarchive an archived result row.
++ * @param props.renderSlot - persistent badges and display-only title for the actual result.
+  * @param props.t - Workspace-browser translation seat.
+  * @returns the result row.
+  */
+-export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: {
++export function SearchResultItem({ result, currentId, onOpen, onUnarchive, renderSlot, t }: {
+   result: SearchResultNode
+   currentId: string | undefined
+   onOpen: (id: SearchResultNode['id']) => void
+   onUnarchive: (id: SearchResultNode['id']) => void
+   t: RowTranslate
+-}) {
++} & PropsRenderSlots<'sidebar.session.row.badges' | 'sidebar.session.row.title'>) {
+   const selected = result.id === currentId
+   const statuses = sessionStatuses(result, t)
+   const primaryStatus = statuses[0]
+@@ -495,7 +498,10 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }:
+             <SessionStatusDots statuses={statuses} />
+           )}
+         </span>
+-        <span className={css.searchResultTitle}>{result.title || t('session.untitled')}</span>
++        {renderSlot('sidebar.session.row.badges', { sessionId: result.id })}
++        <span className={css.searchResultTitle} title={result.title}>
++          {renderSlot('sidebar.session.row.title', { sessionId: result.id, title: result.title || t('session.untitled') }, { fallback: result.title || t('session.untitled') })}
++        </span>
+         {result.archived && (
+           <span className={css.rowActions}>
+             <Tooltip label={t('actions.unarchive')} side="bottom" align="end" delayMs={500}>
+@@ -560,6 +566,8 @@ export function SessionNodeItem({
+   | 'sidebar.workspaces.session.row.action'
+   | 'sidebar.session.row.leading'
+   | 'sidebar.session.row.hover'
++  | 'sidebar.session.row.badges'
++  | 'sidebar.session.row.title'
+ >) {
+   const row = node
+   const title = displayTitle(node, t)
+@@ -633,14 +641,16 @@ export function SessionNodeItem({
+           ? <SessionStatusDots statuses={statuses} />
+           : renderSlot('sidebar.session.row.leading', { sessionId: node.id }))}
+       </span>
++      {!row.blank && renderSlot('sidebar.session.row.badges', { sessionId: node.id })}
+       <span
++        title={row.title}
+         ref={titleRef}
+         className={css.title}
+         onDoubleClick={row.blank
+           ? undefined
+           : (e) => { e.stopPropagation(); onRenameRequest(node.id, row.title) }}
+       >
+-        {title}
++        {row.blank ? title : renderSlot('sidebar.session.row.title', { sessionId: node.id, title }, { fallback: title })}
+       </span>
+       {/* A blank New Session row is a provisional placeholder: nothing has
+           happened in it yet, so a "now" timestamp and the row verbs
+diff --git a/packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx b/packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx
+index 3c900b2..52b9baa 100644
+--- a/packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx
++++ b/packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx
+@@ -223,6 +223,8 @@ type SessionTreeProps = Pick<
+   | 'sidebar.workspaces.session.row.action'
+   | 'sidebar.session.row.leading'
+   | 'sidebar.session.row.hover'
++  | 'sidebar.session.row.badges'
++  | 'sidebar.session.row.title'
+ > & {
+   shortcuts: readonly import('@deepseek-ai/dsh-client-shortcuts/client').ShortcutCatalogEntry[]
+   /** Always-mounted Session list snapshot. */
+@@ -747,9 +749,10 @@ function SearchResults({
+   query,
+   remote,
+   resultLimit,
++  renderSlot,
+   usePanelInfo,
+   t,
+-}: Pick<WorkspaceBrowserProps, 'useSessions' | 'useSessionStatus' | 'open' | 't' | 'usePanelInfo'> & {
++}: Pick<WorkspaceBrowserProps, 'useSessions' | 'useSessionStatus' | 'open' | 't' | 'usePanelInfo' | 'renderSlot'> & {
+   workspaces: readonly WorkspaceView[]
+   archivedSessionIds: readonly SessionNode['id'][]
+   /** Search matches follow the archived filter selected for the list. */
+@@ -795,6 +798,7 @@ function SearchResults({
+               currentId={currentId}
+               onOpen={open}
+               onUnarchive={onUnarchive}
++              renderSlot={renderSlot}
+               t={t}
+             />
+           ))}
+@@ -1355,6 +1359,7 @@ export function WorkspaceBrowser({
+               query={normalizedQuery}
+               remote={remoteSearch}
+               resultLimit={searchResultLimit}
++              renderSlot={renderSlot}
+               t={t}
+             />
+           )
+diff --git a/packages/client/ui-workspace/tests/rows.client.spec.tsx b/packages/client/ui-workspace/tests/rows.client.spec.tsx
+index 6a32265..14b51a1 100644
+--- a/packages/client/ui-workspace/tests/rows.client.spec.tsx
++++ b/packages/client/ui-workspace/tests/rows.client.spec.tsx
+@@ -12,7 +12,7 @@ import type { MenuOpenState, SessionRowOwnerProps } from '../src/client/contract
+ import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
+ import type { RowDragProps } from '../src/client/rows/Rows.tsx'
+ import {
+-  ProjectRowItem, SearchResultItem, SessionNodeItem as SessionNodeItemComponent,
++  ProjectRowItem, SearchResultItem as SearchResultItemComponent, SessionNodeItem as SessionNodeItemComponent,
+ } from '../src/client/rows/Rows.tsx'
+ import type { GroupNode, SearchResultNode, SessionNode } from '../src/client/tree.ts'
+ import { en, zh } from '../src/client/locales.ts'
+@@ -31,10 +31,16 @@ type RowSlotName =
+   | 'sidebar.workspaces.session.row.action'
+   | 'sidebar.session.row.leading'
+   | 'sidebar.session.row.hover'
++  | 'sidebar.session.row.badges'
++  | 'sidebar.session.row.title'
+ type RowRenderSlot = PropsRenderSlots<RowSlotName>['renderSlot']
+ type SessionNodeItemProps = ComponentProps<typeof SessionNodeItemComponent>
+ 
+-const renderNoRowEntries: RowRenderSlot = () => null
++const renderNoRowEntries: RowRenderSlot = (_name, _owner, opts) => opts?.fallback ?? null
++
++function SearchResultItem(props: Omit<ComponentProps<typeof SearchResultItemComponent>, 'renderSlot'>) {
++  return <SearchResultItemComponent {...props} renderSlot={renderNoRowEntries} />
++}
+ 
+ // Direct row specs use the real required Slot share, empty unless the case supplies entries.
+ function SessionNodeItem({ renderSlot = renderNoRowEntries, onRenameRequest = () => {}, ...props }: Omit<
+@@ -982,7 +988,9 @@ describe('session row schedule seats', () => {
+    * it; a key without one renders nothing.
+    */
+   function seatSpy(): RowRenderSlot {
+-    return vi.fn((key: RowSlotName, owner: object) => {
++    return vi.fn((key: RowSlotName, owner: object, opts?: { fallback?: import('react').ReactNode }) => {
++      if (key === 'sidebar.session.row.title') return opts?.fallback ?? null
++      if (key === 'sidebar.session.row.badges') return null
+       if (!('sessionId' in owner) || typeof owner.sessionId !== 'string') return null
+       return <span key={key} data-seat={key} data-owner={owner.sessionId} />
+     })
+@@ -1086,7 +1094,7 @@ it.each([['未命名', t], ['Untitled', tEn]])('labels unnamed history as %s', (
+     runningSubagentCount: 0, completed: false, updatedAt: 0, pinned: false, archived: false }
+   const onRenameRequest = vi.fn()
+   render(<SessionNodeItem node={node} currentId={node.id} now={0} onOpen={vi.fn()}
+-    renderSlot={() => null} onRenameRequest={onRenameRequest} t={translate} />)
++    renderSlot={renderNoRowEntries} onRenameRequest={onRenameRequest} t={translate} />)
+   expect(screen.getByText(label)).toBeTruthy()
+   fireEvent.doubleClick(screen.getByText(label))
+   expect(onRenameRequest).toHaveBeenCalledWith(node.id, '')
+@@ -1101,3 +1109,46 @@ it.each([['未命名', t], ['Untitled', tEn]])('labels unnamed search results as
+   fireEvent.click(screen.getByText(label))
+   expect(onOpen).toHaveBeenCalledWith(result.id)
+ })
++
++describe('persistent row labels and display titles', () => {
++  const renderStatus: RowRenderSlot = (name, owner, opts) => {
++    if (name === 'sidebar.session.row.badges') return <span data-testid="plan-label">已绑定</span>
++    if (name === 'sidebar.session.row.title') return '实际任务'
++    return opts?.fallback ?? null
++  }
++  it.each([false, true])('keeps a label before the title while running=%s', (running) => {
++    const node: SessionNode = {
++      id: sid('bound'), title: '[Project][Category]实际任务', blank: false, running,
++      runningSubagentCount: 0, completed: false, updatedAt: 0, pinned: false, archived: false,
++    }
++    const onRenameRequest = vi.fn()
++    render(<SessionNodeItem node={node} currentId={sid('other')} now={0} onOpen={vi.fn()}
++      onRenameRequest={onRenameRequest} renderSlot={renderStatus} t={t} />)
++    const title = screen.getByText('实际任务')
++    expect(title.previousElementSibling).toBe(screen.getByTestId('plan-label'))
++    expect(title.getAttribute('title')).toBe(node.title)
++    expect([screen.getByTestId('plan-label').textContent, title.textContent, title.getAttribute('title')]).toMatchInlineSnapshot(`
++      [
++        "已绑定",
++        "实际任务",
++        "[Project][Category]实际任务",
++      ]
++    `)
++    fireEvent.doubleClick(title)
++    expect(onRenameRequest).toHaveBeenCalledWith(node.id, node.title)
++    if (running) expect(screen.getByRole('treeitem').querySelector('[data-state="ongoing"]')).toBeTruthy()
++  })
++  it('keeps archived search labels before the title with the actual row id', () => {
++    const result: SearchResultNode = {
++      id: sid('search-bound'), title: '[Project]实际任务', workspace: 'Project',
++      running: false, runningSubagentCount: 0, completed: false, archived: true,
++    }
++    const renderSlot: RowRenderSlot = (name, owner, opts) => {
++      if (name === 'sidebar.session.row.badges' || name === 'sidebar.session.row.title') expect(owner.sessionId).toBe(result.id)
++      return renderStatus(name, owner, opts)
++    }
++    render(<SearchResultItemComponent result={result} currentId={sid('other')} onOpen={vi.fn()}
++      onUnarchive={vi.fn()} renderSlot={renderSlot} t={t} />)
++    expect(screen.getByText('实际任务').previousElementSibling).toBe(screen.getByTestId('plan-label'))
++  })
++})

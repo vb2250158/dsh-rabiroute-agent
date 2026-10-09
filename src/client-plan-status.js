@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Tag } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import { createPlanStatusStore } from './client-plan-status-store.js'
 
 const rabiStatusLocales = {
@@ -16,44 +16,44 @@ function rowPlanStatus(sessionId, snapshot, t) {
   return { entry, label, description: t('plan') + ': ' + label + (snapshot.stale ? ' · ' + t('stale') : '') }
 }
 
-/** Fits the public 16px leading seat; the host's activity and interaction dots take precedence. */
-export function RabiPlanStatusMarker({ sessionId, useRabiPlanStatus, t }) {
+/**
+ * Strip at most two leading category tags only for a confirmed plan binding.
+ * @param {string} title Original row title.
+ * @param {boolean} bound Confirmed binding in the shared snapshot.
+ * @returns {string} Display title, preserving empty-prefix-only titles.
+ */
+export function planSessionTitle(title, bound) {
+  if (!bound) return title
+  const compact = title.replace(/^(?:\s*\[[^\]\r\n]+\]){1,2}\s*/u, '')
+  return compact.trim() ? compact : title
+}
+
+/** Display-only title; the original row title remains owned by the host. */
+export function RabiPlanSessionTitle({ sessionId, title, useRabiPlanStatus }) {
+  const snapshot = useRabiPlanStatus(snapshot => snapshot)
+  return planSessionTitle(title, !!snapshot.entries[sessionId])
+}
+
+/** Persistent status label, keyed by the actual row rather than the selected session. */
+export function RabiPlanStatusBadge({ sessionId, useRabiPlanStatus, t }) {
   const status = rowPlanStatus(sessionId, useRabiPlanStatus(snapshot => snapshot), t)
   if (!status) return null
-  return React.createElement('span', {
-    role: 'img', 'aria-label': status.description, title: status.description,
-    'data-rabi-plan-status-marker': sessionId,
-    style: {
-      display: 'inline-block', width: '10px', height: '10px', boxSizing: 'border-box', flexShrink: 0,
-      borderRadius: '3px', border: '1px solid currentColor',
-      color: status.entry.palette?.accent || 'var(--dsw-alias-label-secondary)',
-      background: status.entry.conflict ? 'currentColor' : 'transparent',
-    },
-  })
+  return React.createElement(Tooltip, { label: status.description },
+    React.createElement('span', {
+      'data-rabi-plan-status': sessionId, 'aria-label': status.description,
+      style: { flexShrink: 0, maxWidth: '8em', fontSize: '10px' },
+    }, status.entry.palette ? React.createElement('span', { style: {
+      display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
+      verticalAlign: 'middle', whiteSpace: 'nowrap', borderRadius: '999px', padding: '1px 6px', lineHeight: '15px',
+      border: '1px solid color-mix(in srgb, ' + status.entry.palette.accent + ' 42%, var(--dsw-alias-border-l4))',
+      background: 'color-mix(in srgb, ' + status.entry.palette.accent + ' 18%, var(--dsw-alias-bg-layer-2))',
+      color: 'var(--dsw-alias-label-primary)',
+    } }, status.label) : React.createElement(Tag, { tone: status.entry.conflict ? 'warning' : 'neutral' }, status.label)))
 }
 
-/** Full status in the row's existing hover card, including explicit cached-state information. */
-export function RabiPlanStatusBadge({ sessionId, useRabiPlanStatus, t }) {
-  const snapshot = useRabiPlanStatus(snapshot => snapshot)
-  const status = rowPlanStatus(sessionId, snapshot, t)
-  if (!status) return null
-  const { entry, label, description } = status
-  return React.createElement('div', {
-    'data-rabi-plan-status': sessionId, 'aria-label': description,
-    style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', fontSize: '12px' },
-  },
-  React.createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t('plan')),
-  entry.palette ? React.createElement('span', { style: {
-    display: 'inline-block', maxWidth: '100%', overflowWrap: 'anywhere',
-    borderRadius: '999px', padding: '1px 6px', lineHeight: '17px',
-    border: '1px solid color-mix(in srgb, ' + entry.palette.accent + ' 42%, var(--dsw-alias-border-l4))',
-    background: 'color-mix(in srgb, ' + entry.palette.accent + ' 18%, var(--dsw-alias-bg-layer-2))',
-    color: 'var(--dsw-alias-label-primary)',
-  } }, label) : React.createElement(Tag, { tone: entry.conflict ? 'warning' : 'neutral' }, label),
-  snapshot.stale && React.createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t('stale')))
-}
-
-/** Public root-scoped row seats share one reversible cache without activating listed sessions. */
+/** Register reversible root-scoped row views sharing one request scheduler.
+ * @param {object} ctx Client plugin context.
+ */
 export function applyRabiPlanStatus(ctx) {
   ctx.effect(() => ctx.locale.register('rabi-plan-status', rabiStatusLocales))
   ctx.effect(() => {
@@ -62,8 +62,8 @@ export function applyRabiPlanStatus(ctx) {
       name, id: 'dsh-rabiroute-agent:plan-status', order: 30, locale: 'rabi-plan-status',
       inject: () => ({ hooks: { rabiPlanStatus: statusStore } }),
     }, view))
-    const releaseMarker = register('sidebar.session.row.leading', RabiPlanStatusMarker)
-    const releaseHover = register('sidebar.session.row.hover', RabiPlanStatusBadge)
-    return () => { releaseHover(); releaseMarker(); statusStore.dispose() }
+    const releaseBadge = register('sidebar.session.row.badges', RabiPlanStatusBadge)
+    const releaseTitle = register('sidebar.session.row.title', RabiPlanSessionTitle)
+    return () => { releaseTitle(); releaseBadge(); statusStore.dispose() }
   })
 }

@@ -8,4 +8,4 @@ Install the fixed commit reachable from the repository main branch through dsh p
 
 The maintenance lockfile disables implicit peer installation and uses the current Cordis and schemastery versions. Git packages build without depending on the source checkout node_modules.
 
-Plan indicators use the public root-scoped sidebar.session.row.leading and sidebar.session.row.hover slots. Remove older local session.badges and session.title patches when upgrading. Titles and search results follow the host; full plan state appears in each row hover card, while host activity indicators take precedence over the idle-row marker.
+0.13.18 恢复常驻文字标签，需应用 [会话行插槽补丁](../patches/README.md)。补丁以当前 DSH 提交为基准，只扩展通用标签和展示标题插槽。升级前运行补丁检查；接口缺失时停止安装并补齐接口，避免标签静默消失。

@@ -122,7 +122,7 @@ test('packaged row seats share hooks, select the actual row and expose stale/con
   const bundle = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
   vm.runInNewContext(bundle, { window: { __ModuleLoader__: { load: value => { entry = value } } }, setTimeout, clearTimeout, AbortController })
   const react = { memo: value => value, createElement: (type, props, ...children) => ({ type, props, children }) }
-  const client = entry.factory(name => name === 'react' ? react : { Tag: 'Tag' })
+  const client = entry.factory(name => name === 'react' ? react : { Tag: 'Tag', Tooltip: 'Tooltip' })
   const rows = [], cleanups = [], released = []
   const ctx = {
     sessions: {}, effect: fn => { cleanups.push(fn()) },
@@ -133,32 +133,35 @@ test('packaged row seats share hooks, select the actual row and expose stale/con
       register: (spec, view) => { rows.push({ spec, view }); return () => {} } },
   }
   client.apply(ctx)
-  const marker = rows.find(row => row.spec.name === 'sidebar.session.row.leading')
-  const badge = rows.find(row => row.spec.name === 'sidebar.session.row.hover')
-  assert.ok(marker); assert.ok(badge)
-  assert.equal(rows.some(row => /session\.(badges|title)$/.test(row.spec.name)), false)
-  const store = marker.spec.inject().hooks.rabiPlanStatus
+  const title = rows.find(row => row.spec.name === 'sidebar.session.row.title')
+  const badge = rows.find(row => row.spec.name === 'sidebar.session.row.badges')
+  assert.ok(title); assert.ok(badge)
+  assert.equal(rows.some(row => /row\.(leading|hover)$/.test(row.spec.name)), false)
+  const store = title.spec.inject().hooks.rabiPlanStatus
   assert.equal(store, badge.spec.inject().hooks.rabiPlanStatus)
-  assert.equal('statusStore' in marker.spec.inject(), false)
-  const render = (row, sessionId, data) => row.view({ sessionId, t: key => key, useRabiPlanStatus: selector => selector(data) })
+  assert.equal('statusStore' in title.spec.inject(), false)
+  const render = (row, sessionId, data, text = '[Project][Category]示例任务') => row.view({ sessionId, title: text, t: key => key, useRabiPlanStatus: selector => selector(data) })
   const palette = { accent: '#0891b2', background: '#ecfeff', foreground: '#0e7490' }
   const data = { entries: { 'session-a': { status: '分析中', label: '等待审核', palette }, 'session-b': { status: '完成' } }, stale: false }
-  const a = render(marker, 'session-a', data), b = render(badge, 'session-b', data)
-  assert.equal(a.props['aria-label'], 'plan: 等待审核')
-  assert.equal(a.props.style.color, palette.accent)
-  assert.ok(parseInt(a.props.style.width) <= 16)
-  assert.equal(b.children[1].children[0], '完成')
-  assert.equal(render(marker, 'unbound', data), null)
+  const rendered = render(badge, 'session-a', data)
+  const pill = rendered.children[0]
+  assert.equal(pill.props['aria-label'], 'plan: 等待审核')
+  assert.equal(pill.children[0].children[0], '等待审核')
+  assert.match(pill.children[0].props.style.border, /#0891b2/)
+  assert.equal(render(title, 'session-a', data), '示例任务')
+  assert.equal(render(title, 'unbound', data), '[Project][Category]示例任务')
+  assert.equal(render(title, 'session-a', data, '[Project][Category]'), '[Project][Category]')
+  assert.equal(render(title, 'session-a', data, '[一][二][三]标题'), '[三]标题')
+  assert.equal(render(badge, 'session-b', data).children[0].children[0].children[0], '完成')
   assert.equal(render(badge, 'unbound', data), null)
-  assert.equal(render(badge, 'session-a', {entries: {'session-a': {status: ''}}}), null)
+  assert.equal(render(badge, 'session-a', { entries: { 'session-a': { status: '' } } }), null)
   const stale = render(badge, 'session-a', { ...data, stale: true })
-  assert.match(stale.props['aria-label'], /stale/)
-  assert.equal(stale.children[1].children[0], '等待审核')
-  assert.equal(stale.children[2].children[0], 'stale')
-  assert.equal(render(badge, 'session-a', { entries: { 'session-a': { conflict: true } } }).children[1].children[0], 'conflict')
+  assert.match(stale.props.label, /stale/)
+  assert.equal(stale.children[0].children[0].children[0], '等待审核')
+  assert.equal(render(badge, 'session-a', { entries: { 'session-a': { conflict: true } } }).children[0].children[0].children[0], 'conflict')
   cleanups.reverse().forEach(dispose => dispose?.())
-  assert.ok(released.includes('sidebar.session.row.leading'))
-  assert.ok(released.includes('sidebar.session.row.hover'))
+  assert.ok(released.includes('sidebar.session.row.title'))
+  assert.ok(released.includes('sidebar.session.row.badges'))
   assert.equal(store.subscribe(() => {})(), undefined)
 })
 

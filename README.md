@@ -2,11 +2,11 @@
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.17
+v0.13.18
 
 工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划。已加载页面在插件生命周期内缓存；关闭取消当前读取，保留一个轻量事件订阅。无变更时再次打开不查询；变更按角色失效，当前页只传输和合并变动行，关闭的页下次打开再校验。顺序、计数和筛选项由服务端核对，断线重连重新校验；失败保留旧数据并显示错误。`workspacePlanCachePages`（默认 32）限制缓存页数，`workspacePlanEventDelayMs`（默认 200）控制事件合并时间，均可在插件配置中调整。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
 
-会话标题沿用宿主原样显示。计划状态通过当前公开的会话行插槽展示；不依赖本地标题或标签补丁。
+计划状态标签常驻会话文字左侧。绑定计划的标题最多隐藏两个开头分类前缀，悬浮显示原始标题；名称和重命名草稿不变。宿主需安装本包的[会话行扩展补丁](patches/README.md)。
 
 ## 计划材料归档（0.10.0）
 
@@ -29,9 +29,9 @@ v0.13.17
 
 标签刷新逐页合并已验证的摘要，后续页失败不清空已知绑定；完整读取后才移除失效绑定。后台总预算 `planStatusTimeoutMs` 默认 120 秒，HTTP 缓存读取仍立即返回。
 
-## 会话计划状态标记（0.13.17）
+## 会话计划状态标签（0.13.18）
 
-分组与平铺列表中，空闲且已绑定计划的会话在左侧 16px 区域显示状态色方形标记。运行、未读消息或待交互时，宿主的状态提示优先；悬浮会话行始终显示完整 Rabi 计划状态，缓存过期时附加刷新提示。归档行仅在悬浮详情显示计划状态，搜索结果由宿主保持原样。使用公开的 `sidebar.session.row.leading` 和 `sidebar.session.row.hover` root 插槽，按实际行 `sessionId` 读取，不激活列表中的会话。查询、缓存和渲染由插件持有，状态名和配色由 Rabi 提供。
+分组、平铺和搜索结果在会话文字左侧常驻状态标签。运行、未读、待交互及归档状态保留标签；宿主状态图标继续独立显示。使用 root 插槽 `sidebar.session.row.badges` 和 `sidebar.session.row.title`，按实际行 `sessionId` 读取，不激活列表中的会话。标签与标题共用一个查询和事件订阅；状态名和配色由 Rabi 提供。
 
 `GET /rabiroute/plan-statuses` 立即返回缓存，并按需在后台更新。所有会话共享一次摘要分页扫描，不读取计划正文，不阻塞会话打开或 Agent 执行。`planStatusCacheMs` 默认 60000 毫秒，`planStatusTimeoutMs` 默认 15000 毫秒，`planStatusMaxPages` 默认 24 页；通过同源 `GET /rabiroute/plan-events` 订阅 Manager 的计划提交和状态配置事件，合并刷新；正常状态不定时查询。重连时重新校准，页面隐藏、无标签订阅或插件卸载时关闭事件连接。首次加载可能需要数秒显示标签。
 

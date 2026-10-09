@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.13.17",
+  "version": "0.13.18",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -32,7 +32,9 @@
     "docs",
     "locale",
     "icon.svg",
-    "ICON_LICENSE.txt"
+    "ICON_LICENSE.txt",
+    "patches",
+    "scripts/check-row-slots.mjs"
   ],
   "dependencies": {},
   "peerDependencies": {
