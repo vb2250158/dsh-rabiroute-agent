@@ -264,3 +264,8 @@ Rabi 增强默认通过 DSH 的 `skills.registerProvider` 加入人格技能。�
 The plugin list shows **RabiRoute integration** in English and **RabiRoute 接入** in Chinese, following the DSH interface language. `locale/en.json` and `locale/zh.json` provide the title and description; `icon.svg` supplies self-contained artwork. The package exports and publishes these resources. The icon is adapted from Lucide; see [ICON_LICENSE.txt](ICON_LICENSE.txt).
 
 The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.
+## Rabi助手模式（0.13.19）
+
+安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供；只开放三个 Rabi 工具，其他工具在模型目录和执行入口都被拒绝，包括后注册的工具。支持正常人格对话，不继承消息处理模式的强制委派规则。
+
+在 Rabi 的 DSH 设置中选择这个会话模式并保存。新会话按所选模式创建，空白会话通过 DSH 的正式选择接口同步；已经开始过对话的会话不能切换模式，需要明确选择新的会话。Rabi 不可用时报告连接问题，不读取文件缓存或改用其他工具。标准会话不受限制。

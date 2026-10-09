@@ -1,5 +1,11 @@
 English | [简体中文](README.md)
 
+## Rabi assistant mode (0.13.19)
+
+Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns the persona, memory, plans and messages. Only the three Rabi tools are visible and executable; foreign and subsequently registered tools are denied. Persona conversation remains available without the message coordinator's mandatory delegation policy.
+
+Select the preset in Rabi's DSH settings. New sessions use it at creation; blank sessions use the official DSH selection API. Started sessions refuse preset changes, requiring an explicitly selected new session. Manager failure does not enable file caches or other tools. Standard sessions remain unaffected.
+
 v0.13.18
 
 A Rabi button appears for workspaces matching a routed persona. Its dialog lists plans bound to existing DSH sessions in that workspace, using WebGUI search and status colors with status/tag/view/sort filters and pagination. Titles are display-only. Opening a bound session loads its associated plan through the session panel; multiple bindings offer a session choice. Discovery scans no plans. Loaded pages are cached for the plugin lifetime; closing cancels the active read but retains one lightweight event subscription. Reopening an unchanged page makes no query. Role-scoped events reconcile changed rows only; inactive pages reconcile on reopening. Server-owned order, counts, and facets remain authoritative. Reconnect reconciles cached state; failures retain rows with an error. Configure `workspacePlanCachePages` (32) and `workspacePlanEventDelayMs` (200) to bound retained pages and coalesce events. Requires Rabi `POST /api/roles/:roleId/plans/query` and the host `sidebar.workspaces.workspace.actions` slot.

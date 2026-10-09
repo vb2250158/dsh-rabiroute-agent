@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.13.18",
+  "version": "0.13.19",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -9,7 +9,8 @@
     "./message-mode": "./lib/message-mode.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./assistant-mode": "./lib/assistant-mode.js"
   },
   "files": [
     "lib",

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.19 (2026-10-09)
+
+- Register Rabi assistant mode automatically, exposing only Rabi tools while preserving the bound persona.
+- Share the scoped runtime guard with message-processing mode without changing its coordination policy or sibling sessions.
+
 ## 0.13.18
 
 会话状态标签恢复常驻，放在会话文字左侧；绑定计划的标题隐藏最多两个分类前缀，悬浮保留原始标题。分组、平铺与搜索采用同一行身份和共享订阅。宿主通用插槽补丁随包交付，并提供升级前检查。
