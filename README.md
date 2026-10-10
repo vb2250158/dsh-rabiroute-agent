@@ -2,7 +2,7 @@
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.18
+v0.13.21
 
 工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划。已加载页面在插件生命周期内缓存；关闭取消当前读取，保留一个轻量事件订阅。无变更时再次打开不查询；变更按角色失效，当前页只传输和合并变动行，关闭的页下次打开再校验。顺序、计数和筛选项由服务端核对，断线重连重新校验；失败保留旧数据并显示错误。`workspacePlanCachePages`（默认 32）限制缓存页数，`workspacePlanEventDelayMs`（默认 200）控制事件合并时间，均可在插件配置中调整。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
 
@@ -253,7 +253,7 @@ MIT
 
 Rabi 增强默认通过 DSH 的 `skills.registerProvider` 加入人格技能。工作区来自 Rabi `/api/gateways` 返回的已启用 Agent 状态（`monitorThreadCwd` 或 `monitorProjectPath`）。每次发现及加载使用当前会话的 `cwd`；人格与技能仍由 Rabi 管理。该接口未提供的远程实例配置不参与匹配。
 
-工作区按绝对路径精确匹配，统一 Windows 大小写、斜杠和扩展路径前缀；子目录不自动继承。相同工作区合并多个人格的 active 技能，重复路由只计一次。技能名称含人格、技能 ID 和身份摘要，描述包含标题、摘要和关键词。官方目录、技能工具及显式触发共用此提供器，并沿用官方会话记录。
+工作区按绝对路径精确匹配，统一 Windows 大小写、斜杠和扩展路径前缀；子目录不自动继承。相同工作区合并多个人格的 active 技能，重复路由只计一次。技能名称使用 `rabi-人格ID-技能ID`，不附加哈希编号；名称转小写，符号统一为连字符。同名技能在同一入口一起展示说明，加载时按原始人格和技能 ID 读取全部有效正文，并标明各自来源；停用项不进入正文。官方目录、技能工具及显式触发共用此提供器，并沿用官方会话记录。
 
 `workspaceSkillsEnabled` 默认为 `true`；正整数 `workspaceSkillCacheMs` 默认为 `30000`。内存缓存保存映射与目录，到期使 DSH 目录失效；正文按需读取。Rabi 失败时不缓存空目录，其他提供器保持可用。加载时核对工作区和 active 状态；卸载终止请求并清除定时器。资源标记为 Rabi 虚拟资源，不把 Manager 路径当作 DSH 本地路径。
 

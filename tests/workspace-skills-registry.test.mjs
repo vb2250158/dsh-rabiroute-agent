@@ -16,16 +16,22 @@ test('built provider participates in the real DSH registry, expiry and disposal'
   const ctx = new Context()
   await ctx.plugin(SkillRegistry)
   let workspace = 'C:/Example/Game'
+  let includeDuplicates = false
+  const records = () => includeDuplicates
+    ? [{ id: 'build-check', title: 'Build check', summary: 'Build client', status: 'active', content: '# Client\nBuild the client.' },
+      { id: 'build_check', title: 'Build check', summary: 'Build server', status: 'active', content: '# Server\nBuild the server.' }]
+    : [{ id: 'build', title: 'Build', summary: 'Check builds', status: 'active', content: '# Build\nRun the build.' }]
   const dispose = ctx.skills.registerProvider(control => createWorkspaceSkillProvider({ workspaceSkillCacheMs: 30 }, control, {
     request: async pathname => ({ ok: true, body: JSON.stringify(pathname === '/api/gateways'
       ? [{ agentRoleId: 'Builder', agentAdapters: ['dsh'], agentStates: { dsh: { monitorThreadCwd: workspace } } }]
       : { data: pathname.endsWith('/skills')
-        ? [{ id: 'build', title: 'Build', summary: 'Check builds', status: 'active' }]
-        : { id: 'build', status: 'active', content: '# Build\nRun the build.' } }) }),
+        ? records()
+        : records().find(item => pathname.endsWith('/' + item.id)) }) }),
   }))
   try {
     const [skill] = await ctx.skills.list({ cwd: workspace })
     assert.equal(skill.provider, 'rabiroute-workspace')
+    assert.equal(skill.name, 'rabi-builder-build')
     assert.equal((await ctx.skills.get(skill.name, { cwd: workspace })).content, '# Build\nRun the build.')
     const listeners = []
     let tool
@@ -44,6 +50,17 @@ test('built provider participates in the real DSH registry, expiry and disposal'
     await delay(45)
     assert.deepEqual(await ctx.skills.list({ cwd: 'C:/Example/Game' }), [])
     assert.equal((await ctx.skills.list({ cwd: workspace })).length, 1)
+    includeDuplicates = true
+    await delay(45)
+    const duplicates = await ctx.skills.list({ cwd: workspace })
+    assert.equal(duplicates.length, 1)
+    assert.equal(duplicates[0].name, 'rabi-builder-build-check')
+    const duplicateLoaded = await tool.execute({ name: duplicates[0].name }, { agent: { session: { header: { cwd: workspace } } }, signal })
+    assert.match(duplicateLoaded.content, /Build the client\./)
+    assert.match(duplicateLoaded.content, /Build the server\./)
+    const duplicateCatalog = await listeners[1]({ agent: { session: { header: { cwd: workspace }, surface: { nodes: [] }, seq: 0 } }, signal }, async () => ({ kind: 'continue', messages: [] }))
+    assert.match(duplicateCatalog.messages[0].source.entries[0].description, /Build client/)
+    assert.match(duplicateCatalog.messages[0].source.entries[0].description, /Build server/)
   } finally { dispose() }
   assert.deepEqual(await ctx.skills.list({ cwd: workspace }), [])
 })

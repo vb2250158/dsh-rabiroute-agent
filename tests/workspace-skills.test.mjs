@@ -44,7 +44,7 @@ test('normalizes Windows extended paths and UNC without resolving relative works
 test('catalog, trigger metadata and body are limited to the session workspace', async t => {
   const { provider, state } = fixture(t)
   const [skill] = await provider.list({ cwd: '//?/C:/Projects/Game/' })
-  assert.match(skill.name, /^rabi-builder-build-check-[a-f0-9]+$/)
+  assert.equal(skill.name, 'rabi-builder-build-check')
   assert.deepEqual(skill.invocation, { modelInvocable: true, userInvocable: true })
   assert.equal(skill.whenToUse, 'build')
   assert.equal((await provider.get(skill, { cwd: 'c:/projects/game' })).content, '# Build\nCheck the build.')
@@ -99,6 +99,41 @@ test('same-workspace personas merge while repeated routes and disabled routes do
     ? [route('Builder'), route('Builder'), route('builder'), { ...route('Disabled'), enabled: false }]
     : { data: [{ id: 'build', title: 'Build', summary: 'Check', status: 'active' }] }) }) })
   const skills = await provider.list({ cwd: '/work/game' })
-  assert.equal(skills.length, 2)
-  assert.notEqual(skills[0].name, skills[1].name)
+  assert.equal(skills.length, 1)
+  assert.equal(skills[0].name, 'rabi-builder-build')
+  assert.match(skills[0].description, /\[Builder\]/)
+  assert.match(skills[0].description, /\[builder\]/)
+})
+
+test('normalized duplicate names display and load every original skill without a hash', async t => {
+  const controller = new AbortController()
+  t.after(() => controller.abort())
+  const calls = []
+  const skills = [
+    { id: 'build-check', title: 'Build check', summary: 'Build the client', keywords: ['client'], status: 'active', content: '# Client\nBuild the client.' },
+    { id: 'build_check', title: 'Build check', summary: 'Build the server', keywords: ['server'], status: 'active', content: '# Server\nBuild the server.' },
+  ]
+  const provider = createWorkspaceSkillProvider({}, { signal: controller.signal, invalidate() {} }, { request: async pathname => {
+    calls.push(pathname)
+    const data = pathname.endsWith('/skills') ? skills : skills.find(skill => pathname.endsWith('/' + skill.id))
+    return { ok: true, body: JSON.stringify(pathname === '/api/gateways'
+      ? [{ agentRoleId: 'Builder', agentAdapters: ['dsh'], agentStates: { dsh: { monitorThreadCwd: '/work/game' } } }]
+      : { data }) }
+  } })
+  const [entry] = await provider.list({ cwd: '/work/game' })
+  assert.equal(entry.name, 'rabi-builder-build-check')
+  assert.equal((await provider.list({ cwd: '/work/game' })).length, 1)
+  assert.match(entry.description, /Build the client/)
+  assert.match(entry.description, /Build the server/)
+  const loaded = await provider.get(entry, { cwd: '/work/game' })
+  assert.match(loaded.content, /\[Builder\] build-check\n/)
+  assert.match(loaded.content, /\[Builder\] build_check\n/)
+  assert.match(loaded.content, /Build the client\./)
+  assert.match(loaded.content, /Build the server\./)
+  assert.ok(calls.includes('/api/roles/Builder/skills/build-check'))
+  assert.ok(calls.includes('/api/roles/Builder/skills/build_check'))
+  skills[0].status = 'archived'
+  assert.equal((await provider.get(entry, { cwd: '/work/game' })).content, skills[1].content)
+  skills[1].status = 'archived'
+  assert.equal(await provider.get(entry, { cwd: '/work/game' }), undefined)
 })

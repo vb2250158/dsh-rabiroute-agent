@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.21 (2026-10-10)
+
+- Remove hash suffixes from workspace persona skill names and use readable persona and skill IDs.
+- Display colliding descriptions together and load all active bodies with their original sources so host deduplication cannot discard a skill.
+
 ## 0.13.20 (2026-10-09)
 
 - Allow exact pet motion POST and receipt GET paths; Rabi owns walking, teleport and receipts.

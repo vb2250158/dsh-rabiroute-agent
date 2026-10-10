@@ -1,5 +1,7 @@
 English | [简体中文](README.md)
 
+v0.13.21
+
 ## Rabi assistant mode (0.13.19)
 
 Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns the persona, memory, plans and messages. Only the three Rabi tools are visible and executable; foreign and subsequently registered tools are denied. Persona conversation remains available without the message coordinator's mandatory delegation policy.
@@ -251,7 +253,7 @@ A session with no Hook persona binding is resolved against current plan summarie
 
 Rabi enhancement registers a cwd-sensitive provider through `skills.registerProvider`. Enabled Agent workspaces come from `/api/gateways` state fields `monitorThreadCwd` or `monitorProjectPath`. Rabi owns bindings and skills. Remote instance configuration absent from this endpoint is not matched.
 
-Exact absolute-path matching normalizes Windows case, separators and extended path prefixes. Child directories do not inherit bindings. Active skills from matching personas are merged and repeated routes deduplicated. Names contain persona, skill ID and an identity hash; descriptions contain title, summary and keywords. The official catalog, loader and explicit invocation retain their normal session logging.
+Exact absolute-path matching normalizes Windows case, separators and extended path prefixes. Child directories do not inherit bindings. Active skills from matching personas are merged and repeated routes deduplicated. Names use `rabi-personaId-skillId` without a hash suffix, with lowercase letters and hyphens replacing punctuation. Skills sharing a normalized name display their descriptions together under one entry. Loading reads every active body by its original persona and skill ID and identifies each source; inactive bodies are omitted. The official catalog, loader and explicit invocation retain their normal session logging.
 
 `workspaceSkillsEnabled` defaults to true. Positive integer `workspaceSkillCacheMs` defaults to 30000. Expiry invalidates the DSH registry; bodies are read on demand. Failed discovery is never cached as an empty catalog. Other providers remain available. Loading rechecks workspace and active status. Disposal aborts requests and clears timers. Resources remain opaque Rabi resources, not local DSH paths.
 
