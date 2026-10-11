@@ -41,7 +41,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.25'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.26'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -160,7 +160,8 @@ function promptText(config) {
     '向 QQ、语音、飞书、RabiLink 等消息端发送内容时使用 rabiroute_agent_send，并取得 Manager 与渠道回执。最终文本不算已发送。',
     '计划、消息处理、回复请求、记忆和桌宠移动使用 rabiroute_manager_api。桌宠移动先读 /api/agent/help 对应 motion 合同，提交后按原 requestId 查询实际抵达回执。secretaryBinding 只记录秘书，taskBinding 只记录独立业务任务。',
     'rabiroute_manager_api 可调用 Rabi 的全部接口，没有插件路径、方法或业务请求头白名单；接口方法、参数、鉴权、幂等与版本条件由 Rabi 校验。先读 /api/agent/help 当前合同，新增接口无需更新本插件。调用能力不扩大当前用户授权，外发、设备动作、删除与付费遵守 Rabi Action Gate。',
-    '家庭设备通过 /api/agent/xiaomi-home/devices、/resources?includeActions=1 与 /entity-actions?resourceId=<编码实体ID> 发现；按实际合同读状态和提交动作。requestHeadersJson 传稳定 Idempotency-Key；插件自动附加本次核验的代际头。按原键查询 /action-requests?idempotencyKey=<原键>，accepted 不等于设备结果已确认。',
+    '家庭设备先读 /api/agent/xiaomi-home/devices?q=<URL编码关键词>&limit=5 或 /resources?kind=climate&limit=5 等摘要小页，默认不带完整属性。q 支持名称、描述、型号、房间与属性信息，多词空格分隔；kind 筛实体类型，available=1 筛在线项。结果为 data.items、total、nextOffset，nextOffset 非空时带同样筛选和 offset 继续；不要把第一页当全部清单，也不要默认批量 includeActions=1。',
+    '设备摘要给出 deviceId 和 resourcesPath；按 /resources?deviceId=<编码deviceId>&limit=5 继续筛选实体，无归属实体使用 deviceId=unassigned。需要更多目录字段可显式 view=detail，仍按页读；单项 /devices/<编码deviceId> 读完整登记信息。定位 resourceId 后只读 /resources/<编码resourceId> 的实时状态，再按 /entity-actions?resourceId=<编码resourceId> 获取该实体动作和参数。列表摘要不是完整状态，输出截断时缩小 limit 或关键词，不使用网页或本地缓存补读。requestHeadersJson 传稳定 Idempotency-Key；插件自动附加本次核验的代际头。按原键查询 /action-requests?idempotencyKey=<原键>，accepted 不等于设备结果已确认。',
     'DSH 投递失败时报告失败，不改投 Codex，也不创建另一套任务。',
     config.managerBaseUrl ? 'Rabi Manager 使用插件显式配置的完整地址并逐次核对身份。' : 'Rabi Manager 每项操作从 Host 动态发现并核对 /meta，不使用历史端口。',
     '可用 GET /meta 只读核对连接。旧地址失败不代表 Manager 离线；不要用读取近期记忆作为无副作用健康探针。',

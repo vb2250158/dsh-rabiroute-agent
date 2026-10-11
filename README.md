@@ -2,7 +2,7 @@
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.25
+v0.13.26
 
 工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划。已加载页面在插件生命周期内缓存；关闭取消当前读取，保留一个轻量事件订阅。无变更时再次打开不查询；变更按角色失效，当前页只传输和合并变动行，关闭的页下次打开再校验。顺序、计数和筛选项由服务端核对，断线重连重新校验；失败保留旧数据并显示错误。`workspacePlanCachePages`（默认 32）限制缓存页数，`workspacePlanEventDelayMs`（默认 200）控制事件合并时间，均可在插件配置中调整。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
 
@@ -62,6 +62,8 @@ v0.13.25
 推进设置页直接说明触发、检查与原会话排队投递的过程，并默认展开首个可配置状态，显示人格状态说明和该状态的可编辑推进提示词。保存走 Rabi 人格工作区规则接口；状态说明仍由人格工作流统一维护。实际提示词由 Rabi 合并状态说明、规则提示词、计划及步骤身份与授权约束，Agent 收到后重新读取最新计划。
 
 ## 统一帮助与发送能力（0.13.16）
+
+家庭设备目录默认返回分页摘要。先用 `/api/agent/xiaomi-home/devices?q=<关键词>&limit=5` 或 `/resources?kind=climate&limit=5` 筛选，关键词 URL 编码，支持名称、描述、型号、房间和属性信息。按 `data.nextOffset` 续页，设备摘要的 `resourcesPath` 可查所属实体；定位后只读单项 `/resources/<resourceId>` 状态和 `/entity-actions?resourceId=...` 动作。完整目录字段使用显式 `view=detail`，仍须分页。插件只注入调用提示，筛选、分页和详情由 Rabi 提供，不增加接口白名单。
 
 通过 `rabiroute_manager_api` 调用 `GET /api/agent/help` 获取 Manager 当前统一帮助，或 `GET /api/agent/send/capabilities` 查询发送能力。支持正常 query，例如 `{"method":"GET","path":"/api/agent/help?method=GET&path=%2Fapi%2Fagent%2Fxiaomi-home%2Fdevices"}`；参数语义以当前 Manager 合同为准。
 

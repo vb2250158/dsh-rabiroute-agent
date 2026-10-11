@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.26 (2026-10-11)
+
+- Guide home-device discovery through keyword/type filtering and small summary pages before reading one device or entity's state and actions.
+- Explain continuation, explicit detail and narrowing truncated reads instead of loading all properties and action schemas into model context.
+- Rabi owns directory queries; existing tool permissions, persona skills and web tools retain their configuration.
+
 ## 0.13.25 (2026-10-11)
 
 - Retain official `web_search` and `web_fetch` in the Rabi assistant, reusing existing search provider settings.

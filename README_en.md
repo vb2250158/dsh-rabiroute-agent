@@ -1,6 +1,8 @@
 English | [简体中文](README.md)
 
-v0.13.25
+v0.13.26
+
+Home-device directories return paged summaries. Start with `/api/agent/xiaomi-home/devices?q=<encoded keywords>&limit=5` or `/resources?kind=climate&limit=5`. Search covers names, descriptions, models, areas and attribute information. Follow `data.nextOffset` with the same filters; a device's `resourcesPath` discovers its entities. Read only the selected `/resources/<resourceId>` state and `/entity-actions?resourceId=...` schema. Explicit `view=detail` remains paginated. Rabi owns these queries; the plugin only injects guidance and does not restrict API access.
 
 ## Rabi assistant mode (0.13.19)
 
