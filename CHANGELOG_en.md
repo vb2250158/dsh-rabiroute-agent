@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.24 (2026-10-11)
+
+- Prompt guidance prefers independent sessions for work beyond messages and plans while retaining every Rabi API in the current session; assigned tasks execute and formally reply without recursively delegating the same goal.
+- Rabi presets expose only Rabi tools and their guidance, loading bound-persona skills through Rabi on demand; real DSH runtime checks confirm unrelated tools and their skill catalogs are absent from model input.
+
 ## 0.13.23 (2026-10-11)
 
 - Rabi assistant preset metadata states that all Rabi APIs are callable.

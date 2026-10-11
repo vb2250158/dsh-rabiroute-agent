@@ -1,10 +1,10 @@
 English | [简体中文](README.md)
 
-v0.13.23
+v0.13.24
 
 ## Rabi assistant mode (0.13.19)
 
-Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns the persona, memory, plans and messages. Only the three Rabi tools are visible and executable; foreign and subsequently registered tools are denied. Persona conversation remains available without the message coordinator's mandatory delegation policy.
+Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns the persona, memory, plans and messages. Only the three Rabi tools are visible and executable; foreign and subsequently registered tools are denied. The persona session handles messages and plans and prefers independent sessions for other work while retaining access to every Rabi API.
 
 Select the preset in Rabi's DSH settings. New sessions use it at creation; blank sessions use the official DSH selection API. Started sessions refuse preset changes, requiring an explicitly selected new session. Manager failure does not enable file caches or other tools. Standard sessions remain unaffected.
 
@@ -43,7 +43,9 @@ The `message-processing` preset adds **消息处理模式** to the session mode 
 
 Only `rabiroute_agent_threads`, `rabiroute_agent_send` and `rabiroute_manager_api` remain available. The preset mounts no shell, direct filesystem/skill, web, subagent or workflow tools. Native presentation and `tools.guard` deny non-Rabi tools, including tools registered later and PTC. Other presets are unaffected. All Rabi APIs, including device, resource and attachment interfaces, remain callable without endpoint, method, business-header or payload filters; Rabi owns authorization and business validation.
 
-The coordinator delegates investigation, research, solution design, implementation, testing and acceptance, even when the work could be answered without tools. It reads relevant memory, plans and skills first, assigns work, tracks replies, checks reported evidence, and maintains plans and confirmed memories. Rabi/persona skills use `/api/roles/<roleId>/skills` and its item endpoint; their operational work is delegated and never expands tool permissions. Tool restrictions are enforced by the runtime; the division of reasoning work is a prompt instruction.
+Injected guidance keeps messages, plans and follow-up in the persona session and prefers independent sessions for other business work. Reuse the task responsible for the same goal before creating another. Assigned tasks execute and formally report their own work rather than recursively passing on the same goal. Delegation is a preference, never an API restriction: context checks, explicit direct requests and simple authorized API actions can run in the current session, which retains access to every Rabi API.
+
+Both Rabi presets expose only Rabi tools and their guidance, without unrelated tool skill catalogs. Read the currently bound persona's skill metadata and bodies on demand through `/api/roles/<roleId>/skills` and its item endpoint. Loading persona skills never expands tool permissions; ordinary execution sessions retain their own capabilities.
 
 The mode includes API and request-field guidance, current session identity from each prompt assembly, reply/receipt handling, idempotency and ETag rules. It can discover the current persona binding via read-only `/api/codex-hook/sessions/<sessionId>` without local document access. Missing identity, binding or cross-persona capability must never be fabricated. Recent memories support creation and updates; consolidated memories remain read-only under the Manager contract, with corrections recorded as recent memory and consolidation delegated.
 

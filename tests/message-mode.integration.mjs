@@ -13,6 +13,7 @@ const { Context } = await load('vendor/cordis/lib/index.js')
 const { default: SystemPrompt } = await load('packages/core/system-prompt/lib/index.js')
 const { default: ToolRuntime } = await load('packages/core/tools/lib/index.js')
 const { createScope, bindScopeParent } = await load('packages/core/scope/lib/index.js')
+const { apply: applySkillTool } = await load('packages/skill/tool-skill/lib/index.js')
 
 test('real DSH runtime hides and denies file/code tools, preserves Rabi and sibling sessions', async () => {
   const ctx = new Context()
@@ -31,7 +32,18 @@ test('real DSH runtime hides and denies file/code tools, preserves Rabi and sibl
     output: { schema: { type: 'string' }, render: (_, text) => [{ type: 'text', text }] },
     execute: async () => { forbiddenExecutions++; return 'executed' },
   })
-  for (const name of ['cmd', 'read_file', 'write_file', 'search', 'workflow', 'skill']) ctx.tools.register(foreign(name))
+  for (const name of ['cmd', 'read_file', 'write_file', 'search', 'workflow']) ctx.tools.register(foreign(name))
+  const skillListeners = []
+  let skillCatalogReads = 0
+  applySkillTool({
+    tools: ctx.tools,
+    workingDirectory: { ensure: async () => 'C:/project' },
+    skills: { snapshot: async () => {
+      skillCatalogReads++
+      return { complete: true, skills: [{ name: 'foreign-coding', description: 'Non-Rabi coding skill', provider: 'foreign', invocation: { modelInvocable: true, userInvocable: true } }] }
+    } },
+    on: (_name, listener) => skillListeners.push(listener),
+  })
   let preset, sibling, child
   const presetKey = { id: 'message-preset' }, siblingKey = { id: 'standard' }, childKey = { id: 'message-session', session: { id: 'message-session', header: { cwd: 'C:/project' } } }
   await ctx.plugin(Object.assign(inner => {
@@ -49,8 +61,17 @@ test('real DSH runtime hides and denies file/code tools, preserves Rabi and sibl
     const assembly = await ctx.systemPrompt.assemble({ scope: childKey, agent: childKey })
     const guidance = assembly.sections.find(section => section.name === 'rabiroute:message-mode').text
     assert.match(guidance, /"sessionId":"message-session"/)
-    assert.match(guidance, /所有具体业务工作都交给其他 Agent/)
+    assert.match(guidance, /优先分工，不是接口权限限制/)
     assert.match(guidance, /skills\/<skillId>/)
+    const catalog = agent => {
+      agent.session ??= {}
+      Object.assign(agent.session, { surface: { nodes: [] }, seq: 0 })
+      return skillListeners[1]({ agent, signal: new AbortController().signal }, async () => ({ kind: 'continue', messages: [] }))
+    }
+    assert.deepEqual((await catalog(childKey)).messages, [])
+    assert.equal(skillCatalogReads, 0)
+    assert.equal((await catalog(siblingKey)).messages[0].source.entries[0].name, 'foreign-coding')
+    assert.equal(skillCatalogReads, 1)
     for (const name of ['cmd', 'read_file', 'write_file', 'search', 'workflow', 'skill', 'run_code']) {
       assert.equal((await run(name)).isError, true, name)
     }

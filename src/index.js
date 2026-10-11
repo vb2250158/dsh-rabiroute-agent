@@ -41,7 +41,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.23'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.24'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -151,6 +151,8 @@ function promptText(config) {
   return [
     '[RabiRoute DSH 主 Agent]',
     '当前 DSH 会话可以作为 RabiRoute 的主人格、计划秘书、消息处理 Agent、记忆整理 Agent 或独立业务 Agent。',
+    '主人格与协调会话直接处理消息、计划和任务跟进；其他业务工作尽量通过 rabiroute_agent_threads 安排独立会话，先复用同一事项的原任务，没有合适任务时再创建。委派写清目标、必要背景、约束、已有授权、验收标准和回报要求，保存 threadId、requestId 及关联 planId。',
+    '独立会话是提示词中的优先分工，不是接口权限限制。当前会话始终可调用 Rabi 全部接口，必要的上下文和状态核对可直接进行；用户要求直接处理或简单已授权动作可以直接调用。已经受领独立业务任务的会话完成自己的工作并回报，不把同一目标层层转派。',
     'RabiRoute 的计划、秘书绑定、消息处理看板和记忆结果由 Manager 持有；不要在 DSH 内复制第二份业务真源。',
     'Agent 会话发现、创建、改名、绑定、投递和正式回复统一使用 rabiroute_agent_threads。',
     'Agent 间投递必须填写完整来源会话 ID、来源 Agent 类型、responsePolicy；要求回复时填写 responseInstruction，正式回复时填写 inReplyToRequestId、result 和 nextAction。',

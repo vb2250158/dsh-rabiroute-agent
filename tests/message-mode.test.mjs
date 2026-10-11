@@ -56,7 +56,7 @@ test('mount uses the scoped catalog, native tools and a monotonic execution guar
   assert.deepEqual(seen.restriction.allow, RABIROUTE_AGENT_TOOL_NAMES)
   assert.equal(seen.mode, 'native')
   assert.equal(seen.guard, messageModeGuard)
-  assert.match(seen.prompt, /所有具体业务工作都交给其他 Agent/)
+  assert.match(seen.prompt, /优先分工，不是接口权限限制/)
   assert.throws(() => apply({ tools: {} }), /请先更新宿主/)
 })
 
