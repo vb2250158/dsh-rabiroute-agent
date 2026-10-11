@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.25 (2026-10-11)
+
+- Retain official `web_search` and `web_fetch` in the Rabi assistant, reusing existing search provider settings.
+- Filter each created or resumed agent catalog while retaining every Rabi API and persona skills; unrelated tools and generic skill catalogs remain hidden. Message processing stays Rabi-only.
+- Verify web execution, lean context, sibling standard sessions and disposal with the real DSH tool runtime.
+
 ## 0.13.24 (2026-10-11)
 
 - Prompt guidance prefers independent sessions for work beyond messages and plans while retaining every Rabi API in the current session; assigned tasks execute and formally reply without recursively delegating the same goal.

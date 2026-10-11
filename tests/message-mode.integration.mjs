@@ -4,6 +4,7 @@ import test from 'node:test'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import * as mode from '../lib/message-mode.js'
+import * as assistant from '../lib/assistant-mode.js'
 import { internals, RABIROUTE_AGENT_TOOL_NAMES } from '../lib/index.js'
 
 const root = process.env.DSH_SOURCE_ROOT
@@ -12,13 +13,26 @@ const load = path => import(pathToFileURL(resolve(root, path)).href)
 const { Context } = await load('vendor/cordis/lib/index.js')
 const { default: SystemPrompt } = await load('packages/core/system-prompt/lib/index.js')
 const { default: ToolRuntime } = await load('packages/core/tools/lib/index.js')
-const { createScope, bindScopeParent } = await load('packages/core/scope/lib/index.js')
+const { createScope, bindScopeParent, scopeTarget } = await load('packages/core/scope/lib/index.js')
 const { apply: applySkillTool } = await load('packages/skill/tool-skill/lib/index.js')
+const { default: WebRuntime } = await load('packages/web/web/lib/index.js')
+const webTools = await load('packages/web/tool-web/lib/index.js')
 
-test('real DSH runtime hides and denies file/code tools, preserves Rabi and sibling sessions', async () => {
+for (const [label, presetMode, hasWeb] of [['message', mode, false], ['assistant', assistant, true]]) {
+test(`real DSH ${label} runtime preserves its capabilities and hides unrelated tools and skills`, async () => {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt, {})
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(WebRuntime, {})
+  const webCalls = []
+  ctx.web.registerSearchProvider({ id: 'test-search', available: () => true, search: async request => {
+    webCalls.push('search')
+    return { sources: [{ url: 'https://example.org/', title: 'Example' }], truncated: false }
+  } })
+  ctx.web.registerFetchProvider({ id: 'test-fetch', available: () => true, fetch: async () => {
+    webCalls.push('fetch')
+    return { url: 'https://example.org/', statusCode: 200, body: { kind: 'text', content: 'Example source' }, truncated: false }
+  } })
   const calls = []
   const meta = { health: { state: 'healthy', live: true, requiredReady: true }, applicationGenerationId: 'test', managerInstanceId: 'test' }
   for (const definition of internals.toolDefinitions({ managerBaseUrl: 'http://localhost:12345' }, {
@@ -52,17 +66,32 @@ test('real DSH runtime hides and denies file/code tools, preserves Rabi and sibl
     child = createScope(inner, childKey)
   }, { inject: ['tools', 'systemPrompt'] }))
   bindScopeParent(childKey, presetKey)
-  const fiber = preset.ctx.plugin(mode)
+  // Match the installed assistant preset: official web tools are scope-local.
+  if (hasWeb) {
+    await preset.ctx.plugin(webTools, { search: true, fetch: true, searchMaxResults: 8, searchMaxQueries: 4,
+      searchTimeoutMs: 60000, fetchTimeoutMs: 30000, fetchMaxOutputChars: 200000 })
+  }
+  const fiber = preset.ctx.plugin(presetMode)
   await fiber
+  childKey.ctx = child.ctx
+  await ctx.serial(scopeTarget(childKey, childKey), 'agent/created', { agent: childKey, source: 'startup' })
   const run = (name, args = {}, agent = childKey) => ctx.tools.execute({ name, arguments: args, agent,
     callId: 'test-call', signal: new AbortController().signal })
   try {
-    assert.deepEqual(ctx.tools.schemas(childKey).map(t => t.name).sort(), [...RABIROUTE_AGENT_TOOL_NAMES].sort())
+    assert.deepEqual(ctx.tools.schemas(childKey).map(t => t.name).sort(), [...RABIROUTE_AGENT_TOOL_NAMES, ...hasWeb ? ['web_search', 'web_fetch'] : []].sort())
     const assembly = await ctx.systemPrompt.assemble({ scope: childKey, agent: childKey })
-    const guidance = assembly.sections.find(section => section.name === 'rabiroute:message-mode').text
-    assert.match(guidance, /"sessionId":"message-session"/)
-    assert.match(guidance, /优先分工，不是接口权限限制/)
-    assert.match(guidance, /skills\/<skillId>/)
+    const guidance = assembly.sections.find(section => section.name === `rabiroute:${label}-mode`).text
+    assert.match(guidance, /message-session/)
+    if (hasWeb) {
+      assert.match(guidance, /联网搜索/)
+      assert.equal((await run('web_search', { queries: ['public information'] })).isError, false)
+      assert.equal((await run('web_fetch', { url: 'https://example.org/' })).isError, false)
+      assert.deepEqual(webCalls, ['search', 'fetch'])
+    } else {
+      assert.match(guidance, /优先分工，不是接口权限限制/)
+      assert.match(guidance, /skills\/<skillId>/)
+      assert.equal((await run('web_search', { queries: ['public information'] })).isError, true)
+    }
     const catalog = agent => {
       agent.session ??= {}
       Object.assign(agent.session, { surface: { nodes: [] }, seq: 0 })
@@ -109,3 +138,4 @@ test('real DSH runtime hides and denies file/code tools, preserves Rabi and sibl
     await ctx.fiber.dispose()
   }
 })
+}

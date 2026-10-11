@@ -1,6 +1,6 @@
 English | [简体中文](README.md)
 
-v0.13.24
+v0.13.25
 
 ## Rabi assistant mode (0.13.19)
 
@@ -45,7 +45,7 @@ Only `rabiroute_agent_threads`, `rabiroute_agent_send` and `rabiroute_manager_ap
 
 Injected guidance keeps messages, plans and follow-up in the persona session and prefers independent sessions for other business work. Reuse the task responsible for the same goal before creating another. Assigned tasks execute and formally report their own work rather than recursively passing on the same goal. Delegation is a preference, never an API restriction: context checks, explicit direct requests and simple authorized API actions can run in the current session, which retains access to every Rabi API.
 
-Both Rabi presets expose only Rabi tools and their guidance, without unrelated tool skill catalogs. Read the currently bound persona's skill metadata and bodies on demand through `/api/roles/<roleId>/skills` and its item endpoint. Loading persona skills never expands tool permissions; ordinary execution sessions retain their own capabilities.
+The message preset exposes only Rabi tools and their guidance. The Rabi assistant additionally mounts the official `web_search` and `web_fetch` tools, reusing existing web service and search provider settings. Neither exposes unrelated tool skill catalogs. Read the currently bound persona's skill metadata and bodies on demand through `/api/roles/<roleId>/skills` and its item endpoint. Loading persona skills never expands tool permissions; ordinary execution sessions retain their own capabilities.
 
 The mode includes API and request-field guidance, current session identity from each prompt assembly, reply/receipt handling, idempotency and ETag rules. It can discover the current persona binding via read-only `/api/codex-hook/sessions/<sessionId>` without local document access. Missing identity, binding or cross-persona capability must never be fabricated. Recent memories support creation and updates; consolidated memories remain read-only under the Manager contract, with corrections recorded as recent memory and consolidation delegated.
 
@@ -267,6 +267,11 @@ The plugin list shows **RabiRoute integration** in English and **RabiRoute 接�
 
 The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.
 
+
+
+## Rabi assistant web access (0.13.25)
+
+The registered `rabi-assistant` preset provides all three Rabi tools plus official `web_search` and `web_fetch`. Web tools are mounted in the preset scope; each created or resumed agent filters its inherited catalog before the first prompt assembly. Shell, generic files, browser control, generic skills and unrelated tools remain hidden and denied. Bound-persona skills stay available through Rabi. Search can still retrieve public information while Rabi is unavailable, but must never fabricate persona context or send private memories, messages or credentials as queries.
 
 ## Desktop-pet movement (0.13.20)
 

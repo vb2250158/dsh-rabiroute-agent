@@ -21,7 +21,7 @@ export function apply(ctx) {
   ctx.systemPrompt.section({ name: 'rabiroute:message-mode', order: 26, text: messageModePrompt })
 }
 
-/** Both Rabi presets use the same scoped, fail-closed tool boundary. */
+/** The message preset exposes only Rabi tools in its scope. */
 export function mountRabiOnlyTools(ctx, label) {
   if (typeof ctx.tools.guard !== 'function' || typeof ctx.tools.restrict !== 'function' || typeof ctx.tools.presentAs !== 'function') {
     throw new Error(`${label}需要支持 tools.guard、tools.restrict 和 tools.presentAs 的 DSH；请先更新宿主。`)
