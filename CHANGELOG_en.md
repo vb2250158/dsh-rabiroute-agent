@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.28 (2026-10-11)
+
+- Fix native Hook records failing every turn with `Receiver must be an instance of class Session` under source-launched DSH.
+- Append through the host-owned session while preserving record names, ignorable markers and privacy restrictions.
+- Add a mixed source-session/built-plugin regression test and fixed receipt snapshot; retain full tool-loop coverage.
+
 ## 0.13.27 (2026-10-11)
 
 - Connect native DSH lifecycle hooks to the existing RabiRoute persona automation rules.

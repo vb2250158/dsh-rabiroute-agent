@@ -48,6 +48,7 @@ test('built native hooks participate in the real DSH loop, preserve model contex
     const agent = await root.agentLoop.create(SessionId('native-hook-fixture'), { provider: 'fixture', model: 'fixture' })
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } }))
     await agent.whenIdle()
+    assert.deepEqual(agent.session.snapshotEvents().filter(event => event.type === 'turn/end').map(event => event.data.reason), [{ kind: 'completed' }])
     const toolResult = agent.session.snapshotEvents().find(event => event.type === 'tool/result')
     assert.equal(toolResult?.data.message.isError, false, JSON.stringify(toolResult))
     assert.deepEqual(requests.map(item => item.eventName), ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop'])

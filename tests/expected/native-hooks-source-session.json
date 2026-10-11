@@ -1,0 +1,11 @@
+{
+  "requests": ["SessionStart", "UserPromptSubmit", "Stop"],
+  "records": [
+    {"type":"plugin:dsh-rabiroute-agent/hook-invoked","ignorable":true,"point":"SessionStart","turn":1},
+    {"type":"plugin:dsh-rabiroute-agent/hook-result","ignorable":true,"point":"SessionStart","turn":1,"outcome":"passed","statusCode":200},
+    {"type":"plugin:dsh-rabiroute-agent/hook-invoked","ignorable":true,"point":"UserPromptSubmit","turn":1},
+    {"type":"plugin:dsh-rabiroute-agent/hook-result","ignorable":true,"point":"UserPromptSubmit","turn":1,"outcome":"passed","statusCode":200},
+    {"type":"plugin:dsh-rabiroute-agent/hook-invoked","ignorable":true,"point":"Stop","turn":1},
+    {"type":"plugin:dsh-rabiroute-agent/hook-result","ignorable":true,"point":"Stop","turn":1,"outcome":"passed","statusCode":200}
+  ]
+}

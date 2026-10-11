@@ -1,12 +1,14 @@
-## Native DSH hooks (0.13.27)
+## Native DSH hooks (0.13.28)
 
 `agentHooksEnabled` defaults to true. The plugin listens directly to DSH session entry, prompt submission, tool pre/post execution and turn stopping. Configure automation rules in RabiRoute under Persona → Automation → Agent Hook. It does not read Codex configuration or start another Agent. DSH applies Manager context, tool rejection and turn continuation decisions; continuation is limited to once per turn and retains host permissions.
 
 Durable `plugin:dsh-rabiroute-agent/hook-invoked` and `hook-result` records feed `dsh-hook-insights` 0.2.0. Records contain stage, correlation identity, duration, HTTP status and outcome, with no raw prompt, arguments or output. Failed, uncertain and cancelled requests retain their actual outcomes, without cached context or automatic replay. Restart DSH and refresh after installation; only new turns generate records.
 
+Records use the host-owned session's `append()` with `ignorable: true`, avoiding calls to another module's private `Session` methods when source launch and built plugins coexist. The host must support the `ignorable` append option. Set `DSH_TEST_SOURCE_ROOT` to the harness source root and run `node --test tests/native-hooks-source-session.test.mjs` to verify a source session with built hooks against a fixed receipt snapshot; the test does not call a real Manager.
+
 English | [简体中文](README.md)
 
-v0.13.27
+v0.13.28
 
 Home-device directories return paged summaries. Start with `/api/agent/xiaomi-home/devices?q=<encoded keywords>&limit=5` or `/resources?kind=climate&limit=5`. Search covers names, descriptions, models, areas and attribute information. Follow `data.nextOffset` with the same filters; a device's `resourcesPath` discovers its entities. Read only the selected `/resources/<resourceId>` state and `/entity-actions?resourceId=...` schema. Explicit `view=detail` remains paginated. Rabi owns these queries; the plugin only injects guidance and does not restrict API access.
 
