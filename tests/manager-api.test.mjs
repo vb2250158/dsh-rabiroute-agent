@@ -20,7 +20,7 @@ const fixture = (reply = () => new Response('{"code":0}')) => {
 
 test('all Rabi endpoints and HTTP methods reach Manager in the Rabi preset, including future APIs', async () => {
   const { api, calls } = fixture()
-  for (const path of ['/api/agent/xiaomi-home/devices', '/api/agent/xiaomi-home/resources?includeActions=1', '/api/config', '/api/roles/r/plans/p/attachments/a', '/api/future-service/operation']) {
+  for (const path of ['/api/agent/xiaomi-home/devices', '/api/agent/xiaomi-home/resources?includeActions=1', '/api/config', '/api/roles/r/plans/p/attachments/a', '/api/future-service/operation', '/api/resources/encoded%2Fid%23%25%3F']) {
     for (const method of ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE', 'PROPFIND']) {
       const args = { method, path }
       assert.equal(messageModeGuard({ name: api.name, arguments: args }), undefined)

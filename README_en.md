@@ -1,6 +1,6 @@
 English | [简体中文](README.md)
 
-v0.13.22
+v0.13.23
 
 ## Rabi assistant mode (0.13.19)
 

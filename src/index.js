@@ -41,7 +41,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.22'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.23'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -76,8 +76,15 @@ function validatePath(value) {
   const raw = pathname.split('?')[0]
   let decoded
   try { decoded = decodeURIComponent(raw) } catch { throw new Error('Invalid Manager path encoding.') }
-  // Reject encoded separators, repeated encoding and traversal before URL normalization.
-  if (/[\\%?#\u0000-\u0020]/u.test(decoded) || /%2f/i.test(raw) || decoded.split('/').some(part => part === '.' || part === '..')) throw new Error('Manager path traversal or encoded separator is not allowed.')
+  // Encoded resource IDs remain valid; nested encoding must not hide traversal.
+  let inspected = decoded
+  for (;;) {
+    if (/[\\\u0000-\u0020]/u.test(inspected) || inspected.split('/').some(part => part === '.' || part === '..')) throw new Error('Manager path traversal or encoded control character is not allowed.')
+    let next
+    try { next = decodeURIComponent(inspected) } catch { break }
+    if (next === inspected) break
+    inspected = next
+  }
   return { pathname, decoded }
 }
 function requestHeaders(value) {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.23 (2026-10-11)
+
+- Rabi assistant preset metadata states that all Rabi APIs are callable.
+- Accept URL-encoded resource IDs while preserving same-origin, malformed-encoding and nested-traversal checks without endpoint filtering.
+
 ## 0.13.22 (2026-10-11)
 
 - Remove Manager endpoint, method, business-header and payload allowlists in both Rabi presets; all Rabi APIs, including future endpoints, are callable.
