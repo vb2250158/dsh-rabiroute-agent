@@ -23,9 +23,9 @@ description: 仅在 DSH 中调用 Rabi 工具、检查工具注入或诊断 Rabi
 | 向消息端发送 | rabiroute_agent_send | requestJson 为当前 /api/agent/send 合同的完整 JSON |
 | 版本化存储写入 | rabiroute_manager_api | requestHeadersJson 携带合同要求的强 If-Match 和稳定 Idempotency-Key |
 
-工具已逐次动态发现 Host 并核对 Manager 身份；普通查询不必额外调用 GET /meta。显式诊断使用 GET /meta，不能用读取近期记忆充当无副作用健康探针。当前 roleId 已知时直接调用查询，不先列 Agent 会话。诊断路径被允许列表拒绝时，区分工具路径限制与 Manager 不在线，按通用技能选择已有正式查询路径。
+工具已逐次动态发现 Host 并核对 Manager 身份；普通查询不必额外调用 GET /meta。显式诊断使用 GET /meta，不能用读取近期记忆充当无副作用健康探针。当前 roleId 已知时直接调用查询，不先列 Agent 会话。旧版本的路径限制、连接失败与 Rabi 业务拒绝分别诊断，依据实际安装版本和响应判断。
 
-统一帮助和发送能力仅放行上述精确路径的 GET，不能写入，也不开放子路径或其他 Agent API；路径与 query 保留既有安全校验。帮助返回内容是接口资料，不授予额外工具权限。实际发送继续使用专用投递工具。若已安装旧插件仍拒绝帮助路径，报告插件 allowlist 版本限制，不绕过白名单、认证或动态 Host 发现。
+从 0.13.22 起，`rabiroute_manager_api` 可调用 Rabi 全部接口，不维护路径、方法、业务请求头或载荷白名单；接口权限与业务合同由 Rabi 校验。先查询当前帮助，不从旧说明猜参数。设备发现可用 `/api/agent/xiaomi-home/devices`、`/resources?includeActions=1` 和 `/entity-actions?resourceId=<编码实体ID>`。外发、设备控制、删除和付费仍须当前用户授权。写入自动附加本次核验的代际头；`requestHeadersJson` 传合同要求的幂等键、版本及其他头，结果不确定时读原回执，不重放。GET/HEAD 无正文；正文在 `bodyJson`、`bodyText`、`bodyBase64` 中最多选一种。二进制响应在 `body` 中返回 `{contentType, contentBase64}`。Host 动态发现、同源路径与身份校验始终保留。旧插件拒绝接口时报告实际安装版本，不把插件限制误报成设备未接入。
 
 ## 注入与验收
 

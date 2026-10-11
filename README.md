@@ -2,7 +2,7 @@
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.21
+v0.13.22
 
 工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划。已加载页面在插件生命周期内缓存；关闭取消当前读取，保留一个轻量事件订阅。无变更时再次打开不查询；变更按角色失效，当前页只传输和合并变动行，关闭的页下次打开再校验。顺序、计数和筛选项由服务端核对，断线重连重新校验；失败保留旧数据并显示错误。`workspacePlanCachePages`（默认 32）限制缓存页数，`workspacePlanEventDelayMs`（默认 200）控制事件合并时间，均可在插件配置中调整。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
 
@@ -39,11 +39,11 @@ v0.13.21
 
 ## 消息处理模式（0.7.0）
 
-工作区人格技能另见本文末尾；消息处理模式仍保留原有工具白名单。
+工作区人格技能另见本文末尾；消息处理模式使用 Rabi 工具，所有 Rabi API 均可调用。
 
 会话模式菜单可增加「消息处理模式」（`message-processing`）：接收消息、通过 Rabi 向渠道或其他人格投递消息、读取和创建 Agent 会话、分派与跟进任务，以及创建、查询、更新和删除计划、管理计划状态、绑定与反馈，读取和维护记忆，读取人格正文与人格 Skill。
 
-只开放 `rabiroute_agent_threads`、`rabiroute_agent_send`、`rabiroute_manager_api`。预设不加载 Shell、通用文件/Skill、网页、子 Agent 或工作流工具；继承工具按白名单过滤，强制 native 呈现，并通过 `tools.guard` 拒绝其他工具执行，包括后来注册的工具和 PTC。标准模式及其他会话不受影响。通用文件搜索、遍历、读取、写入以及附件上传、下载均被禁止；Rabi 请求中的文件载荷也被拒绝，`workspace` 只保留为会话路由信息。Rabi 管理的人格、Skill、计划和记忆通过对应业务 API 读取，不属于通用文件访问。
+只使用 `rabiroute_agent_threads`、`rabiroute_agent_send`、`rabiroute_manager_api`。预设不加载 Shell、直接文件/Skill、网页、子 Agent 或工作流工具，强制 native 呈现，并通过 `tools.guard` 拒绝非 Rabi 工具执行，包括后来注册的工具和 PTC。标准模式及其他会话不受影响。Rabi 全部接口可经 Manager 工具调用，包括设备、资源和附件；预设不筛选 API 路径、方法、请求头或载荷字段，权限与业务校验归 Rabi。
 
 模式指令明确要求调查、检索、分析研究、定制方案、实施、测试和验收全部委派；自身只理解诉求、拆分与协调、核对回报、汇总证据并维护计划和记忆。即使无需工具也不自行产出业务方案。先读取相关记忆、计划及 Skill 和必读项，再派发；收到证据后推进步骤或要求补充，记录已确认结论。Rabi 和人格 Skill 可经 `/api/roles/<roleId>/skills` 及单项接口使用，但 Skill 中的执行工作仍须委派，不能扩大权限。工具限制由运行时执行，语言层面的分工由模式指令规定。
 
@@ -61,9 +61,9 @@ v0.13.21
 
 ## 统一帮助与发送能力（0.13.16）
 
-通过 `rabiroute_manager_api` 调用 `GET /api/agent/help` 获取 Manager 当前统一帮助，或 `GET /api/agent/send/capabilities` 查询发送能力。支持正常 query，例如 `{"method":"GET","path":"/api/agent/help?topic=send"}`；参数语义以当前 Manager 合同为准。
+通过 `rabiroute_manager_api` 调用 `GET /api/agent/help` 获取 Manager 当前统一帮助，或 `GET /api/agent/send/capabilities` 查询发送能力。支持正常 query，例如 `{"method":"GET","path":"/api/agent/help?method=GET&path=%2Fapi%2Fagent%2Fxiaomi-home%2Fdevices"}`；参数语义以当前 Manager 合同为准。
 
-只新增这两个精确路径的 GET 权限，不开放其子路径、其他 Agent API 或写方法。路径和 query 继续遵循既有 `validatePath` 安全检查；Host 动态发现、`/meta` 身份与就绪校验、认证及重定向策略不变。发送仍须使用专用投递工具；帮助正文不会扩大工具权限。源码实现不等于当前宿主已加载，须发布固定提交、受管安装并重启后另行验收。
+从 0.13.22 起，本插件不维护 Manager API 白名单；当前和未来的 Rabi 接口均可调用，路径、HTTP 方法和业务请求头不按接口清单筛选。Rabi 拥有接口合同、授权、参数校验、幂等与版本要求。插件仍核对同源相对路径、Host 动态发现、`/meta` 身份与就绪状态，拒绝重定向和路径穿越，不自动重放请求。调用能力不扩大用户授权。源码实现不等于当前宿主已加载，须发布固定提交、受管安装并重启后另行验收。
 
 ## 定位与开发边界
 
@@ -193,15 +193,15 @@ pnpm dsh plugin --profile web add --save-exact github:vb2250158/dsh-rabiroute-ag
 
 普通请求和计划面板发现要求 `/meta` 的 `live=true`、`requiredReady=true`、状态为 `healthy` 或 `degraded`，并校验非空 generation/实例身份与 Host 一致。无关消息路线失败不再阻止所有工具；计划恢复、目标路线及 Agent 的可用性仍由 Manager 对应接口判定。
 
-精确 `GET /meta` 只要求身份校验，直接复用发现响应，因此核心未就绪时仍可诊断；查询参数或其它路径不继承该豁免。写后只复核身份，不因健康波动否定已有成功回执；身份变化、无法核对、超时及 5xx 仍保留不确定性，不自动重放。地址、取消、重定向、白名单、幂等键与 ETag 保护不变。
+精确 `GET /meta` 只要求身份校验，直接复用发现响应，因此核心未就绪时仍可诊断；查询参数或其它路径不继承该豁免。写后只复核身份，不因健康波动否定已有成功回执；身份变化、无法核对、超时及 5xx 仍保留不确定性，不自动重放。接口白名单已移除，地址、取消、重定向与身份保护保留；幂等键与 ETag 要求由 Rabi 校验。
 
 ## 工具合同
 
 - `rabiroute_agent_threads`：通过 Manager 查找、读取、解析、创建、改名、续投及正式回复。保留完整任务身份和原绑定；来源与 `sourceThreadId` 不一致时拒绝。旧 `deliverySource` 输入仅在边界归一化，发送字段始终是 `messageSource`。回复策略和正式回复字段遵守当前 Manager 合同。
 - `rabiroute_agent_send`：明确外发，保留 `deliveryId`、发送者及渠道回执。HTTP 成功不代替真实渠道送达。
-- `rabiroute_manager_api`：允许路径内的计划、记忆、消息处理和回复请求；额外开放精确 `GET /meta`、`GET /api/agent/send/receipts/:id`、`GET /api/agent/send/traces`。健康和回执仅 GET，拒绝路径穿越、编码分隔符与跨 origin 重定向。
+- `rabiroute_manager_api`：调用全部 Rabi Manager 接口；不维护路径、方法、请求头或业务载荷白名单。接口权限、合法方法与写入条件由 Rabi 校验。同源路径、身份核对和不重放保护仍由插件执行。
 
-通用工具支持 `GET/POST/PUT/PATCH/DELETE`。可选 `requestHeadersJson` 仅允许 `If-Match` 和 `Idempotency-Key`。例如：
+通用工具接受合法 HTTP 方法，包括 `GET/HEAD/OPTIONS/POST/PUT/PATCH/DELETE`。可选 `requestHeadersJson` 接受 Rabi 所需的 HTTP 请求头；仅检查名称、字符串值和重复字段的 HTTP 格式。写入自动携带本次核验的 application generation 与 Manager instance 头，不由模型填写旧身份。`bodyJson` 接受任意 JSON 值，`bodyText` 传文本，`bodyBase64` 传二进制；最多选一种，GET/HEAD 不带正文。二进制响应在 `body` 中表示为 `{contentType, contentBase64}`，文本响应保留为 `{text}`，JSON 响应格式不变；响应头完整返回。示例：
 
 ```json
 {

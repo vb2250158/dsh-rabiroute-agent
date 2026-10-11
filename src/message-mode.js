@@ -3,35 +3,15 @@ import { RABIROUTE_AGENT_TOOL_NAMES, internals } from './index.js'
 /** This preset requires the host Rabi tools so it shares their connection config. */
 export const inject = ['tools', 'systemPrompt']
 const allowedTools = new Set(RABIROUTE_AGENT_TOOL_NAMES)
-const denied = 'Rabi 专用模式仅允许 Rabi 消息、会话、计划、记忆和人格 Skill 接口；禁止命令执行和通用文件访问。'
-
-/** Reject file payloads while leaving message text and session workspace metadata intact. */
-function hasFilePayload(value) {
-  if (!value || typeof value !== 'object') return false
-  if (Array.isArray(value)) return value.some(hasFilePayload)
-  return Object.entries(value).some(([key, item]) =>
-    (['path', 'filePath', 'localPath', 'contentBase64'].includes(key) && item != null && item !== '')
-    || (['attachments', 'imagePaths', 'filePaths'].includes(key) && Array.isArray(item) && item.length > 0)
-    || (key === 'type' && ['file', 'image', 'voice', 'localImage'].includes(item))
-    || hasFilePayload(item))
-}
+const denied = 'Rabi 专用模式仅使用 Rabi 工具；禁止命令执行和直接使用通用文件工具。'
 
 /** Return a denial before dispatch; malformed JSON is rejected by the owning tool. */
 export function messageModeGuard(exec) {
   if (!allowedTools.has(exec.name)) return denied
   const args = exec.arguments
   if (exec.name === 'rabiroute_manager_api') {
-    let path
-    try { path = internals.validatePath(args.path, String(args.method).trim().toUpperCase()).decoded }
+    try { internals.validatePath(args.path) }
     catch (error) { return error.message }
-    // File downloads are not plan metadata; they must not become a filesystem bypass.
-    if (path.split('/').some(part => ['attachments', 'files', 'download', 'upload'].includes(part.toLowerCase()))) return denied
-  }
-  const json = exec.name === 'rabiroute_manager_api' ? args.bodyJson : args.requestJson
-  if (json) {
-    let value
-    try { value = JSON.parse(json) } catch { return 'Rabi request must be valid JSON.' }
-    if (hasFilePayload(value)) return denied
   }
 }
 
@@ -66,7 +46,7 @@ export function messageModePrompt({ agent } = {}) {
     '任务已投递不等于已完成。用请求状态和任务回报跟进；交叉检查回报是否满足验收标准，进一步调查或验收也交给其他 Agent。仅有执行者声称成功时注明尚待核验，不编造已验证。',
     '及时更新计划步骤、绑定、阻碍和下一步；只把有来源的偏好、事实、决策和结论写入近期记忆，不把待确认方案写成事实。记忆沉淀等实际整理工作也委派，依据返回结果提交。',
     'Rabi 与人格 Skill 可以使用：经 rabiroute_manager_api 读取 Rabi 的技能列表和正文，遵守其中适用的人格表达、接口及协调规则。Skill 要求调查、设计、实施或命令/文件操作时，将该工作交给执行 Agent；加载 Skill 不扩大本模式权限。',
-    '禁止命令执行、通用文件搜索、遍历、读取和写入，不下载或上传附件，不通过通用 skill、Shell、PTC 或其他工具绕过限制。Rabi 管理的人格正文、技能、记忆和计划属于获准的业务读取，使用对应 API；其底层保存成文件不影响调用权限。workspace/cwd 仅是会话路由信息。',
+    '禁止直接使用 Shell、通用文件、Skill、PTC 或其他非 Rabi 工具。Rabi 全部业务接口可用，包括资源与附件接口；没有插件路径、方法、业务请求头或载荷白名单，权限与业务合同由 Rabi 校验。接口可用不等于外发、删除或设备动作已获用户授权。workspace/cwd 仅是会话路由信息。',
     '',
     '[Rabi 调用指南]',
     caller ? `当前真实调用方：${caller}。sourceThreadId 与 messageSource.sessionId 都必须使用这个 sessionId；messageSource.agentAdapter=dsh。先用 threads 的 read 读取自己取得真实 sessionName。` : '当前装配未提供会话身份。必须从实际会话上下文取得完整 ID，不根据任务标题猜测；无法确认时不要伪造投递来源。',

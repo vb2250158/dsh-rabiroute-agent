@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.22 (2026-10-11)
+
+- Remove Manager endpoint, method, business-header and payload allowlists in both Rabi presets; all Rabi APIs, including future endpoints, are callable.
+- Rabi owns authorization, parameter validation, idempotency and version preconditions; preserve same-origin paths, Host/Manager identity, cancellation, receipts and no replay.
+- Attach current lifecycle headers to mutations and support JSON values, text and binary bodies, binary responses and all response headers.
+- Fix plugin-side rejection of home device discovery; device execution still requires user authorization and Rabi result confirmation.
+
 ## 0.13.21 (2026-10-10)
 
 - Remove hash suffixes from workspace persona skill names and use readable persona and skill IDs.

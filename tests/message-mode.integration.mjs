@@ -75,10 +75,10 @@ test('real DSH runtime hides and denies file/code tools, preserves Rabi and sibl
     }
     assert.equal((await run('rabiroute_manager_api', { method: 'POST', path: '/api/roles/r/memory/recent', bodyJson: '{"title":"confirmed","focus":"decision","content":"evidence","keywords":["topic"]}', requestHeadersJson: '{"Idempotency-Key":"memory-test"}' })).isError, false)
     assert.equal((await run('rabiroute_manager_api', { method: 'PATCH', path: '/api/roles/r/memory/recent/m', bodyJson: '{"content":"updated"}', requestHeadersJson: '{"Idempotency-Key":"memory-update","If-Match":"\\"v1\\""}' })).isError, false)
-    const count = calls.length
-    assert.equal((await run('rabiroute_manager_api', { method: 'GET', path: '/api/roles/r/plans/p/attachments/a' })).isError, true)
-    assert.equal((await run('rabiroute_agent_send', { requestJson: '{"payload":{"type":"file","path":"secret"}}' })).isError, true)
-    assert.equal(calls.length, count)
+    for (const path of ['/api/roles/r/plans/p/attachments/a', '/api/agent/xiaomi-home/devices', '/api/config', '/api/future-service']) {
+      assert.equal((await run('rabiroute_manager_api', { method: 'GET', path })).isError, false)
+      assert.ok(calls.some(call => call.url.endsWith(path)))
+    }
     await fiber.dispose()
     assert.equal((await run('late_scoped')).isError, false)
   } finally {

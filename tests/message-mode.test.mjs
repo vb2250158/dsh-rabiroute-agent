@@ -19,14 +19,14 @@ test('thread communication and task routing retain workspace metadata', () => {
   assert.equal(messageModeGuard(call('rabiroute_agent_send', { payload: { type: 'text', text: 'hello' } })), undefined)
 })
 
-test('file content and attachment APIs cannot bypass the mode through Rabi', () => {
+test('Rabi owns file payload and attachment API authorization without a preset endpoint filter', () => {
   for (const request of [
     { attachments: [{ id: 'file' }] }, { payload: { type: 'file', url: 'https://example.org/file' } },
     { payload: { localPath: 'C:/secret' } }, { payload: { path: 'C:/secret' } },
     { payload: { contentBase64: 'YQ==' } }, { payload: { type: 'localImage' } }, { imagePaths: ['C:/secret.png'] },
-  ]) assert.match(messageModeGuard(call('rabiroute_agent_send', request)), /禁止/)
-  assert.match(messageModeGuard({ name: 'rabiroute_manager_api', arguments: { method: 'GET', path: '/api/roles/r/plans/p/attachments/a' } }), /禁止/)
-  assert.match(messageModeGuard({ name: 'rabiroute_manager_api', arguments: { method: 'POST', path: '/api/roles/r/plans', bodyJson: '{"attachments":[{"path":"C:/secret"}]}' } }), /禁止/)
+  ]) assert.equal(messageModeGuard(call('rabiroute_agent_send', request)), undefined)
+  assert.equal(messageModeGuard({ name: 'rabiroute_manager_api', arguments: { method: 'GET', path: '/api/roles/r/plans/p/attachments/a' } }), undefined)
+  assert.equal(messageModeGuard({ name: 'rabiroute_manager_api', arguments: { method: 'POST', path: '/api/roles/r/plans', bodyJson: '{"attachments":[{"path":"C:/secret"}]}' } }), undefined)
 })
 
 test('all plan operations, message processing and persona messaging stay available', () => {
@@ -44,9 +44,7 @@ test('all plan operations, message processing and persona messaging stay availab
     ['GET', '/api/roles/r/memory/consolidated/m'], ['POST', '/api/roles/r/memory/recent'],
     ['PATCH', '/api/roles/r/memory/recent/m'], ['POST', '/api/roles/r/memory/consolidation-requests'],
   ]) assert.equal(messageModeGuard({ name: 'rabiroute_manager_api', arguments: { method, path } }), undefined, path)
-  assert.throws(() => internals.validatePath('/api/personas/p/messages', 'GET'), /POST/)
-  assert.throws(() => internals.validatePath('/api/personas/p', 'DELETE'), /GET-only/)
-  assert.throws(() => internals.validatePath('/api/codex-hook/sessions/current', 'PUT'), /GET-only/)
+  for (const path of ['/api/personas/p/messages', '/api/personas/p', '/api/codex-hook/sessions/current', '/api/agent/xiaomi-home/devices', '/api/any-new-interface']) assert.equal(internals.validatePath(path).decoded, path)
 })
 
 test('mount uses the scoped catalog, native tools and a monotonic execution guard', () => {

@@ -1,6 +1,6 @@
 English | [简体中文](README.md)
 
-v0.13.21
+v0.13.22
 
 ## Rabi assistant mode (0.13.19)
 
@@ -41,7 +41,7 @@ Conflicting bindings display “Multiple plans”. Failed refreshes retain the l
 
 The `message-processing` preset adds **消息处理模式** to the session mode picker. It handles incoming messages, Rabi channel/persona delivery, reading and creating Agent sessions, task delegation and progress, and plan creation, queries, updates, deletion, bindings, statuses and feedback.
 
-Only `rabiroute_agent_threads`, `rabiroute_agent_send` and `rabiroute_manager_api` remain available. The preset mounts no shell, general filesystem/skill, web, subagent or workflow tools. An inherited-tool allowlist, native presentation and a monotonic `tools.guard` deny other execution, including tools registered later and PTC. Other presets are unaffected. General file searching, enumeration, reads, writes and attachment uploads/downloads are prohibited, including file payloads sent through Rabi; session workspace metadata remains valid routing information. Rabi-managed persona documents, skills, plans and memory remain readable through their business APIs.
+Only `rabiroute_agent_threads`, `rabiroute_agent_send` and `rabiroute_manager_api` remain available. The preset mounts no shell, direct filesystem/skill, web, subagent or workflow tools. Native presentation and `tools.guard` deny non-Rabi tools, including tools registered later and PTC. Other presets are unaffected. All Rabi APIs, including device, resource and attachment interfaces, remain callable without endpoint, method, business-header or payload filters; Rabi owns authorization and business validation.
 
 The coordinator delegates investigation, research, solution design, implementation, testing and acceptance, even when the work could be answered without tools. It reads relevant memory, plans and skills first, assigns work, tracks replies, checks reported evidence, and maintains plans and confirmed memories. Rabi/persona skills use `/api/roles/<roleId>/skills` and its item endpoint; their operational work is delegated and never expands tool permissions. Tool restrictions are enforced by the runtime; the division of reasoning work is a prompt instruction.
 
@@ -189,15 +189,15 @@ Registration does not access Host, so Manager absence does not prevent DSH start
 
 Ordinary requests and plan-panel discovery require `/meta` to report `live=true`, `requiredReady=true`, and either `healthy` or `degraded`, with nonempty generation/instance identities matching Host. An unrelated Route failure no longer blocks every tool; Manager endpoints still enforce plan recovery, target Route and Agent availability.
 
-Exact `GET /meta` requires identity validation only and reuses the discovery response, allowing diagnosis while required capabilities are unavailable. Query variants and other paths do not inherit this exemption. Post-write verification checks identity only: health changes do not invalidate an existing success receipt. Identity changes, unverifiable identity, timeouts and 5xx responses remain uncertain and are never replayed automatically. Address, cancellation, redirect, allowlist, idempotency-key and ETag protections remain unchanged.
+Exact `GET /meta` requires identity validation only and reuses the discovery response, allowing diagnosis while required capabilities are unavailable. Query variants and other paths do not inherit this exemption. Post-write verification checks identity only: health changes do not invalidate an existing success receipt. Identity changes, unverifiable identity, timeouts and 5xx responses remain uncertain and are never replayed automatically. Endpoint allowlists are removed; address, cancellation, redirect and identity protections remain. Rabi validates idempotency and ETag requirements.
 
 ## Tool contracts
 
 - `rabiroute_agent_threads`: discover, read, resolve, create, rename, continue and formally reply through Manager. Preserve full task identity and existing bindings; conflicting source IDs are rejected. Legacy `deliverySource` input is normalized at the boundary; Manager receives only `messageSource`. Reply policies and formal reply fields follow the current Manager contract.
 - `rabiroute_agent_send`: explicit external sending, preserving `deliveryId`, sender identity and channel receipts. HTTP success is not real channel delivery.
-- `rabiroute_manager_api`: allowlisted plan, memory, message-processing and reply-request APIs, plus exact `GET /meta`, `GET /api/agent/send/receipts/:id` and `GET /api/agent/send/traces`. Health/receipt endpoints are GET-only. Traversal, encoded separators and cross-origin redirects are rejected.
+- `rabiroute_manager_api`: all Rabi Manager APIs, including future endpoints, without a plugin endpoint, method, business-header or payload allowlist. Rabi validates authorization, methods, parameters and write preconditions. Same-origin paths, Host identity and no-replay protections remain enforced.
 
-The general tool supports `GET/POST/PUT/PATCH/DELETE`. Optional `requestHeadersJson` accepts only `If-Match` and `Idempotency-Key`. Example:
+The general tool accepts valid HTTP methods, including `GET/HEAD/OPTIONS/POST/PUT/PATCH/DELETE`. Optional `requestHeadersJson` forwards Rabi HTTP headers after syntax and duplicate checks. Mutations receive the freshly verified lifecycle identity headers automatically. Supply at most one of `bodyJson` (any JSON value), `bodyText` or `bodyBase64`; GET/HEAD cannot carry a body. Binary responses use `{contentType, contentBase64}` inside `body`; text responses use `{text}` and JSON responses retain their existing representation. All response headers are returned. Example:
 
 ```json
 {
