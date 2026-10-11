@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRequire } from 'node:module'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { homedir, tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { installNativeHooks } from '../lib/native-hooks.js'
 const profile = createRequire(join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'profiles/web/package.json'))
 const { Context } = profile('@deepseek-ai/cordis')
@@ -29,11 +30,13 @@ class Adapter extends LlmAdapter {
 
 test('built native hooks participate in the real DSH loop, preserve model context and record the final Stop', async () => {
   const root = new Context(), requests = [], adapter = new Adapter()
+  const storageRoot = await mkdtemp(join(tmpdir(), 'dsh-native-hook-persistence-'))
   root.provide('workingDirectory', { get: () => process.cwd(), ensure: async () => process.cwd() })
   try {
     for (const name of ['llm', 'session', 'session-projection', 'system-prompt', 'tools', 'agent']) {
       await root.plugin(profile('@deepseek-ai/dsh-' + name).default, name === 'tools' ? { mode: 'native' } : {})
     }
+    await root.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl').default, { root: storageRoot, compression: 'none' })
     await root.plugin(profile('@deepseek-ai/dsh-agent-loop').default, { agents: [] })
     await root.plugin({ inject: ['sessionProjections', 'workingDirectory'], apply(ctx) {
       installNativeHooks(ctx, {}, { request: async (_config, _path, options) => {
@@ -48,6 +51,7 @@ test('built native hooks participate in the real DSH loop, preserve model contex
     const agent = await root.agentLoop.create(SessionId('native-hook-fixture'), { provider: 'fixture', model: 'fixture' })
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } }))
     await agent.whenIdle()
+    await root.sessions.flush(agent.session)
     assert.deepEqual(agent.session.snapshotEvents().filter(event => event.type === 'turn/end').map(event => event.data.reason), [{ kind: 'completed' }])
     const toolResult = agent.session.snapshotEvents().find(event => event.type === 'tool/result')
     assert.equal(toolResult?.data.message.isError, false, JSON.stringify(toolResult))
@@ -62,5 +66,22 @@ test('built native hooks participate in the real DSH loop, preserve model contex
     const records = agent.session.snapshotEvents().filter(event => event.type.startsWith('plugin:dsh-rabiroute-agent/hook-'))
     assert.equal(records.length, 14)
     assert.ok(records.every(event => event.ignorable === true))
-  } finally { await root.fiber.dispose() }
+    await root.sessions.flush(agent.session)
+    await root.fiber.dispose()
+    const reader = new Context()
+    try {
+      await reader.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl').default, { root: storageRoot, compression: 'none' })
+      const handle = await reader.sessionPersistence.open(agent.session.id, 'read')
+      try {
+        const stored = (await handle.read()).events
+        assert.equal(stored.filter(event => event.type === 'turn/end' && event.data.reason.kind === 'completed').length, 2)
+        assert.equal(stored.filter(event => event.type.startsWith('plugin:dsh-rabiroute-agent/hook-')).length, 14)
+        assert.ok(stored.some(event => event.type === 'user/message' && event.data.source.kind === 'dsh-rabiroute-agent'))
+      } finally { await handle.close() }
+    } finally { await reader.fiber.dispose() }
+  } finally {
+    await root.fiber.dispose()
+    assert.equal(dirname(storageRoot), tmpdir())
+    await rm(storageRoot, { recursive: true, force: true })
+  }
 })

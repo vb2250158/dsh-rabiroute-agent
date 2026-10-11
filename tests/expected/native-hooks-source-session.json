@@ -1,5 +1,6 @@
 {
   "requests": ["SessionStart", "UserPromptSubmit", "Stop"],
+  "contextSource": {"kind":"dsh-rabiroute-agent","form":"notice","summary":"Rabi Agent Hook"},
   "records": [
     {"type":"plugin:dsh-rabiroute-agent/hook-invoked","ignorable":true,"point":"SessionStart","turn":1},
     {"type":"plugin:dsh-rabiroute-agent/hook-result","ignorable":true,"point":"SessionStart","turn":1,"outcome":"passed","statusCode":200},

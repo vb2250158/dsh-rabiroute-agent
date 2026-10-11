@@ -1,5 +1,11 @@
 # 更新日志
 
+## 0.13.29 (2026-10-11)
+
+- 修复原生 Hook 注入消息仍使用已退役的 `kind: plugin`，触发 V4 持久化拒绝并使后续轮次失败的问题。
+- 统一改用插件独有的 `dsh-rabiroute-agent` 来源；同步更新自身上下文过滤，避免回传给 Manager。
+- 验证启动、用户提交、工具前后与 Stop 注入的消息来源；完整循环增加 JSONL 落盘、关闭与重新读取验收。
+
 ## 0.13.28 (2026-10-11)
 
 - 修复源码启动 DSH 时原生 Hook 写记录触发 `Receiver must be an instance of class Session`、导致每轮失败的问题。

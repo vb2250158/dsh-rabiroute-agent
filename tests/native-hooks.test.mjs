@@ -8,6 +8,7 @@ const profile = createRequire(join(process.env.DSH_HOME ?? join(homedir(), '.dsh
 const { Context } = profile('@deepseek-ai/cordis')
 const SessionStore = profile('@deepseek-ai/dsh-session').default
 const { createAssistantMessage } = profile('@deepseek-ai/dsh-llm')
+const { sessionFormatCatalog } = profile('@deepseek-ai/dsh-session-format-catalog')
 
 async function fixture(reply) {
   const root = new Context()
@@ -36,7 +37,8 @@ test('DSH lifecycle records real SessionStart, prompt, tool and Stop events with
     const signal = new AbortController().signal
     const enter = await f.handlers.get('agent/pre-step')({ agent: f.agent, messages, turn: 1, signal }, async () => ({ kind: 'enter', messages }))
     assert.equal(enter.messages.length, 2)
-    await f.handlers.get('agent/pre-step')({ agent: f.agent, messages: [], turn: 1, signal }, async () => ({ kind: 'enter', messages: [] }))
+    const contexts = [enter.messages[1]]
+    await f.handlers.get('agent/pre-step')({ agent: f.agent, messages: [enter.messages[1]], turn: 1, signal }, async () => ({ kind: 'enter', messages: [enter.messages[1]] }))
     const exec = { agent: f.agent, name: 'test_tool', arguments: { value: 'private-input' }, callId: 'call-1', signal }
     await f.handlers.get('tools/pre-execute')(exec, async () => ({ kind: 'allow' }))
     await f.handlers.get('tools/post-execute')(exec, { content: [{ type: 'text', text: 'private-output' }] }, async () => ({ kind: 'pass' }))
@@ -44,6 +46,12 @@ test('DSH lifecycle records real SessionStart, prompt, tool and Stop events with
     f.session.append('assistant/message', { turn: 1, step: 0, message, stream: [] }, { surfaceOp: 'append' })
     f.handlers.get('session/event')(f.session, { type: 'assistant/message', data: { turn: 1, message } })
     await f.handlers.get('agent/turn-stopping')({ agent: f.agent, turn: 1, signal })
+    contexts.push(...f.injected, ...f.steered)
+    assert.ok(contexts.length >= 4)
+    for (const message of contexts) {
+      sessionFormatCatalog.encodeCurrentEvent({ type: 'user/message', seq: 0, time: 1, surfaceOp: 'append', data: message })
+      assert.equal(message.source.kind, 'dsh-rabiroute-agent')
+    }
     assert.deepEqual(f.requests.map(item => item.body.eventName), ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop'])
     assert.ok(f.requests.every(item => item.body.agentType === 'dsh' && item.body.sessionId === f.session.id && item.body.turnId === '1'))
     assert.equal(f.requests.at(-1).body.lastAssistantMessage, 'finished')

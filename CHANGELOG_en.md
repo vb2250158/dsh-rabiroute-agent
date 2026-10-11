@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.29 (2026-10-11)
+
+- Fix native Hook context retaining the retired `kind: plugin` wrapper, causing V4 persistence rejection and subsequent turn failures.
+- Use the producer-owned `dsh-rabiroute-agent` source and exclude its context from prompt submissions to Manager.
+- Validate context sources across lifecycle stages; extend the complete loop test with JSONL persistence, writer close and a fresh reader.
+
 ## 0.13.28 (2026-10-11)
 
 - Fix native Hook records failing every turn with `Receiver must be an instance of class Session` under source-launched DSH.

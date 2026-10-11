@@ -1,4 +1,4 @@
-## DSH 原生钩子（0.13.28）
+## DSH 原生钩子（0.13.29）
 
 插件默认启用 `agentHooksEnabled`，直接监听 DSH 会话入口、用户提交、工具执行前后与轮次结束。自动化规则统一在 RabiRoute「人格 → 自动化 → Agent Hook」设置；不读取 Codex 配置，也不启动其它 Agent。Manager 返回的上下文、工具拒绝和本轮继续处理决定由 DSH 执行；继续处理每轮最多触发一次，仍受宿主权限限制。
 
@@ -6,11 +6,13 @@ DSH 日志保存 `plugin:dsh-rabiroute-agent/hook-invoked` 与 `hook-result` 记
 
 记录通过宿主传入会话的 `append()` 写入，并保留 `ignorable: true`；源码启动与构建版插件同时加载时，不跨模块调用 `Session` 私有方法。宿主须支持 `append()` 的 `ignorable` 选项。开发验收可设置 `DSH_TEST_SOURCE_ROOT` 为待测 harness 源码根目录，运行 `node --test tests/native-hooks-source-session.test.mjs`；测试使用源码会话、构建版插件和固定 Hook 回执快照，不调用真实 Manager。
 
+Hook 注入与继续处理消息统一使用 `source.kind: dsh-rabiroute-agent`，不再写 V4 已退役的 `kind: plugin` 包装。自身上下文不会再次作为用户提交送回 Manager。完整循环测试必须写入 JSONL、关闭写句柄后重新打开读取，验证消息来源、Hook 回执和轮次结束均可恢复。
+
 # dsh-rabiroute-agent
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.28
+v0.13.29
 
 工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划。已加载页面在插件生命周期内缓存；关闭取消当前读取，保留一个轻量事件订阅。无变更时再次打开不查询；变更按角色失效，当前页只传输和合并变动行，关闭的页下次打开再校验。顺序、计数和筛选项由服务端核对，断线重连重新校验；失败保留旧数据并显示错误。`workspacePlanCachePages`（默认 32）限制缓存页数，`workspacePlanEventDelayMs`（默认 200）控制事件合并时间，均可在插件配置中调整。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
 

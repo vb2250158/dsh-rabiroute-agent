@@ -21,19 +21,20 @@ test('built hooks append receipts through a source-launched Session and retain t
     logger: { warn() { assert.fail('fixture Manager request failed') } },
   }
   installNativeHooks(ctx, {}, { request: async (_config, _path, options) => {
-    requests.push(JSON.parse(options.body).eventName)
-    return { ok: true, statusCode: 200, body: JSON.stringify({ code: 0, data: {} }) }
+    const point = JSON.parse(options.body).eventName
+    requests.push(point)
+    return { ok: true, statusCode: 200, body: JSON.stringify({ code: 0, data: point === 'SessionStart' ? { additionalContext: 'fixture context' } : {} }) }
   } })
   try {
     const agent = { session }
     const messages = [{ content: [{ type: 'text', text: 'hello' }] }]
     const signal = new AbortController().signal
-    await handlers.get('agent/pre-step')({ agent, messages, turn: 1, signal }, async () => ({ kind: 'enter', messages }))
+    const enter = await handlers.get('agent/pre-step')({ agent, messages, turn: 1, signal }, async () => ({ kind: 'enter', messages }))
     await handlers.get('agent/turn-stopping')({ agent, turn: 1, signal })
     const records = session.snapshotEvents().map(event => ({ type: event.type, ignorable: event.ignorable,
       point: event.data.point, turn: event.data.turn, ...(event.data.outcome ? { outcome: event.data.outcome, statusCode: event.data.statusCode } : {}) }))
     const expected = JSON.parse(await readFile(new URL('./expected/native-hooks-source-session.json', import.meta.url), 'utf8'))
-    assert.deepEqual({ requests, records }, expected)
+    assert.deepEqual({ requests, records, contextSource: enter.messages.at(-1).source }, expected)
   } finally {
     for (const dispose of disposers.reverse()) await dispose()
   }
