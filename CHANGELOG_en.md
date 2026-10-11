@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.27 (2026-10-11)
+
+- Connect native DSH lifecycle hooks to the existing RabiRoute persona automation rules.
+- Persist invocation/result records for DSH hook statistics, including failed and uncertain outcomes.
+- Use the owning session identity and final response, apply Manager tool denial and bounded continuation, and cancel/drain requests on unload.
+
 ## 0.13.26 (2026-10-11)
 
 - Guide home-device discovery through keyword/type filtering and small summary pages before reading one device or entity's state and actions.
