@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.30 (2026-10-12)
+
+- Mount official session compaction in Rabi assistant mode, enabling pressure/overflow recovery, `/compact`, and tool-result pruning.
+- Existing assistant sessions retain their identity and business bindings across update/restart, without expanding model tool permissions.
+- Add production-loop/preset regression coverage for compaction before the first model request, retained original history, and sibling-session isolation.
+
 ## 0.13.29 (2026-10-11)
 
 - Fix native Hook context retaining the retired `kind: plugin` wrapper, causing V4 persistence rejection and subsequent turn failures.
