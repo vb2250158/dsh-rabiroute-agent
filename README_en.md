@@ -1,10 +1,24 @@
+## Native DSH hooks (0.13.29)
+
+`agentHooksEnabled` defaults to true. The plugin listens directly to DSH session entry, prompt submission, tool pre/post execution and turn stopping. Configure automation rules in RabiRoute under Persona → Automation → Agent Hook. It does not read Codex configuration or start another Agent. DSH applies Manager context, tool rejection and turn continuation decisions; continuation is limited to once per turn and retains host permissions.
+
+Durable `plugin:dsh-rabiroute-agent/hook-invoked` and `hook-result` records feed `dsh-hook-insights` 0.2.0. Records contain stage, correlation identity, duration, HTTP status and outcome, with no raw prompt, arguments or output. Failed, uncertain and cancelled requests retain their actual outcomes, without cached context or automatic replay. Restart DSH and refresh after installation; only new turns generate records.
+
+Records use the host-owned session's `append()` with `ignorable: true`, avoiding calls to another module's private `Session` methods when source launch and built plugins coexist. The host must support the `ignorable` append option. Set `DSH_TEST_SOURCE_ROOT` to the harness source root and run `node --test tests/native-hooks-source-session.test.mjs` to verify a source session with built hooks against a fixed receipt snapshot; the test does not call a real Manager.
+
+Hook context and continuation messages use `source.kind: dsh-rabiroute-agent`, replacing the retired V4 `kind: plugin` wrapper. Hook-owned context is excluded from prompt submissions back to Manager. The complete loop test writes JSONL, closes the writer and reopens a reader to verify that message sources, Hook receipts and completed turns survive restoration.
+
 English | [简体中文](README.md)
 
-v0.13.21
+v0.13.31
+
+Rabi assistant sessions mount official DSH automatic compaction, `/compact`, and tool-result pruning. Restart after updating to restore these capabilities in existing sessions. Input and reserved output share the context budget; summaries and replacements use the host's durable events while retaining original history. Rabi continues to own persona, plans, memory, and companion state.
+
+Home-device directories return paged summaries. Start with `/api/agent/xiaomi-home/devices?q=<encoded keywords>&limit=5` or `/resources?kind=climate&limit=5`. Search covers names, descriptions, models, areas and attribute information. Follow `data.nextOffset` with the same filters; a device's `resourcesPath` discovers its entities. Read only the selected `/resources/<resourceId>` state and `/entity-actions?resourceId=...` schema. Explicit `view=detail` remains paginated. Rabi owns these queries; the plugin only injects guidance and does not restrict API access.
 
 ## Rabi assistant mode (0.13.19)
 
-Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns the persona, memory, plans and messages. Only the three Rabi tools are visible and executable; foreign and subsequently registered tools are denied. Persona conversation remains available without the message coordinator's mandatory delegation policy.
+Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns the persona, memory, plans and messages. Only the three Rabi tools are visible and executable; foreign and subsequently registered tools are denied. The persona session handles messages and plans and prefers independent sessions for other work while retaining access to every Rabi API.
 
 Select the preset in Rabi's DSH settings. New sessions use it at creation; blank sessions use the official DSH selection API. Started sessions refuse preset changes, requiring an explicitly selected new session. Manager failure does not enable file caches or other tools. Standard sessions remain unaffected.
 
@@ -22,8 +36,6 @@ Context assembly shares the sidebar's event-invalidated TTL cache and never wait
 
 
 # dsh-rabiroute-agent
-
-Ordinary answers use the optional `proactive-answer.message` Component Factory. Source envelopes retain this plugin's presentation; a missing factory or unmatched text retains the original message fallback.
 
 ## Plan resource archiving (0.10.0)
 
@@ -43,9 +55,11 @@ Conflicting bindings display “Multiple plans”. Failed refreshes retain the l
 
 The `message-processing` preset adds **消息处理模式** to the session mode picker. It handles incoming messages, Rabi channel/persona delivery, reading and creating Agent sessions, task delegation and progress, and plan creation, queries, updates, deletion, bindings, statuses and feedback.
 
-Only `rabiroute_agent_threads`, `rabiroute_agent_send` and `rabiroute_manager_api` remain available. The preset mounts no shell, general filesystem/skill, web, subagent or workflow tools. An inherited-tool allowlist, native presentation and a monotonic `tools.guard` deny other execution, including tools registered later and PTC. Other presets are unaffected. General file searching, enumeration, reads, writes and attachment uploads/downloads are prohibited, including file payloads sent through Rabi; session workspace metadata remains valid routing information. Rabi-managed persona documents, skills, plans and memory remain readable through their business APIs.
+Only `rabiroute_agent_threads`, `rabiroute_agent_send` and `rabiroute_manager_api` remain available. The preset mounts no shell, direct filesystem/skill, web, subagent or workflow tools. Native presentation and `tools.guard` deny non-Rabi tools, including tools registered later and PTC. Other presets are unaffected. All Rabi APIs, including device, resource and attachment interfaces, remain callable without endpoint, method, business-header or payload filters; Rabi owns authorization and business validation.
 
-The coordinator delegates investigation, research, solution design, implementation, testing and acceptance, even when the work could be answered without tools. It reads relevant memory, plans and skills first, assigns work, tracks replies, checks reported evidence, and maintains plans and confirmed memories. Rabi/persona skills use `/api/roles/<roleId>/skills` and its item endpoint; their operational work is delegated and never expands tool permissions. Tool restrictions are enforced by the runtime; the division of reasoning work is a prompt instruction.
+Injected guidance keeps messages, plans and follow-up in the persona session and prefers independent sessions for other business work. Reuse the task responsible for the same goal before creating another. Assigned tasks execute and formally report their own work rather than recursively passing on the same goal. Delegation is a preference, never an API restriction: context checks, explicit direct requests and simple authorized API actions can run in the current session, which retains access to every Rabi API.
+
+The message preset exposes only Rabi tools and their guidance. The Rabi assistant additionally mounts the official `web_search` and `web_fetch` tools, reusing existing web service and search provider settings. Neither exposes unrelated tool skill catalogs. Read the currently bound persona's skill metadata and bodies on demand through `/api/roles/<roleId>/skills` and its item endpoint. Loading persona skills never expands tool permissions; ordinary execution sessions retain their own capabilities.
 
 The mode includes API and request-field guidance, current session identity from each prompt assembly, reply/receipt handling, idempotency and ETag rules. It can discover the current persona binding via read-only `/api/codex-hook/sessions/<sessionId>` without local document access. Missing identity, binding or cross-persona capability must never be fabricated. Recent memories support creation and updates; consolidated memories remain read-only under the Manager contract, with corrections recorded as recent memory and consolidation delegated.
 
@@ -191,15 +205,15 @@ Registration does not access Host, so Manager absence does not prevent DSH start
 
 Ordinary requests and plan-panel discovery require `/meta` to report `live=true`, `requiredReady=true`, and either `healthy` or `degraded`, with nonempty generation/instance identities matching Host. An unrelated Route failure no longer blocks every tool; Manager endpoints still enforce plan recovery, target Route and Agent availability.
 
-Exact `GET /meta` requires identity validation only and reuses the discovery response, allowing diagnosis while required capabilities are unavailable. Query variants and other paths do not inherit this exemption. Post-write verification checks identity only: health changes do not invalidate an existing success receipt. Identity changes, unverifiable identity, timeouts and 5xx responses remain uncertain and are never replayed automatically. Address, cancellation, redirect, allowlist, idempotency-key and ETag protections remain unchanged.
+Exact `GET /meta` requires identity validation only and reuses the discovery response, allowing diagnosis while required capabilities are unavailable. Query variants and other paths do not inherit this exemption. Post-write verification checks identity only: health changes do not invalidate an existing success receipt. Identity changes, unverifiable identity, timeouts and 5xx responses remain uncertain and are never replayed automatically. Endpoint allowlists are removed; address, cancellation, redirect and identity protections remain. Rabi validates idempotency and ETag requirements.
 
 ## Tool contracts
 
 - `rabiroute_agent_threads`: discover, read, resolve, create, rename, continue and formally reply through Manager. Preserve full task identity and existing bindings; conflicting source IDs are rejected. Legacy `deliverySource` input is normalized at the boundary; Manager receives only `messageSource`. Reply policies and formal reply fields follow the current Manager contract.
 - `rabiroute_agent_send`: explicit external sending, preserving `deliveryId`, sender identity and channel receipts. HTTP success is not real channel delivery.
-- `rabiroute_manager_api`: allowlisted plan, memory, message-processing and reply-request APIs, plus exact `GET /meta`, `GET /api/agent/send/receipts/:id` and `GET /api/agent/send/traces`. Health/receipt endpoints are GET-only. Traversal, encoded separators and cross-origin redirects are rejected.
+- `rabiroute_manager_api`: all Rabi Manager APIs, including future endpoints, without a plugin endpoint, method, business-header or payload allowlist. Rabi validates authorization, methods, parameters and write preconditions. Same-origin paths, Host identity and no-replay protections remain enforced.
 
-The general tool supports `GET/POST/PUT/PATCH/DELETE`. Optional `requestHeadersJson` accepts only `If-Match` and `Idempotency-Key`. Example:
+The general tool accepts valid HTTP methods, including `GET/HEAD/OPTIONS/POST/PUT/PATCH/DELETE`. Optional `requestHeadersJson` forwards Rabi HTTP headers after syntax and duplicate checks. Mutations receive the freshly verified lifecycle identity headers automatically. Supply at most one of `bodyJson` (any JSON value), `bodyText` or `bodyBase64`; GET/HEAD cannot carry a body. Binary responses use `{contentType, contentBase64}` inside `body`; text responses use `{text}` and JSON responses retain their existing representation. All response headers are returned. Example:
 
 ```json
 {
@@ -267,6 +281,11 @@ The plugin list shows **RabiRoute integration** in English and **RabiRoute 接�
 
 The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.
 
+
+
+## Rabi assistant web access (0.13.25)
+
+The registered `rabi-assistant` preset provides all three Rabi tools plus official `web_search` and `web_fetch`. Web tools are mounted in the preset scope; each created or resumed agent filters its inherited catalog before the first prompt assembly. Shell, generic files, browser control, generic skills and unrelated tools remain hidden and denied. Bound-persona skills stay available through Rabi. Search can still retrieve public information while Rabi is unavailable, but must never fabricate persona context or send private memories, messages or credentials as queries.
 
 ## Desktop-pet movement (0.13.20)
 

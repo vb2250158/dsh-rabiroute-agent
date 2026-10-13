@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.13.31 (2026-10-13)
+
+- Delegate ordinary answers to the optional proactive-answer.message Component Factory while retaining Rabi source envelopes and the original fallback.
+
+## 0.13.30 (2026-10-12)
+
+- Mount official session compaction in Rabi assistant mode, enabling pressure/overflow recovery, `/compact`, and tool-result pruning.
+- Existing assistant sessions retain their identity and business bindings across update/restart, without expanding model tool permissions.
+- Add production-loop/preset regression coverage for compaction before the first model request, retained original history, and sibling-session isolation.
+
+## 0.13.29 (2026-10-11)
+
+- Fix native Hook context retaining the retired `kind: plugin` wrapper, causing V4 persistence rejection and subsequent turn failures.
+- Use the producer-owned `dsh-rabiroute-agent` source and exclude its context from prompt submissions to Manager.
+- Validate context sources across lifecycle stages; extend the complete loop test with JSONL persistence, writer close and a fresh reader.
+
+## 0.13.28 (2026-10-11)
+
+- Fix native Hook records failing every turn with `Receiver must be an instance of class Session` under source-launched DSH.
+- Append through the host-owned session while preserving record names, ignorable markers and privacy restrictions.
+- Add a mixed source-session/built-plugin regression test and fixed receipt snapshot; retain full tool-loop coverage.
+
+## 0.13.27 (2026-10-11)
+
+- Connect native DSH lifecycle hooks to the existing RabiRoute persona automation rules.
+- Persist invocation/result records for DSH hook statistics, including failed and uncertain outcomes.
+- Use the owning session identity and final response, apply Manager tool denial and bounded continuation, and cancel/drain requests on unload.
+
+## 0.13.26 (2026-10-11)
+
+- Guide home-device discovery through keyword/type filtering and small summary pages before reading one device or entity's state and actions.
+- Explain continuation, explicit detail and narrowing truncated reads instead of loading all properties and action schemas into model context.
+- Rabi owns directory queries; existing tool permissions, persona skills and web tools retain their configuration.
+
+## 0.13.25 (2026-10-11)
+
+- Retain official `web_search` and `web_fetch` in the Rabi assistant, reusing existing search provider settings.
+- Filter each created or resumed agent catalog while retaining every Rabi API and persona skills; unrelated tools and generic skill catalogs remain hidden. Message processing stays Rabi-only.
+- Verify web execution, lean context, sibling standard sessions and disposal with the real DSH tool runtime.
+
+## 0.13.24 (2026-10-11)
+
+- Prompt guidance prefers independent sessions for work beyond messages and plans while retaining every Rabi API in the current session; assigned tasks execute and formally reply without recursively delegating the same goal.
+- Rabi presets expose only Rabi tools and their guidance, loading bound-persona skills through Rabi on demand; real DSH runtime checks confirm unrelated tools and their skill catalogs are absent from model input.
+
+## 0.13.23 (2026-10-11)
+
+- Rabi assistant preset metadata states that all Rabi APIs are callable.
+- Accept URL-encoded resource IDs while preserving same-origin, malformed-encoding and nested-traversal checks without endpoint filtering.
+
+## 0.13.22 (2026-10-11)
+
+- Remove Manager endpoint, method, business-header and payload allowlists in both Rabi presets; all Rabi APIs, including future endpoints, are callable.
+- Rabi owns authorization, parameter validation, idempotency and version preconditions; preserve same-origin paths, Host/Manager identity, cancellation, receipts and no replay.
+- Attach current lifecycle headers to mutations and support JSON values, text and binary bodies, binary responses and all response headers.
+- Fix plugin-side rejection of home device discovery; device execution still requires user authorization and Rabi result confirmation.
+
 ## 0.13.21 (2026-10-10)
 
 - Remove hash suffixes from workspace persona skill names and use readable persona and skill IDs.

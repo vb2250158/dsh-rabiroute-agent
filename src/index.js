@@ -12,8 +12,10 @@ import { createLocateAgentHandler, LOCATE_AGENT_PATH } from './locate-agent.js'
 import { createSpeechHandler, SPEECH_PATH } from './speech.js'
 import { createAsrHandler, SPEECH_ASR_PATH } from './speech-asr.js'
 import { rabiAssistantPreset } from './assistant-preset.js'
+import { installNativeHooks } from './native-hooks.js'
 
 export const Config = z.object({
+  agentHooksEnabled: z.boolean().default(true),
   managerBaseUrl: z.string().default(''),
   hostExecutable: z.string().default(''),
   enforceAgentCommunication: z.boolean().default(true),
@@ -41,7 +43,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.19'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.30'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -70,57 +72,37 @@ function normalizeThreadRequest(request) {
   return { ...rest, messageSource: { type: 'agent', agentAdapter, sessionId, sessionName: String(raw.sessionName || sessionId).trim(), agentType: String(raw.agentType || request.sourceAgentType || 'agent').trim(), ...(raw.workspace ? { workspace: String(raw.workspace) } : {}) } }
 }
 
-function validatePath(value, method) {
+function validatePath(value) {
   const pathname = String(value || '').trim()
-  if (!pathname.startsWith('/') || pathname.startsWith('//') || /[\\#\s\u0000-\u001f]/u.test(pathname)) throw new Error('Manager API path is outside the allowlist.')
+  if (!pathname.startsWith('/') || pathname.startsWith('//') || /[\\#\s\u0000-\u001f]/u.test(pathname)) throw new Error('Manager API path must be a same-origin relative path without whitespace or fragments.')
   const raw = pathname.split('?')[0]
   let decoded
   try { decoded = decodeURIComponent(raw) } catch { throw new Error('Invalid Manager path encoding.') }
-  // Reject encoded separators, repeated encoding and traversal before URL normalization.
-  if (/[\\%?#\u0000-\u0020]/u.test(decoded) || /%2f/i.test(raw) || decoded.split('/').some(part => part === '.' || part === '..')) throw new Error('Manager path traversal or encoded separator is not allowed.')
-  const discovery = decoded === '/api/agent/help' || decoded === '/api/agent/send/capabilities'
-  if (discovery && method !== 'GET') throw new Error('Agent help and send capabilities are GET-only.')
-  const health = decoded === '/meta'
-  const receipt = /^\/api\/agent\/send\/receipts\/[^/]+$/.test(decoded) || decoded === '/api/agent/send/traces'
-  const personaRead = /^\/api\/personas(?:\/[^/]+)?$/.test(decoded) || /^\/api\/personas\/messages\/receipts\/[^/]+$/.test(decoded)
-  const personaSend = /^\/api\/personas\/[^/]+\/messages$/.test(decoded)
-  const sessionBinding = /^\/api\/codex-hook\/sessions\/[^/]+$/.test(decoded)
-  if (sessionBinding && method !== 'GET') throw new Error('Session persona binding discovery is GET-only.')
-  if (personaRead && method !== 'GET') throw new Error('Persona discovery and receipts are GET-only.')
-  if (personaSend && method !== 'POST') throw new Error('Persona messages require POST.')
-  if ((health || receipt) && method !== 'GET') throw new Error('Health and receipt endpoints are GET-only.')
-  const petMotion = /^\/api\/desktop-pet\/roles\/[^/]+\/motion$/.test(decoded)
-  const petReceipt = /^\/api\/desktop-pet\/roles\/[^/]+\/motion\/[A-Za-z0-9][A-Za-z0-9_.-]{7,127}$/.test(decoded)
-  if (petMotion && method !== 'POST') throw new Error('Desktop pet motion requires POST.')
-  if (petReceipt && method !== 'GET') throw new Error('Desktop pet motion receipts are GET-only.')
-  const allowed = /^\/api\/(?:roles|message-processing|memory)\/[^/]+(?:\/.*)?$/.test(decoded) || /^\/api\/agent\/requests(?:\/[^/]+)*$/.test(decoded)
-  if (!discovery && !health && !receipt && !allowed && !personaRead && !personaSend && !sessionBinding && !petMotion && !petReceipt) throw new Error('Manager API path is outside the RabiRoute plugin allowlist; use dedicated delivery tools for sending.')
+  // Encoded resource IDs remain valid; nested encoding must not hide traversal.
+  let inspected = decoded
+  for (;;) {
+    if (/[\\\u0000-\u0020]/u.test(inspected) || inspected.split('/').some(part => part === '.' || part === '..')) throw new Error('Manager path traversal or encoded control character is not allowed.')
+    let next
+    try { next = decodeURIComponent(inspected) } catch { break }
+    if (next === inspected) break
+    inspected = next
+  }
   return { pathname, decoded }
 }
 function requestHeaders(value) {
   const input = value ? parseJsonObject(value, 'requestHeadersJson') : {}
-  const headers = {}
+  const headers = Object.create(null)
   for (const [key, val] of Object.entries(input)) {
     const name = key.toLowerCase()
-    if (!['if-match', 'idempotency-key'].includes(name) || typeof val !== 'string' || !val.trim() || /[\r\n]/.test(val) || Object.hasOwn(headers, name)) throw new Error('Only unique nonempty If-Match and Idempotency-Key headers are allowed.')
-    if (name === 'if-match' && !/^"[^"\r\n]+"$/.test(val)) throw new Error('If-Match must contain one strong ETag from the authoritative GET.')
+    if (!/^[!#$%&'*+.^_`|~0-9a-z-]+$/.test(name) || typeof val !== 'string' || /[\r\n\u0000]/.test(val) || Object.hasOwn(headers, name)) throw new Error('Request headers require unique HTTP names and string values without control characters.')
     headers[name] = val
   }
   return headers
 }
-function validateStorageHeaders(method, pathname, headers) {
-  const create = method === 'POST' && /^\/api\/roles\/[^/]+\/(?:plans|memory\/recent|memory\/consolidation-requests)$/.test(pathname)
-  const versioned = (method === 'PATCH' && /^\/api\/roles\/[^/]+\/(?:plans|memory\/recent)\/[^/]+$/.test(pathname))
-    || (method === 'POST' && /^\/api\/roles\/[^/]+\/(?:plans\/[^/]+\/feedback|memory\/consolidation-runs\/[^/]+\/result|plan-(?:marker-)?statuses)$/.test(pathname))
-    || (['PATCH', 'DELETE'].includes(method) && /^\/api\/roles\/[^/]+\/plan-(?:marker-)?statuses\/[^/]+$/.test(pathname))
-  if ((create || versioned) && !headers['idempotency-key']) throw new Error('This storage write requires a stable Idempotency-Key.')
-  if (versioned && !headers['if-match']) throw new Error('This versioned storage write requires If-Match from the authoritative GET.')
-}
-
 const output = {
   schema: { type: 'object', properties: {
     statusCode: { type: 'number' }, ok: { type: 'boolean' }, body: { type: 'string' }, etag: { type: 'string' }, uncertain: { type: 'boolean' },
-    headers: { type: 'object', properties: { etag: { type: 'string' }, 'idempotency-key': { type: 'string' }, 'retry-after': { type: 'string' } }, additionalProperties: false },
+    headers: { type: 'object', additionalProperties: true },
     identity: { type: 'object', properties: { applicationGenerationId: { type: 'string' }, managerInstanceId: { type: 'string' } }, required: ['applicationGenerationId', 'managerInstanceId'], additionalProperties: false },
     error: { type: 'object', properties: { kind: { type: 'string' }, message: { type: 'string' } }, required: ['kind', 'message'], additionalProperties: false },
   }, required: ['statusCode', 'ok', 'body'], additionalProperties: false },
@@ -135,20 +117,34 @@ function toolDefinitions(config, dependencies = {}) {
     { name: 'rabiroute_agent_send', description: 'Send a message through a configured RabiRoute message adapter. A successful Manager and channel receipt is the only proof that the message was sent.',
       parameters: { type: 'object', properties: { requestJson: { type: 'string', description: 'Complete /api/agent/send JSON request.' } }, required: ['requestJson'], additionalProperties: false },
       async execute(args, exec) { return managerRequest(config, SEND_PATH, { method: 'POST', body: JSON.stringify(parseJsonObject(args.requestJson, 'requestJson')) }, exec.signal, dependencies) } },
-    { name: 'rabiroute_manager_api', description: 'Read or update allowlisted RabiRoute plans, memory and processing APIs. GET /meta checks health. Pass version/idempotency headers for storage writes; inspect full receipts and uncertainty before retrying.',
+    { name: 'rabiroute_manager_api', description: 'Call any RabiRoute Manager API with no plugin endpoint allowlist. Discover current contracts with GET /api/agent/help. Rabi owns authorization, methods, parameters and write preconditions. Inspect full receipts and uncertainty before retrying.',
       parameters: { type: 'object', properties: {
-        method: { type: 'string', description: 'GET, POST, PUT, PATCH, or DELETE.' }, path: { type: 'string', description: 'Allowlisted Manager path; health and sending receipts are GET-only.' },
-        bodyJson: { type: 'string', description: 'Optional JSON object body.' }, requestHeadersJson: { type: 'string', description: 'Optional JSON object containing only If-Match and Idempotency-Key.' },
+        method: { type: 'string', description: 'HTTP method from the current Rabi API contract, including GET, HEAD, OPTIONS, POST, PUT, PATCH and DELETE.' }, path: { type: 'string', description: 'Any same-origin Manager relative path and encoded query; no endpoint allowlist.' },
+        bodyJson: { type: 'string', description: 'Optional serialized JSON value.' },
+        bodyText: { type: 'string', description: 'Optional raw text body; supply at most one body field.' },
+        bodyBase64: { type: 'string', description: 'Optional base64 binary body; set Content-Type to the current Rabi contract.' },
+        requestHeadersJson: { type: 'string', description: 'Optional JSON object of HTTP headers required by Rabi, including Idempotency-Key and If-Match.' },
       }, required: ['method', 'path'], additionalProperties: false },
       async execute(args, exec) {
         const method = String(args.method || '').trim().toUpperCase()
-        if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) throw new Error('Unsupported Manager API method.')
-        const { pathname, decoded } = validatePath(args.path, method)
+        if (!/^[!#$%&'*+.^_`|~0-9A-Z-]+$/.test(method)) throw new Error('Invalid HTTP method.')
+        const { pathname } = validatePath(args.path)
         const headers = requestHeaders(args.requestHeadersJson)
-        validateStorageHeaders(method, decoded, headers)
-        if (method === 'GET' && args.bodyJson) throw new Error('GET requests cannot carry a body.')
-        const body = args.bodyJson ? JSON.stringify(parseJsonObject(args.bodyJson, 'bodyJson')) : undefined
-        return managerRequest(config, pathname, { method, headers, ...(body ? { body } : {}) }, exec.signal, dependencies)
+        const bodies = ['bodyJson', 'bodyText', 'bodyBase64'].filter(name => args[name] !== undefined)
+        if (bodies.length > 1) throw new Error('Supply at most one request body field.')
+        if (['GET', 'HEAD'].includes(method) && bodies.length) throw new Error('GET and HEAD requests cannot carry a body.')
+        let body
+        if (bodies[0] === 'bodyJson') {
+          try { body = JSON.stringify(JSON.parse(args.bodyJson)) } catch { throw new Error('bodyJson must be valid JSON.') }
+        } else if (bodies[0] === 'bodyText') {
+          body = args.bodyText
+          headers['content-type'] ??= 'text/plain; charset=utf-8'
+        } else if (bodies[0] === 'bodyBase64') {
+          if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(args.bodyBase64)) throw new Error('bodyBase64 must be valid padded base64.')
+          body = Buffer.from(args.bodyBase64, 'base64')
+          headers['content-type'] ??= 'application/octet-stream'
+        }
+        return managerRequest(config, pathname, { method, headers, ...(body !== undefined ? { body } : {}) }, exec.signal, dependencies)
       } },
   ]
   return definitions.map(definition => ({ ...definition, output, timeoutMs }))
@@ -157,12 +153,17 @@ function promptText(config) {
   return [
     '[RabiRoute DSH 主 Agent]',
     '当前 DSH 会话可以作为 RabiRoute 的主人格、计划秘书、消息处理 Agent、记忆整理 Agent 或独立业务 Agent。',
+    '主人格与协调会话直接处理消息、计划和任务跟进；其他业务工作尽量通过 rabiroute_agent_threads 安排独立会话，先复用同一事项的原任务，没有合适任务时再创建。委派写清目标、必要背景、约束、已有授权、验收标准和回报要求，保存 threadId、requestId 及关联 planId。',
+    '独立会话是提示词中的优先分工，不是接口权限限制。当前会话始终可调用 Rabi 全部接口，必要的上下文和状态核对可直接进行；用户要求直接处理或简单已授权动作可以直接调用。已经受领独立业务任务的会话完成自己的工作并回报，不把同一目标层层转派。',
     'RabiRoute 的计划、秘书绑定、消息处理看板和记忆结果由 Manager 持有；不要在 DSH 内复制第二份业务真源。',
     'Agent 会话发现、创建、改名、绑定、投递和正式回复统一使用 rabiroute_agent_threads。',
     'Agent 间投递必须填写完整来源会话 ID、来源 Agent 类型、responsePolicy；要求回复时填写 responseInstruction，正式回复时填写 inReplyToRequestId、result 和 nextAction。',
     '插件只向 Manager 发送 messageSource；来源会话必须与 sourceThreadId 相同。',
     '向 QQ、语音、飞书、RabiLink 等消息端发送内容时使用 rabiroute_agent_send，并取得 Manager 与渠道回执。最终文本不算已发送。',
     '计划、消息处理、回复请求、记忆和桌宠移动使用 rabiroute_manager_api。桌宠移动先读 /api/agent/help 对应 motion 合同，提交后按原 requestId 查询实际抵达回执。secretaryBinding 只记录秘书，taskBinding 只记录独立业务任务。',
+    'rabiroute_manager_api 可调用 Rabi 的全部接口，没有插件路径、方法或业务请求头白名单；接口方法、参数、鉴权、幂等与版本条件由 Rabi 校验。先读 /api/agent/help 当前合同，新增接口无需更新本插件。调用能力不扩大当前用户授权，外发、设备动作、删除与付费遵守 Rabi Action Gate。',
+    '家庭设备先读 /api/agent/xiaomi-home/devices?q=<URL编码关键词>&limit=5 或 /resources?kind=climate&limit=5 等摘要小页，默认不带完整属性。q 支持名称、描述、型号、房间与属性信息，多词空格分隔；kind 筛实体类型，available=1 筛在线项。结果为 data.items、total、nextOffset，nextOffset 非空时带同样筛选和 offset 继续；不要把第一页当全部清单，也不要默认批量 includeActions=1。',
+    '设备摘要给出 deviceId 和 resourcesPath；按 /resources?deviceId=<编码deviceId>&limit=5 继续筛选实体，无归属实体使用 deviceId=unassigned。需要更多目录字段可显式 view=detail，仍按页读；单项 /devices/<编码deviceId> 读完整登记信息。定位 resourceId 后只读 /resources/<编码resourceId> 的实时状态，再按 /entity-actions?resourceId=<编码resourceId> 获取该实体动作和参数。列表摘要不是完整状态，输出截断时缩小 limit 或关键词，不使用网页或本地缓存补读。requestHeadersJson 传稳定 Idempotency-Key；插件自动附加本次核验的代际头。按原键查询 /action-requests?idempotencyKey=<原键>，accepted 不等于设备结果已确认。',
     'DSH 投递失败时报告失败，不改投 Codex，也不创建另一套任务。',
     config.managerBaseUrl ? 'Rabi Manager 使用插件显式配置的完整地址并逐次核对身份。' : 'Rabi Manager 每项操作从 Host 动态发现并核对 /meta，不使用历史端口。',
     '可用 GET /meta 只读核对连接。旧地址失败不代表 Manager 离线；不要用读取近期记忆作为无副作用健康探针。',
@@ -176,6 +177,7 @@ export function apply(ctx, config = {}) {
   })
   const status = createRabiRouteAgentRuntimeStatus(config)
   const resolved = { ...config, managerBaseUrl: status.managerBaseUrl, enforceAgentCommunication: status.enforceAgentCommunication, requestTimeoutMs: status.requestTimeoutMs }
+  if (resolved.agentHooksEnabled !== false) ctx.inject(['sessionProjections', 'workingDirectory'], runtime => installNativeHooks(runtime, resolved))
   const statusCache = createPlanStatusCache(resolved)
   ctx.effect(() => () => statusCache.dispose())
   if (resolved.planContextEnabled !== false) ctx.inject(['systemPrompt'], runtime => installPlanContext(runtime, statusCache, resolved))
@@ -219,4 +221,4 @@ export function apply(ctx, config = {}) {
   })
   return status
 }
-export const internals = { normalizeThreadRequest, promptText, toolDefinitions, validatePath, requestHeaders, validateStorageHeaders, createPlanPanelHandler, PLAN_PANEL_PATH, createLocateAgentHandler, LOCATE_AGENT_PATH, createAsrHandler, SPEECH_ASR_PATH }
+export const internals = { normalizeThreadRequest, promptText, toolDefinitions, validatePath, requestHeaders, createPlanPanelHandler, PLAN_PANEL_PATH, createLocateAgentHandler, LOCATE_AGENT_PATH, createAsrHandler, SPEECH_ASR_PATH }

@@ -1,10 +1,20 @@
+## DSH 原生钩子（0.13.29）
+
+插件默认启用 `agentHooksEnabled`，直接监听 DSH 会话入口、用户提交、工具执行前后与轮次结束。自动化规则统一在 RabiRoute「人格 → 自动化 → Agent Hook」设置；不读取 Codex 配置，也不启动其它 Agent。Manager 返回的上下文、工具拒绝和本轮继续处理决定由 DSH 执行；继续处理每轮最多触发一次，仍受宿主权限限制。
+
+DSH 日志保存 `plugin:dsh-rabiroute-agent/hook-invoked` 与 `hook-result` 记录，供 `dsh-hook-insights` 0.2.0 起统计。记录只含阶段、关联标识、耗时、HTTP 状态与处理结果，不包含原始正文、工具参数或输出。Manager 失败、回执待核对和取消都留真实结果；不从缓存补造上下文、不自动重发。安装后需重启 DSH 并刷新页面，新轮次才产生记录。
+
+记录通过宿主传入会话的 `append()` 写入，并保留 `ignorable: true`；源码启动与构建版插件同时加载时，不跨模块调用 `Session` 私有方法。宿主须支持 `append()` 的 `ignorable` 选项。开发验收可设置 `DSH_TEST_SOURCE_ROOT` 为待测 harness 源码根目录，运行 `node --test tests/native-hooks-source-session.test.mjs`；测试使用源码会话、构建版插件和固定 Hook 回执快照，不调用真实 Manager。
+
+Hook 注入与继续处理消息统一使用 `source.kind: dsh-rabiroute-agent`，不再写 V4 已退役的 `kind: plugin` 包装。自身上下文不会再次作为用户提交送回 Manager。完整循环测试必须写入 JSONL、关闭写句柄后重新打开读取，验证消息来源、Hook 回执和轮次结束均可恢复。
+
 # dsh-rabiroute-agent
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.22
+v0.13.31
 
-普通回答通过可选 `proactive-answer.message` Component Factory 显示为提问回答卡片。来源封套仍由本插件处理；Factory 缺席或文本不匹配时保留原消息展示。
+Rabi助手模式装配 DSH 官方自动压缩、`/compact` 和工具结果裁剪，已开始的原会话在更新并重启后恢复这些能力。模型输入和输出预留共同计入上下文预算；摘要与替换沿用宿主持久事件，完整历史仍可读取。压缩只整理 DSH 会话上下文，Rabi 仍持有人格、计划、记忆与陪伴状态。
 
 工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划。已加载页面在插件生命周期内缓存；关闭取消当前读取，保留一个轻量事件订阅。无变更时再次打开不查询；变更按角色失效，当前页只传输和合并变动行，关闭的页下次打开再校验。顺序、计数和筛选项由服务端核对，断线重连重新校验；失败保留旧数据并显示错误。`workspacePlanCachePages`（默认 32）限制缓存页数，`workspacePlanEventDelayMs`（默认 200）控制事件合并时间，均可在插件配置中调整。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。
 
@@ -41,13 +51,15 @@ v0.13.22
 
 ## 消息处理模式（0.7.0）
 
-工作区人格技能另见本文末尾；消息处理模式仍保留原有工具白名单。
+工作区人格技能另见本文末尾；消息处理模式使用 Rabi 工具，所有 Rabi API 均可调用。
 
 会话模式菜单可增加「消息处理模式」（`message-processing`）：接收消息、通过 Rabi 向渠道或其他人格投递消息、读取和创建 Agent 会话、分派与跟进任务，以及创建、查询、更新和删除计划、管理计划状态、绑定与反馈，读取和维护记忆，读取人格正文与人格 Skill。
 
-只开放 `rabiroute_agent_threads`、`rabiroute_agent_send`、`rabiroute_manager_api`。预设不加载 Shell、通用文件/Skill、网页、子 Agent 或工作流工具；继承工具按白名单过滤，强制 native 呈现，并通过 `tools.guard` 拒绝其他工具执行，包括后来注册的工具和 PTC。标准模式及其他会话不受影响。通用文件搜索、遍历、读取、写入以及附件上传、下载均被禁止；Rabi 请求中的文件载荷也被拒绝，`workspace` 只保留为会话路由信息。Rabi 管理的人格、Skill、计划和记忆通过对应业务 API 读取，不属于通用文件访问。
+只使用 `rabiroute_agent_threads`、`rabiroute_agent_send`、`rabiroute_manager_api`。预设不加载 Shell、直接文件/Skill、网页、子 Agent 或工作流工具，强制 native 呈现，并通过 `tools.guard` 拒绝非 Rabi 工具执行，包括后来注册的工具和 PTC。标准模式及其他会话不受影响。Rabi 全部接口可经 Manager 工具调用，包括设备、资源和附件；预设不筛选 API 路径、方法、请求头或载荷字段，权限与业务校验归 Rabi。
 
-模式指令明确要求调查、检索、分析研究、定制方案、实施、测试和验收全部委派；自身只理解诉求、拆分与协调、核对回报、汇总证据并维护计划和记忆。即使无需工具也不自行产出业务方案。先读取相关记忆、计划及 Skill 和必读项，再派发；收到证据后推进步骤或要求补充，记录已确认结论。Rabi 和人格 Skill 可经 `/api/roles/<roleId>/skills` 及单项接口使用，但 Skill 中的执行工作仍须委派，不能扩大权限。工具限制由运行时执行，语言层面的分工由模式指令规定。
+插件注入的提示词建议当前人格会话处理消息、计划和任务跟进，其他业务工作尽量安排独立会话；先复用负责同一事项的原任务，没有合适任务时再创建。独立任务完成自己的目标并正式回报，不层层转派同一工作。这是优先分工，当前会话始终可以调用全部 Rabi 接口；必要的上下文核对、用户要求直接处理或简单已授权动作可直接进行。委派不增加接口限制。
+
+消息处理预设只向模型提供 Rabi 工具及调用提示；Rabi助手另保留官方 `web_search` 和 `web_fetch`，使用现有联网服务及搜索提供方配置。不提供其他工具相关的 Skill 目录。当前绑定人格的 Skill 经 `/api/roles/<roleId>/skills` 及单项接口按需读取和使用；接口合同与技能正文保留在 Rabi，加载技能不扩大工具权限。Rabi助手和消息处理模式遵循同一分工原则，标准执行会话保留自身能力。
 
 模式内置调用指南直接说明接口、字段、来源身份、幂等与 ETag、回执和跟进方式，无需先打开本地文档。当前会话 ID 和工作区来自每次正式 prompt 装配；人格绑定可通过只读 `/api/codex-hook/sessions/<sessionId>` 查询。没有当前绑定或跨人格发送凭据时不得臆造。近期记忆可新增和更新；已有沉淀记忆按 Manager 合同只读，修正先记录到近期记忆，整理工作交给其他 Agent。
 
@@ -63,9 +75,11 @@ v0.13.22
 
 ## 统一帮助与发送能力（0.13.16）
 
-通过 `rabiroute_manager_api` 调用 `GET /api/agent/help` 获取 Manager 当前统一帮助，或 `GET /api/agent/send/capabilities` 查询发送能力。支持正常 query，例如 `{"method":"GET","path":"/api/agent/help?topic=send"}`；参数语义以当前 Manager 合同为准。
+家庭设备目录默认返回分页摘要。先用 `/api/agent/xiaomi-home/devices?q=<关键词>&limit=5` 或 `/resources?kind=climate&limit=5` 筛选，关键词 URL 编码，支持名称、描述、型号、房间和属性信息。按 `data.nextOffset` 续页，设备摘要的 `resourcesPath` 可查所属实体；定位后只读单项 `/resources/<resourceId>` 状态和 `/entity-actions?resourceId=...` 动作。完整目录字段使用显式 `view=detail`，仍须分页。插件只注入调用提示，筛选、分页和详情由 Rabi 提供，不增加接口白名单。
 
-只新增这两个精确路径的 GET 权限，不开放其子路径、其他 Agent API 或写方法。路径和 query 继续遵循既有 `validatePath` 安全检查；Host 动态发现、`/meta` 身份与就绪校验、认证及重定向策略不变。发送仍须使用专用投递工具；帮助正文不会扩大工具权限。源码实现不等于当前宿主已加载，须发布固定提交、受管安装并重启后另行验收。
+通过 `rabiroute_manager_api` 调用 `GET /api/agent/help` 获取 Manager 当前统一帮助，或 `GET /api/agent/send/capabilities` 查询发送能力。支持正常 query，例如 `{"method":"GET","path":"/api/agent/help?method=GET&path=%2Fapi%2Fagent%2Fxiaomi-home%2Fdevices"}`；参数语义以当前 Manager 合同为准。
+
+从 0.13.22 起，本插件不维护 Manager API 白名单；当前和未来的 Rabi 接口均可调用，路径、HTTP 方法和业务请求头不按接口清单筛选。Rabi 拥有接口合同、授权、参数校验、幂等与版本要求。插件仍核对同源相对路径、Host 动态发现、`/meta` 身份与就绪状态，拒绝重定向和路径穿越，不自动重放请求。调用能力不扩大用户授权。源码实现不等于当前宿主已加载，须发布固定提交、受管安装并重启后另行验收。
 
 ## 定位与开发边界
 
@@ -195,15 +209,15 @@ pnpm dsh plugin --profile web add --save-exact github:vb2250158/dsh-rabiroute-ag
 
 普通请求和计划面板发现要求 `/meta` 的 `live=true`、`requiredReady=true`、状态为 `healthy` 或 `degraded`，并校验非空 generation/实例身份与 Host 一致。无关消息路线失败不再阻止所有工具；计划恢复、目标路线及 Agent 的可用性仍由 Manager 对应接口判定。
 
-精确 `GET /meta` 只要求身份校验，直接复用发现响应，因此核心未就绪时仍可诊断；查询参数或其它路径不继承该豁免。写后只复核身份，不因健康波动否定已有成功回执；身份变化、无法核对、超时及 5xx 仍保留不确定性，不自动重放。地址、取消、重定向、白名单、幂等键与 ETag 保护不变。
+精确 `GET /meta` 只要求身份校验，直接复用发现响应，因此核心未就绪时仍可诊断；查询参数或其它路径不继承该豁免。写后只复核身份，不因健康波动否定已有成功回执；身份变化、无法核对、超时及 5xx 仍保留不确定性，不自动重放。接口白名单已移除，地址、取消、重定向与身份保护保留；幂等键与 ETag 要求由 Rabi 校验。
 
 ## 工具合同
 
 - `rabiroute_agent_threads`：通过 Manager 查找、读取、解析、创建、改名、续投及正式回复。保留完整任务身份和原绑定；来源与 `sourceThreadId` 不一致时拒绝。旧 `deliverySource` 输入仅在边界归一化，发送字段始终是 `messageSource`。回复策略和正式回复字段遵守当前 Manager 合同。
 - `rabiroute_agent_send`：明确外发，保留 `deliveryId`、发送者及渠道回执。HTTP 成功不代替真实渠道送达。
-- `rabiroute_manager_api`：允许路径内的计划、记忆、消息处理和回复请求；额外开放精确 `GET /meta`、`GET /api/agent/send/receipts/:id`、`GET /api/agent/send/traces`。健康和回执仅 GET，拒绝路径穿越、编码分隔符与跨 origin 重定向。
+- `rabiroute_manager_api`：调用全部 Rabi Manager 接口；不维护路径、方法、请求头或业务载荷白名单。接口权限、合法方法与写入条件由 Rabi 校验。同源路径、身份核对和不重放保护仍由插件执行。
 
-通用工具支持 `GET/POST/PUT/PATCH/DELETE`。可选 `requestHeadersJson` 仅允许 `If-Match` 和 `Idempotency-Key`。例如：
+通用工具接受合法 HTTP 方法，包括 `GET/HEAD/OPTIONS/POST/PUT/PATCH/DELETE`。可选 `requestHeadersJson` 接受 Rabi 所需的 HTTP 请求头；仅检查名称、字符串值和重复字段的 HTTP 格式。写入自动携带本次核验的 application generation 与 Manager instance 头，不由模型填写旧身份。`bodyJson` 接受任意 JSON 值，`bodyText` 传文本，`bodyBase64` 传二进制；最多选一种，GET/HEAD 不带正文。二进制响应在 `body` 中表示为 `{contentType, contentBase64}`，文本响应保留为 `{text}`，JSON 响应格式不变；响应头完整返回。示例：
 
 ```json
 {
@@ -268,9 +282,9 @@ The plugin list shows **RabiRoute integration** in English and **RabiRoute 接�
 The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.
 ## Rabi助手模式（0.13.19）
 
-安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供；只开放三个 Rabi 工具，其他工具在模型目录和执行入口都被拒绝，包括后注册的工具。支持正常人格对话，不继承消息处理模式的强制委派规则。
+安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供；开放三个 Rabi 工具，以及官方 `web_search` 联网搜索和 `web_fetch` 网页读取。助手预设在自己的作用域装配联网工具，在每个 Agent 创建或恢复后、首次上下文组装前筛选工具目录；通用终端、文件、浏览器控制、Skill 和其他工具仍被隐藏并在执行入口拒绝。支持正常人格对话，消息和计划以外的业务优先安排独立任务。
 
-在 Rabi 的 DSH 设置中选择这个会话模式并保存。新会话按所选模式创建，空白会话通过 DSH 的正式选择接口同步；已经开始过对话的会话不能切换模式，需要明确选择新的会话。Rabi 不可用时报告连接问题，不读取文件缓存或改用其他工具。标准会话不受限制。
+在 Rabi 的 DSH 设置中选择这个会话模式并保存。新会话按所选模式创建，空白会话通过 DSH 的正式选择接口同步；已经开始过对话的会话不能切换模式，需要明确选择新的会话。Rabi 不可用时报告连接问题；联网搜索仍可查公开资料，但不能替代 Rabi 人格、记忆和计划真源。标准会话不受限制。
 
 
 ## 桌宠移动（0.13.20）

@@ -3,15 +3,16 @@ import test from 'node:test'
 import { internals } from '../lib/index.js'
 import { messageModeGuard } from '../lib/message-mode.js'
 
-test('pet control admits only the exact POST command and GET receipt, excluding runtime acknowledgments', () => {
+test('pet endpoints use the same unrestricted API path validation as other Rabi interfaces', () => {
   const root = '/api/desktop-pet/roles/sample/motion'
   assert.equal(internals.validatePath(root, 'POST').decoded, root)
   assert.equal(internals.validatePath(root + '/sample-motion-1', 'GET').decoded, root + '/sample-motion-1')
   for (const [path, method] of [[root, 'GET'], [root + '/sample-motion-1', 'POST'], [root + '/runtime', 'POST'],
-    [root + '/runtime', 'GET'], [root + '/sample-motion-1/child', 'GET'], [root + '/%2e%2e', 'GET'],
+    [root + '/runtime', 'GET'], [root + '/sample-motion-1/child', 'GET'],
     ['/api/desktop-pet/roles/sample', 'PATCH'], ['/api/desktop-pet/roles/sample/packs', 'GET']]) {
-    assert.throws(() => internals.validatePath(path, method), /allowlist|requires|GET-only|traversal/)
+    assert.equal(internals.validatePath(path, method).decoded, path)
   }
+  assert.throws(() => internals.validatePath(root + '/%2e%2e'), /traversal/)
 })
 
 test('motion tool forwards original idempotency key and body with current identity checks', async () => {

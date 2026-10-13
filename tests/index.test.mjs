@@ -37,6 +37,10 @@ test('registers all tools and same-origin routes without contacting Host at regi
   ])
   assert.equal(createRabiRouteAgentRuntimeStatus().managerBaseUrl, '')
   assert.match(sections[0].text, /动态发现/)
+  assert.match(sections[0].text, /devices\?q=.*limit=5/)
+  assert.match(sections[0].text, /nextOffset/)
+  assert.match(sections[0].text, /列表摘要不是完整状态/)
+  assert.match(sections[0].text, /没有插件路径、方法或业务请求头白名单/)
   assert.doesNotMatch(sections[0].text, /8790/)
   assert.ok(list[2].parameters.properties.requestHeadersJson)
 })
@@ -89,19 +93,15 @@ test('discovery retry is bounded and does not use fallback ports', async () => {
   const result = await managerRequest({}, '/meta', {}, exec().signal, { hostStatus: async () => { count++; throw new Error('Host unavailable') }, fetch: async () => assert.fail('must not fetch') })
   assert.equal(count, 2); assert.equal(result.error.kind, 'connection_not_ready')
 })
-test('reject path escapes, broad prefix confusion and non-GET health', async () => {
+test('reject path escapes while leaving API selection to Rabi', async () => {
   const tool = general({ fetch: async () => assert.fail('must not fetch') })
-  for (const p of ['/api/agent/requestsEvil', '//other/api/roles/x', '/api/roles/x/../../config', '/api/roles/x/%2e%2e/config', '/api/roles/x/%252e%252e/config', '/api/roles/x%2f..%2fconfig', '/api/roles/x\\..\\config', '/api/agent/send', '/api/config']) await assert.rejects(() => tool.execute({ method: 'GET', path: p }, exec()))
-  await assert.rejects(() => tool.execute({ method: 'POST', path: '/meta' }, exec()), /GET-only/)
+  for (const p of ['//other/api/roles/x', '/api/roles/x/../../config', '/api/roles/x/%2e%2e/config', '/api/roles/x/%252e%252e/config', '/api/roles/x%2f..%2fconfig', '/api/roles/x\\..\\config']) await assert.rejects(() => tool.execute({ method: 'GET', path: p }, exec()))
   assert.equal(internals.validatePath('/api/agent/send/receipts/example', 'GET').decoded, '/api/agent/send/receipts/example')
 })
-test('storage writes require only the applicable version headers', () => {
-  assert.throws(() => internals.validateStorageHeaders('POST', '/api/roles/r/plans', {}), /Idempotency/)
-  assert.throws(() => internals.validateStorageHeaders('PATCH', '/api/roles/r/plans/p', { 'idempotency-key': 'k' }), /If-Match/)
-  assert.throws(() => internals.validateStorageHeaders('POST', '/api/roles/r/plan-statuses', { 'idempotency-key': 'k' }), /If-Match/)
-  internals.validateStorageHeaders('POST', '/api/roles/r/plans', { 'idempotency-key': 'k' })
-  for (const value of ['*', 'W/"v1"', '"a", "b"']) assert.throws(() => internals.requestHeaders(JSON.stringify({ 'If-Match': value })), /strong/)
-  assert.throws(() => internals.requestHeaders('{"Authorization":"secret"}'), /Only/)
+test('request headers accept Rabi business fields and validate HTTP syntax only', () => {
+  for (const value of ['*', 'W/"v1"', '"a", "b"']) assert.equal(internals.requestHeaders(JSON.stringify({ 'If-Match': value }))['if-match'], value)
+  assert.equal(internals.requestHeaders('{"X-Rabi-New-Field":"sample"}')['x-rabi-new-field'], 'sample')
+  for (const headers of [{ 'bad name': 'x' }, { 'X-Test': 'x\r\ny' }, { 'X-Test': 'x', 'x-test': 'y' }, { 'x-test': 1 }]) assert.throws(() => internals.requestHeaders(JSON.stringify(headers)), /HTTP names/)
 })
 test('thread normalization preserves reply contract and rejects conflicting sources', () => {
   const request = { action: 'send', sourceThreadId: 'source', sourceAgentType: 'plan_secretary', responsePolicy: 'required', responseInstruction: 'reply', deliverySource: { agentAdapter: 'dsh', sessionId: 'source' } }

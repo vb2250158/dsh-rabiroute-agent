@@ -35,7 +35,8 @@ test('built provider participates in the real DSH registry, expiry and disposal'
     assert.equal((await ctx.skills.get(skill.name, { cwd: workspace })).content, '# Build\nRun the build.')
     const listeners = []
     let tool
-    applySkillTool({ skills: ctx.skills, tools: { register(value) { tool = value }, get() { return tool } }, on(name, listener) { listeners.push(listener) } })
+    applySkillTool({ skills: ctx.skills, workingDirectory: { ensure: async () => workspace },
+      tools: { register(value) { tool = value }, get() { return tool } }, on(name, listener) { listeners.push(listener) } })
     const agent = { session: { header: { cwd: workspace }, surface: { nodes: [] }, seq: 0 } }
     const signal = new AbortController().signal
     const loaded = await tool.execute({ name: skill.name }, { agent, signal })
