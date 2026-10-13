@@ -1,5 +1,10 @@
 # 更新日志
 
+## 0.13.22 (2026-10-13)
+
+- 普通回答可经公开 Component Factory 显示为主动提问卡片；保留 Rabi 来源封套及插件缺席时的原展示。
+- Delegate ordinary answers to the optional proactive-answer.message Component Factory while retaining Rabi source envelopes and the original fallback.
+
 ## 0.13.21 (2026-10-10)
 
 - 工作区人格技能名称去掉哈希编号，使用可读的人格与技能 ID。

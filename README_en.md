@@ -23,6 +23,8 @@ Context assembly shares the sidebar's event-invalidated TTL cache and never wait
 
 # dsh-rabiroute-agent
 
+Ordinary answers use the optional `proactive-answer.message` Component Factory. Source envelopes retain this plugin's presentation; a missing factory or unmatched text retains the original message fallback.
+
 ## Plan resource archiving (0.10.0)
 
 User images and files are archived to a single bound plan automatically. With multiple plans, the Agent explicitly assigns them through a dedicated tool. Changed files are recorded on the selected step, distinguishing tool observations from Agent reports. Background archival survives restart without blocking message submission. See [plan resource archiving](PLAN-RESOURCES_en.md).

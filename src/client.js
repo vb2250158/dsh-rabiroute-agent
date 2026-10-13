@@ -96,8 +96,12 @@ export function rabiEnvelopeHeader(envelope, t) {
   return { label: `${t('fromSystem')} · ${t('eventTitle', { name: envelope.event.eventName })} · ${t('eventKind', { type: envelope.event.eventType })}`, locate: false }
 }
 
-/** Render historical or live user/steering data with public primitives and owner image presentation. */
-export function RabiMessageNodeView({ node, renderMessageImages, t, rabiSessions }) {
+/**
+ * Render source envelopes locally and delegate ordinary answers to the optional public Factory.
+ * @param props - the message, owner image/file callbacks, Factory renderer, copy locale and session service.
+ * @returns the source card, answer card or original ordinary message.
+ */
+export function RabiMessageNodeView({ node, renderMessageImages, renderFactorySlot, openFile, openSkill, t, rabiSessions }) {
   const { text, attachments, rest } = rabiContentParts(node.data.content)
   const envelope = parseRabiMessageEnvelope(text)
   const [menuOpen, setMenuOpen] = React.useState(false)
@@ -158,7 +162,7 @@ export function RabiMessageNodeView({ node, renderMessageImages, t, rabiSessions
   // folds — which is the whole point of parsing them.
   const folds = envelope !== null && envelope.sourceType !== 'agent'
   const bodyVisible = !folds || expanded
-  return React.createElement('section', { style: rabiClientStyles.row, 'data-rabi-message': sourceKind },
+  const fallback = React.createElement('section', { style: rabiClientStyles.row, 'data-rabi-message': sourceKind },
     React.createElement('div', { style: rabiClientStyles.stack },
       envelope && React.createElement('header', { style: rabiClientStyles.header },
         header.locate
@@ -185,6 +189,7 @@ export function RabiMessageNodeView({ node, renderMessageImages, t, rabiSessions
     notice && React.createElement('div', { role: notice.error ? 'alert' : 'status', style: rabiClientStyles.muted }, notice.text),
     envelope && React.createElement(Modal, { open: rawOpen, title: t('raw'), closeLabel: t('close'), onClose: () => setRawOpen(false) },
       React.createElement('pre', { style: rabiClientStyles.raw }, envelope.raw)))
+  return envelope ? fallback : renderFactorySlot('proactive-answer.message', { node, renderMessageImages, openFile, openSkill, fallback }, { fallback })
 }
 
 export const inject = ['slots', 'sessions', 'locale', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace']

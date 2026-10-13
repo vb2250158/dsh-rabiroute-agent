@@ -33,7 +33,7 @@ function harness(storage = new Map()) {
   vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
   const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
-  const render = (content, kind = 'user', extras = {}) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderMessageImages: args => { images.push(args); return { type: 'image', props: args, children: [] } } }) }
+  const render = (content, kind = 'user', extras = {}, renderFactorySlot = (_name, _props, options) => options.fallback) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderFactorySlot, renderMessageImages: args => { images.push(args); return { type: 'image', props: args, children: [] } } }) }
   const renderPlanBody = (sessionId = 'session-1') => { cursor = 0; return context.api.RabiPlanBody({ sessionId, t: planT }) }
   const renderPlanLauncher = (sessionId = 'session-1', openRabiPlanTab = () => {}, getRabiPanelView = () => ({ expanded: false, activeKind: undefined })) => { cursor = 0; return context.api.RabiPlanLauncher({ sessionId, t: planT, openRabiPlanTab, getRabiPanelView }) }
   return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, storage,
@@ -50,6 +50,22 @@ function nodes(tree, type) {
 }
 /** Let the panel's fetch-then-setState chain settle before asserting on the next render. */
 const flush = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)) }
+
+test('ordinary rows delegate optional answer presentation while source envelopes retain their renderer', () => {
+  const h = harness()
+  const answer = { type: 'answer-card', props: {}, children: [] }
+  let calls = 0
+  const factory = (name, props, options) => {
+    calls++
+    assert.equal(name, 'proactive-answer.message')
+    assert.equal(props.fallback, options.fallback)
+    assert.equal(props.node.data.content[0].text, 'answer envelope')
+    return answer
+  }
+  assert.equal(h.render([{ type: 'text', text: 'answer envelope' }], 'user', {}, factory), answer)
+  h.render([{ type: 'text', text: raw }], 'user', {}, factory)
+  assert.equal(calls, 1)
+})
 
 test('ordinary user and steering preserve text, refs, skills, attachments, unknown JSON, clock and copy', async () => {
   for (const kind of ['user', 'steering']) {
