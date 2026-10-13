@@ -14,6 +14,8 @@ This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compat
 
 v0.13.31
 
+普通回答通过可选 `proactive-answer.message` Component Factory 显示为提问回答卡片。来源封套仍由本插件处理；Factory 缺席或文本不匹配时保留原消息展示。
+
 Rabi助手模式装配 DSH 官方自动压缩、`/compact` 和工具结果裁剪，已开始的原会话在更新并重启后恢复这些能力。模型输入和输出预留共同计入上下文预算；摘要与替换沿用宿主持久事件，完整历史仍可读取。压缩只整理 DSH 会话上下文，Rabi 仍持有人格、计划、记忆与陪伴状态。
 
 工作区与路由人格的工作空间匹配时，标题右侧显示 Rabi 按钮。弹窗仅列出该工作区真实 DSH 会话绑定的计划；复用 WebGUI 的搜索与状态颜色，支持状态、标签、范围、排序和分页。计划标题仅作展示；打开绑定会话后由会话自动加载对应计划，多绑定时先选择会话。按钮发现不扫描计划。已加载页面在插件生命周期内缓存；关闭取消当前读取，保留一个轻量事件订阅。无变更时再次打开不查询；变更按角色失效，当前页只传输和合并变动行，关闭的页下次打开再校验。顺序、计数和筛选项由服务端核对，断线重连重新校验；失败保留旧数据并显示错误。`workspacePlanCachePages`（默认 32）限制缓存页数，`workspacePlanEventDelayMs`（默认 200）控制事件合并时间，均可在插件配置中调整。需要 Rabi `POST /api/roles/:roleId/plans/query` 及宿主 `sidebar.workspaces.workspace.actions` 插槽。

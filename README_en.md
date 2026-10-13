@@ -12,6 +12,8 @@ English | [简体中文](README.md)
 
 v0.13.31
 
+Ordinary answers use the optional `proactive-answer.message` Component Factory. Source envelopes retain this plugin's presentation; a missing factory or unmatched text retains the original message fallback.
+
 Rabi assistant sessions mount official DSH automatic compaction, `/compact`, and tool-result pruning. Restart after updating to restore these capabilities in existing sessions. Input and reserved output share the context budget; summaries and replacements use the host's durable events while retaining original history. Rabi continues to own persona, plans, memory, and companion state.
 
 Home-device directories return paged summaries. Start with `/api/agent/xiaomi-home/devices?q=<encoded keywords>&limit=5` or `/resources?kind=climate&limit=5`. Search covers names, descriptions, models, areas and attribute information. Follow `data.nextOffset` with the same filters; a device's `resourcesPath` discovers its entities. Read only the selected `/resources/<resourceId>` state and `/entity-actions?resourceId=...` schema. Explicit `view=detail` remains paginated. Rabi owns these queries; the plugin only injects guidance and does not restrict API access.
