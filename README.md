@@ -12,7 +12,7 @@ Hook 注入与继续处理消息统一使用 `source.kind: dsh-rabiroute-agent`�
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.31
+v0.13.32
 
 普通回答通过可选 `proactive-answer.message` Component Factory 显示为提问回答卡片。来源封套仍由本插件处理；Factory 缺席或文本不匹配时保留原消息展示。
 
@@ -292,3 +292,7 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 ## 桌宠移动（0.13.20）
 
 `rabiroute_manager_api` 支持 `POST /api/desktop-pet/roles/:roleId/motion` 和 `GET /api/desktop-pet/roles/:roleId/motion/:requestId`。请求体、Idempotency-Key 与完成状态从当前 Rabi `/api/agent/help` 获取。移动业务和动画归 Rabi；受理不代表抵达。Rabi助手模式工具集合不变，内部 runtime 接口不开放。
+
+## 宿主绑定模式
+
+启用原生 Agent Hooks 后，插件提供 `rabiAgentHooks.requireBinding(sessionId, roleId)` 服务。DS Bot 等宿主先通过 Rabi Manager 核对原会话绑定，再登记该要求；返回的 disposer 在解除关联或宿主卸载时调用。此服务不创建人格、计划、记忆或会话绑定。已登记会话的 SessionStart、UserPromptSubmit、工具前后与 Stop 共用现有 Hook 链，连接或身份失败会终止当前操作。未登记的普通会话保持既有行为。绑定会话的模型、工具和审批仍由原 DSH owner 执行。

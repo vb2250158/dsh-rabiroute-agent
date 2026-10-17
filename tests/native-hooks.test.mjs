@@ -20,11 +20,11 @@ async function fixture(reply) {
   const ctx = { effect: callback => effects.push(callback()), on: (point, listener) => handlers.set(point, listener),
     workingDirectory: { get: () => 'test-workspace' }, sessionProjections: { stateOf: () => ({ lastTurn: 1 }) },
     logger: { warn: (...args) => warnings.push(args) } }
-  installNativeHooks(ctx, {}, { request: async (_config, path, options, signal) => {
+  const hooks = installNativeHooks(ctx, {}, { request: async (_config, path, options, signal) => {
     const body = JSON.parse(options.body); requests.push({ path, body, signal })
     return reply ? reply(body, signal) : { ok: true, statusCode: 200, body: JSON.stringify({ code: 0, data: { additionalContext: 'context from Rabi' } }) }
   } })
-  return { session, handlers, requests, agent, injected, steered, warnings,
+  return { session, handlers, requests, agent, injected, steered, warnings, hooks,
     records: () => session.snapshotEvents().filter(event => event.type.startsWith('plugin:')),
     dispose: async () => { for (const effect of effects.reverse()) await effect?.(); await root.fiber.dispose() } }
 }
@@ -87,4 +87,45 @@ test('failed and uncertain responses are recorded without fabricated context or 
   const run = pending.handlers.get('tools/pre-execute')({ agent: pending.agent, name: 'test' }, async () => ({ kind: 'allow' }))
   await pending.dispose()
   assert.equal((await run).kind, 'allow'); assert.equal(pending.records().at(-1).data.outcome, 'failed')
+})
+
+test('required persona bindings fail closed and retry SessionStart without switching persona', async () => {
+  let fail = true
+  const f = await fixture(body => fail ? {ok:false,statusCode:503,error:{message:'offline'}} : {ok:true,statusCode:200,body:JSON.stringify({code:0,data:{binding:{roleId:'fixture'},additionalContext:'RABI_FULL_CONTEXT'}})})
+  const release = f.hooks.requireBinding(f.session.id, 'fixture')
+  const payload = {agent:f.agent,messages:[],turn:1,signal:new AbortController().signal}
+  let entered = false
+  try {
+    await assert.rejects(f.handlers.get('agent/pre-step')(payload,async()=>({kind:'enter',messages:[]})),/Rabi binding SessionStart failed/)
+    assert.equal(f.records().at(-1).data.outcome,'failed')
+    fail=false
+    const result=await f.handlers.get('agent/pre-step')(payload,async()=>({kind:'enter',messages:[]}))
+    assert.match(result.messages[0].content[0].text,/RABI_FULL_CONTEXT/)
+    assert.deepEqual(f.requests.map(x=>x.body.eventName),['SessionStart','SessionStart'])
+    assert.throws(()=>f.hooks.requireBinding(f.session.id,'other'),/another Rabi persona/)
+    release()
+  } finally {await f.dispose()}
+})
+
+test('required binding rejects changed persona before tool execution and keeps independent owners', async () => {
+  const f=await fixture(()=>({ok:true,statusCode:200,body:JSON.stringify({code:0,data:{binding:{roleId:'other'},additionalContext:'wrong persona'}})}))
+  const first=f.hooks.requireBinding(f.session.id,'fixture'), second=f.hooks.requireBinding(f.session.id,'fixture')
+  first()
+  let executed=false
+  try {
+    await assert.rejects(f.handlers.get('tools/pre-execute')({agent:f.agent,name:'test'},async()=>{executed=true}),/binding changed/)
+    assert.equal(executed,false);assert.equal(f.injected.length,0)
+    second()
+    await f.handlers.get('tools/pre-execute')({agent:f.agent,name:'test'},async()=>{executed=true;return {kind:'allow'}})
+    assert.equal(executed,true)
+  } finally {await f.dispose()}
+})
+
+test('required bindings do not treat failed Stop business receipts or uncertain success as completion', async () => {
+  for(const data of [{planTaskCompletion:{status:'failed'}},{completionDeliveries:[{status:'failed'}]}]){
+    const f=await fixture(()=>({ok:true,statusCode:200,body:JSON.stringify({code:0,data:{binding:{roleId:'fixture'},...data}})}));f.hooks.requireBinding(f.session.id,'fixture')
+    try{await assert.rejects(f.handlers.get('agent/turn-stopping')({agent:f.agent,turn:1}),/failed lifecycle operation/);assert.equal(f.records().at(-1).data.outcome,'failed')}finally{await f.dispose()}
+  }
+  const f=await fixture(()=>({ok:true,statusCode:200,uncertain:true,body:JSON.stringify({code:0,data:{binding:{roleId:'fixture'},additionalContext:'unconfirmed'}})}));f.hooks.requireBinding(f.session.id,'fixture')
+  try{await assert.rejects(f.handlers.get('tools/pre-execute')({agent:f.agent,name:'test'},async()=>({kind:'allow'})),/outcome is uncertain/);assert.equal(f.injected.length,0)}finally{await f.dispose()}
 })

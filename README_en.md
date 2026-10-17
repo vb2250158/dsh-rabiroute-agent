@@ -10,7 +10,7 @@ Hook context and continuation messages use `source.kind: dsh-rabiroute-agent`, r
 
 English | [简体中文](README.md)
 
-v0.13.31
+v0.13.32
 
 Ordinary answers use the optional `proactive-answer.message` Component Factory. Source envelopes retain this plugin's presentation; a missing factory or unmatched text retains the original message fallback.
 
@@ -292,3 +292,7 @@ The registered `rabi-assistant` preset provides all three Rabi tools plus offici
 ## Desktop-pet movement (0.13.20)
 
 `rabiroute_manager_api` supports `POST /api/desktop-pet/roles/:roleId/motion` and `GET /api/desktop-pet/roles/:roleId/motion/:requestId`. Read the current Rabi `/api/agent/help` for body, Idempotency-Key and completion semantics. Rabi owns motion and animation; acceptance does not prove arrival. Assistant-mode tools remain unchanged; runtime claim/result APIs are excluded.
+
+## Host binding mode
+
+With native Agent Hooks enabled, the plugin provides `rabiAgentHooks.requireBinding(sessionId, roleId)`. A host such as DS Bot verifies the original Rabi session binding before registering its requirement and calls the returned disposer on unlink or unload. This service creates no persona, plan, memory or remote session binding. Registered sessions use the existing SessionStart, UserPromptSubmit, tool and Stop Hook pipeline; connection or identity failures stop the dependent operation. Ordinary sessions retain their existing behavior. The original DSH owner continues to execute the session model, tools and approvals.

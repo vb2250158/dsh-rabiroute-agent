@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.32 (2026-10-17)
+
+- Expose host-owned Rabi persona binding requirements. Native Hooks remain the single owner of persona, memory, plan, role-skill, tool and Stop integration.
+- Required sessions stop on connection errors, changed bindings or unload cancellation. An explicit retry repeats failed SessionStart initialization without fabricating context.
+
 ## 0.13.31 (2026-10-13)
 
 - Delegate ordinary answers to the optional proactive-answer.message Component Factory while retaining Rabi source envelopes and the original fallback.

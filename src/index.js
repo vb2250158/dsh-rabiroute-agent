@@ -43,7 +43,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.30'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.32'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -177,7 +177,10 @@ export function apply(ctx, config = {}) {
   })
   const status = createRabiRouteAgentRuntimeStatus(config)
   const resolved = { ...config, managerBaseUrl: status.managerBaseUrl, enforceAgentCommunication: status.enforceAgentCommunication, requestTimeoutMs: status.requestTimeoutMs }
-  if (resolved.agentHooksEnabled !== false) ctx.inject(['sessionProjections', 'workingDirectory'], runtime => installNativeHooks(runtime, resolved))
+  if (resolved.agentHooksEnabled !== false) ctx.inject(['sessionProjections', 'workingDirectory'], runtime => {
+    const hooks = installNativeHooks(runtime, resolved)
+    runtime.effect(() => runtime.provide('rabiAgentHooks', hooks))
+  })
   const statusCache = createPlanStatusCache(resolved)
   ctx.effect(() => () => statusCache.dispose())
   if (resolved.planContextEnabled !== false) ctx.inject(['systemPrompt'], runtime => installPlanContext(runtime, statusCache, resolved))
