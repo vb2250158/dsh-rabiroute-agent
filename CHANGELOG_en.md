@@ -2,6 +2,8 @@
 
 ## 0.13.39 (2026-10-19)
 
+- Render images through conversation.images.content with the Host-authorized loadImage capability; retain the legacy gallery callback.
+
 - Use the public conversation.user.text Factory on rc.2 while retaining legacy Host projection; preserve message text, references and skills without calling a removed export.
 
 ## 0.13.38 (Unreleased)

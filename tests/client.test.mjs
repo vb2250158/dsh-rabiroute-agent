@@ -34,7 +34,7 @@ function harness(storage = new Map(), legacyProjection = true) {
   vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
   const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
-  const render = (content, kind = 'user', extras = {}, renderFactorySlot = (_name, _props, options) => options.fallback) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderFactorySlot, renderMessageImages: args => { images.push(args); return { type: 'image', props: args, children: [] } } }) }
+  const render = (content, kind = 'user', extras = {}, renderFactorySlot = (_name, _props, options) => options.fallback) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderFactorySlot, loadImage: async () => 'data:image/png;base64,fixture', renderMessageImages: legacyProjection ? args => { images.push(args); return { type: 'image', props: args, children: [] } } : undefined }) }
   const renderPlanBody = (sessionId = 'session-1') => { cursor = 0; return context.api.RabiPlanBody({ sessionId, t: planT }) }
   const renderPlanLauncher = (sessionId = 'session-1', openRabiPlanTab = () => {}, getRabiPanelView = () => ({ expanded: false, activeKind: undefined })) => { cursor = 0; return context.api.RabiPlanLauncher({ sessionId, t: planT, openRabiPlanTab, getRabiPanelView }) }
   return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, storage,
@@ -64,6 +64,19 @@ test('rc.2 messages use the user-text factory when the legacy export is absent',
   assert.equal(text.props.interactive, true)
   assert.equal(nodes(tree, 'projected').length, 1)
   assert.equal(Object.hasOwn(calls.find(call => call.name === 'proactive-answer.message').props, 'renderFactorySlot'), false)
+})
+
+test('rc.2 image messages retain authorized loading without the legacy gallery callback', () => {
+  const h = harness(new Map(), false), calls = []
+  h.render([{ type: 'image', attachment: { id: 'image-1' } }], 'user', {}, (name, props, options) => {
+    calls.push({ name, props })
+    return name === 'proactive-answer.message' ? options.fallback : null
+  })
+  const gallery = calls.find(call => call.name === 'conversation.images.content')
+  assert.equal(gallery.props.images[0].attachment.id, 'image-1')
+  assert.equal(typeof gallery.props.loadImage, 'function')
+  assert.equal(gallery.props.align, 'end')
+  assert.equal(typeof calls.find(call => call.name === 'proactive-answer.message').props.loadImage, 'function')
 })
 
 test('ordinary rows delegate optional answer presentation while source envelopes retain their renderer', () => {

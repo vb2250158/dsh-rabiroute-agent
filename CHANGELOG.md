@@ -2,6 +2,8 @@
 
 ## 0.13.39 (2026-10-19)
 
+- 图片通过公开 conversation.images.content Factory 和宿主授权的 loadImage 加载；保留旧宿主图片回调。
+
 - 兼容 rc.2 的 conversation.user.text 公开 Factory，保留旧宿主文本投影；消息内容、引用及技能展示不再调用缺失导出。
 
 ## 0.13.38 (Unreleased)
