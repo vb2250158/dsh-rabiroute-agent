@@ -63,7 +63,7 @@ test('rc.2 messages use the user-text factory when the legacy export is absent',
   assert.deepEqual(JSON.parse(JSON.stringify(text.props.facts)), { sessionLabels: ['reference'], skillNames: ['skill'] })
   assert.equal(text.props.interactive, true)
   assert.equal(nodes(tree, 'projected').length, 1)
-  assert.equal(typeof calls.find(call => call.name === 'proactive-answer.message').props.renderFactorySlot, 'function')
+  assert.equal(Object.hasOwn(calls.find(call => call.name === 'proactive-answer.message').props, 'renderFactorySlot'), false)
 })
 
 test('ordinary rows delegate optional answer presentation while source envelopes retain their renderer', () => {
