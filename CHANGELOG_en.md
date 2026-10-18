@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.39 (2026-10-19)
+
+- Use the public conversation.user.text Factory on rc.2 while retaining legacy Host projection; preserve message text, references and skills without calling a removed export.
+
 ## 0.13.38 (Unreleased)
 
 - Add explicit host opt-in for confirmed Hook snapshots isolated by session, persona, workspace and connection. Offline ordinary conversation continues; a cold cache invents no persona data.
