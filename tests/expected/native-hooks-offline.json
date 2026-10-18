@@ -1,0 +1,6 @@
+{
+  "modelCalls": 2,
+  "turns": ["completed", "completed"],
+  "requests": ["SessionStart", "UserPromptSubmit", "Stop", "UserPromptSubmit"],
+  "offlineNotice": "[Rabi 连接状态]\n本轮使用 1970-01-01T00:00:10.000Z 确认的人格上下文快照，当前实时连接未确认。下面是历史快照，不代表计划或记忆的最新状态。可以继续普通对话；实时读取、工具检查、计划修改和外发必须等待 Rabi 确认，不得声称已同步或已投递。\n\nconfirmed fixture persona"
+}

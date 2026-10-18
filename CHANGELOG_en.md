@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.38 (Unreleased)
+
+- Add explicit host opt-in for confirmed Hook snapshots isolated by session, persona, workspace and connection. Offline ordinary conversation continues; a cold cache invents no persona data.
+- Bound foreground binding, context and Stop waits, coalesce refreshes and retain real write uncertainty without replay. Tool permission and business receipts still require live confirmation; explicit rejection, cancellation and unlink remain enforced.
+- Bound private snapshots by lifetime, count and bytes, persist atomically across restarts, and expose cached/offline/unconfirmed synchronization status.
+
 ## 0.13.37 (2026-10-18)
 
 - Expose local Rabi Host discovery, status and explicit startup. A verified Host executable is remembered in machine-local adapter data; discovery checks configuration, history, the standard installation and the exact running Host, without scanning disks.
