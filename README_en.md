@@ -10,7 +10,7 @@ Hook context and continuation messages use `source.kind: dsh-rabiroute-agent`, r
 
 English | [简体中文](README.md)
 
-v0.13.35
+v0.13.36
 
 Manager rejections retain their cause. Plan recovery reports an unstarted operation only with its explicit `commitState: not_started` acknowledgement. Other server failures retain write uncertainty; neither case is replayed automatically.
 
@@ -298,3 +298,5 @@ The registered `rabi-assistant` preset provides all three Rabi tools plus offici
 ## Host binding mode
 
 With native Agent Hooks enabled, the plugin provides `rabiAgentHooks.requireBinding(sessionId, roleId)`. A host such as DS Bot verifies the original Rabi session binding before registering its requirement and calls the returned disposer on unlink or unload. This service creates no persona, plan, memory or remote session binding. Registered sessions use the existing SessionStart, UserPromptSubmit, tool and Stop Hook pipeline; connection or identity failures stop the dependent operation. Ordinary sessions retain their existing behavior. The original DSH owner continues to execute the session model, tools and approvals.
+
+Bound sessions discover and verify the current Rabi Manager on each request without a manual reconnect. A stopped Host returns `host_stopped` before dispatch. `rabiAgentHooks.statusOf(sessionId)` exposes the active Hook or last failure code until unlink or unload; it contains no persona body and does not start Rabi.

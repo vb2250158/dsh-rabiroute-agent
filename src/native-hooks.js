@@ -17,7 +17,14 @@ export function installNativeHooks(ctx, config, dependencies = {}) {
   const shutdown = new AbortController()
   const pending = new Set()
   const required = new Map()
+  const statuses = new Map()
   const bindingService = {
+    /** Latest active Hook or final failure for a required session; removed on unlink or unload. */
+    statusOf(sessionId) {
+      const status = statuses.get(sessionId)
+      const value = status && ([...status.active.values()].at(-1) ?? status.last)
+      return value ? { ...value } : null
+    },
     /** Require live Rabi context for one host-owned session; release on unlink or unload. */
     requireBinding(sessionId, roleId) {
       shutdown.signal.throwIfAborted()
@@ -27,7 +34,7 @@ export function installNativeHooks(ctx, config, dependencies = {}) {
       const owner = {}
       entry.owners.add(owner)
       required.set(sessionId, entry)
-      return () => { entry.owners.delete(owner); if (!entry.owners.size && required.get(sessionId) === entry) required.delete(sessionId) }
+      return () => { entry.owners.delete(owner); if (!entry.owners.size && required.get(sessionId) === entry) { required.delete(sessionId); statuses.delete(sessionId) } }
     },
   }
   const stateOf = session => {
@@ -38,6 +45,7 @@ export function installNativeHooks(ctx, config, dependencies = {}) {
   ctx.effect(() => async () => {
     shutdown.abort(new Error('DSH Agent Hook unloaded'))
     required.clear()
+    statuses.clear()
     await Promise.allSettled([...pending])
   })
   ctx.on('agent/created', ({ agent, source }) => { stateOf(agent.session).source = source }, { global: true })
@@ -52,8 +60,14 @@ export function installNativeHooks(ctx, config, dependencies = {}) {
       const requiredRole = required.get(agent.session.id)?.roleId
       const handlerId = randomUUID()
       const started = clock()
+      const status = requiredRole ? statuses.get(agent.session.id) ?? { active: new Map(), last: null } : null
+      if (status) {
+        statuses.set(agent.session.id, status)
+        status.last = null
+        status.active.set(handlerId, { point, state: 'running', at: started })
+      }
       append(agent.session, RECORD + 'invoked', { turn, point, handlerId, dialect: 'dsh' })
-      let outcome = 'failed', statusCode = 0, data = {}, uncertain = false, failure
+      let outcome = 'failed', statusCode = 0, data = {}, uncertain = false, failure, failureKind = 'hook_failed'
       try {
         const signal = ownerSignal ? AbortSignal.any([ownerSignal, shutdown.signal]) : shutdown.signal
         const result = await request(config, '/api/codex-hook/context', { method: 'POST',
@@ -62,7 +76,8 @@ export function installNativeHooks(ctx, config, dependencies = {}) {
             cwd: ctx.workingDirectory.get(agent.session), turnId: String(turn), ...fields }) }, signal)
         statusCode = result.statusCode
         uncertain = result.uncertain === true
-        if (requiredRole && uncertain) throw new Error('Rabi operation outcome is uncertain; read back the original receipt before continuing')
+        failureKind = result.error?.code ?? result.error?.kind ?? 'hook_failed'
+        if (requiredRole && uncertain) throw new Error('Rabi operation outcome is uncertain; read back the original receipt before continuing. ' + (result.error?.message ?? ''))
         if (!result.ok) throw new Error(result.error?.message ?? `Agent Hook HTTP ${statusCode}`)
         const body = JSON.parse(result.body)
         if (body.code !== 0 || !body.data || typeof body.data !== 'object' || Array.isArray(body.data)) throw new Error('Invalid Rabi Agent Hook response')
@@ -77,9 +92,13 @@ export function installNativeHooks(ctx, config, dependencies = {}) {
         failure = error
         ctx.logger.warn('DSH Agent Hook %s failed: %s', point, error instanceof Error ? error.message : String(error))
       }
+      if (status && statuses.get(agent.session.id) === status) {
+        status.active.delete(handlerId)
+        status.last = failure ? { point, state: 'failed', code: failureKind, uncertain, at: clock() } : null
+      }
       append(agent.session, RECORD + 'result', { turn, point, handlerId, outcome, statusCode, uncertain,
-        durationMs: Math.max(0, clock() - started) })
-      if (failure && requiredRole) throw Object.assign(new Error(`Rabi binding ${point} failed: ${failure.message ?? String(failure)}`), { code: 'rabi/binding-context' })
+        durationMs: Math.max(0, clock() - started), ...(failure ? { failureKind } : {}) })
+      if (failure && requiredRole) throw Object.assign(new Error(`Rabi binding ${point} failed: ${failure.message ?? String(failure)}`), { code: failureKind === 'host_stopped' ? 'rabi/host-stopped' : 'rabi/binding-context' })
       return data
     })()
     pending.add(task)

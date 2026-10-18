@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.36 - 2026-10-18
+
+- Expose Hook progress for bound sessions and retain typed failure causes. Report a stopped Rabi Host before dispatch, without automatic replay.
+
 ## 0.13.35 (2026-10-18)
 
 - Retain the Manager rejection cause so context read timeouts remain visible.

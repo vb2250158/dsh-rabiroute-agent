@@ -12,7 +12,7 @@ Hook 注入与继续处理消息统一使用 `source.kind: dsh-rabiroute-agent`�
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.35
+v0.13.36
 
 Manager 拒绝请求时保留具体原因；计划恢复明确返回 `commitState: not_started` 时报告尚未执行。缺少该回执的服务端失败继续保留写入不确定状态，均不自动重放。
 
@@ -298,3 +298,5 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 ## 宿主绑定模式
 
 启用原生 Agent Hooks 后，插件提供 `rabiAgentHooks.requireBinding(sessionId, roleId)` 服务。DS Bot 等宿主先通过 Rabi Manager 核对原会话绑定，再登记该要求；返回的 disposer 在解除关联或宿主卸载时调用。此服务不创建人格、计划、记忆或会话绑定。已登记会话的 SessionStart、UserPromptSubmit、工具前后与 Stop 共用现有 Hook 链，连接或身份失败会终止当前操作。未登记的普通会话保持既有行为。绑定会话的模型、工具和审批仍由原 DSH owner 执行。
+
+已绑定会话在每次请求时自动发现并核对当前 Rabi Manager，无需重复手动连接。Host 明确停止时返回 `host_stopped` 且不发送业务请求。`rabiAgentHooks.statusOf(sessionId)` 只读发布正在执行的 Hook 或最后失败代码，解除绑定或卸载后清除；不返回人格正文，也不启动 Rabi。

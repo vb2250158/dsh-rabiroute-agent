@@ -129,3 +129,23 @@ test('required bindings do not treat failed Stop business receipts or uncertain 
   const f=await fixture(()=>({ok:true,statusCode:200,uncertain:true,body:JSON.stringify({code:0,data:{binding:{roleId:'fixture'},additionalContext:'unconfirmed'}})}));f.hooks.requireBinding(f.session.id,'fixture')
   try{await assert.rejects(f.handlers.get('tools/pre-execute')({agent:f.agent,name:'test'},async()=>({kind:'allow'})),/outcome is uncertain/);assert.equal(f.injected.length,0)}finally{await f.dispose()}
 })
+
+
+test('required-session Hook status is visible while waiting, retains a typed failure and clears on unlink', async () => {
+  let release;
+  const waiting = new Promise(resolve => { release = resolve; });
+  const f = await fixture(async () => { await waiting; return { ok: false, statusCode: 0, uncertain: false, error: { kind: 'host_stopped', message: 'Rabi is not running' } }; });
+  const unlink = f.hooks.requireBinding(f.session.id, 'fixture');
+  try {
+    const pending = f.handlers.get('agent/pre-step')({ agent: f.agent, messages: [], turn: 1, signal: new AbortController().signal }, async () => ({ kind: 'enter', messages: [] }));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(f.hooks.statusOf(f.session.id).state, 'running');
+    assert.equal(f.hooks.statusOf(f.session.id).point, 'SessionStart');
+    release();
+    await assert.rejects(pending, error => error.code === 'rabi/host-stopped');
+    assert.equal(f.hooks.statusOf(f.session.id).code, 'host_stopped');
+    assert.equal(f.records().at(-1).data.failureKind, 'host_stopped');
+    unlink();
+    assert.equal(f.hooks.statusOf(f.session.id), null);
+  } finally { release(); await f.dispose(); }
+});
