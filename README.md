@@ -194,7 +194,7 @@ pnpm dsh plugin --profile web add --save-exact github:vb2250158/dsh-rabiroute-ag
     managerBaseUrl: ""
     hostExecutable: ""
     enforceAgentCommunication: true
-    requestTimeoutMs: 30000
+    requestTimeoutMs: 60000
 ```
 
 机器专属值只保存在本机，不加入共享补丁。
@@ -202,7 +202,7 @@ pnpm dsh plugin --profile web add --save-exact github:vb2250158/dsh-rabiroute-ag
 - `managerBaseUrl` 留空：每项操作经 Host `status --json` 发现当前完整地址，核对 `/meta` 的健康、必需能力及非空 generation/实例身份，与 Host 一致才发业务请求。不缓存旧地址，不扫描端口。
 - 非空 `managerBaseUrl`：显式开发/外部 Manager 的完整 HTTP(S) origin，不带路径、查询、片段或凭据；仍核对健康与身份，失败不换目标。源码模式可显式配置当前结构化 READY 地址。
 - `hostExecutable`：可选本机 Host 可执行文件。留空时 Windows 根据 `LOCALAPPDATA` 派生常规安装位置；其它平台需显式配置 Host 或 Manager。只执行只读 status，不启停服务。
-- `requestTimeoutMs`：整项操作预算，默认 30 秒，范围 1–120 秒。每次 HTTP 请求另限最多 12 秒，Host status 最多 3 秒，取消信号向下传播。
+- `requestTimeoutMs`：整项操作预算，默认 60 秒，范围 1–120 秒。业务请求与写后身份核对共用此预算，不再额外限制为 12 秒；Host status 最多 3 秒，取消信号向下传播。超时写入仍保留不确定状态，不自动重放。
 - `enforceAgentCommunication`：保留正式通信使用专用工具的约束。
 
 注册插件不访问 Host，Manager 不可用不阻止 DSH 启动。`active=true` 仅说明工具已注册，不是业务健康证明。已有显式旧地址需清空才能选择 Host 模式，不会偷偷忽略显式目标。

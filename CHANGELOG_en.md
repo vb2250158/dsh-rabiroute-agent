@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.34 (2026-10-18)
+
+- Fix ordinary requests and native Hooks aborting at a hidden 12-second cutoff. Requests share the configured operation budget, now 60 seconds by default. Preserve cancellation, identity checks and uncertain writes without automatic replay.
+
 ## 0.13.32 (2026-10-17)
 
 - Expose host-owned Rabi persona binding requirements. Native Hooks remain the single owner of persona, memory, plan, role-skill, tool and Stop integration.

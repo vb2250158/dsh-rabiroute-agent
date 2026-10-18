@@ -19,7 +19,7 @@ export const Config = z.object({
   managerBaseUrl: z.string().default(''),
   hostExecutable: z.string().default(''),
   enforceAgentCommunication: z.boolean().default(true),
-  requestTimeoutMs: z.number().default(30000),
+  requestTimeoutMs: z.number().default(60000),
   workspaceSkillsEnabled: z.boolean().default(true),
   workspacePlanCachePages: z.number().min(1).max(256).step(1).default(32),
   workspacePlanEventDelayMs: z.number().min(50).max(10000).step(1).default(200),

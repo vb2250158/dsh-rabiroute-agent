@@ -190,7 +190,7 @@ In the active profile's `cordis.patch.yml`:
     managerBaseUrl: ""
     hostExecutable: ""
     enforceAgentCommunication: true
-    requestTimeoutMs: 30000
+    requestTimeoutMs: 60000
 ```
 
 Keep machine-specific values local, outside shared patches.
@@ -198,7 +198,7 @@ Keep machine-specific values local, outside shared patches.
 - Empty `managerBaseUrl`: discover the complete current address through Host `status --json` for each operation; verify `/meta` health, required capabilities and nonempty generation/instance identities against Host before business dispatch. No stale-address cache or port scan.
 - Nonempty `managerBaseUrl`: explicitly select a development/external HTTP(S) origin without path, query, fragment or credentials. Health and identity checks remain mandatory; failure never changes target. Source mode can explicitly configure its current structured READY address.
 - `hostExecutable`: optional local Host executable. On Windows, the empty setting derives the conventional installation location from `LOCALAPPDATA`; other platforms require an explicit Host or Manager. Only read-only status is executed, never service start/stop.
-- `requestTimeoutMs`: whole-operation budget, default 30 seconds, range 1–120 seconds. Each HTTP request is capped at 12 seconds; Host status at 3 seconds. Cancellation propagates.
+- `requestTimeoutMs`: whole-operation budget, default 60 seconds, range 1–120 seconds. Business requests and post-write identity checks share this budget without a separate 12-second cutoff; Host status stays capped at 3 seconds. Cancellation propagates. Timed-out writes remain uncertain and are never replayed automatically.
 - `enforceAgentCommunication`: retain dedicated-tool enforcement for formal communication.
 
 Registration does not access Host, so Manager absence does not prevent DSH startup. `active=true` means tools registered, not business health. Clear an explicitly configured old address to select Host mode; explicit targets are never silently ignored.
