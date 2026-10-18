@@ -7,6 +7,7 @@ import { rabiAssistantPreset } from '../lib/assistant-preset.js'
 test('installed plugin registers a portable Rabi assistant preset and owns its disposal', async () => {
   const rows = [], effects = []
   const ctx = {
+    provide() {},
     effect: fn => effects.push(fn()),
     agentPresets: { register: async row => { rows.push(row); return () => rows.pop() } },
     inject: (names, fn) => { if (names.every(name => name in ctx)) fn(ctx) },

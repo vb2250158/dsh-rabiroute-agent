@@ -1,6 +1,4 @@
-import { execFile } from 'node:child_process'
-import { access } from 'node:fs/promises'
-import path from 'node:path'
+import { readHostStatus as hostStatus } from './host-control.js'
 
 export function cleanBaseUrl(value) {
   const text = String(value || '').trim().replace(/\/+$/, '')
@@ -11,16 +9,6 @@ export function cleanBaseUrl(value) {
 }
 
 export function timeoutBudget(value) { return Math.min(120000, Math.max(1000, Math.floor(Number(value) || 60000))) }
-
-async function hostStatus(config, signal) {
-  const executable = String(config.hostExecutable || '').trim() || (process.platform === 'win32' && process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'RabiRoute', 'RabiRouteHost.exe') : '')
-  if (!executable) throw new Error('Configure hostExecutable or an explicit development managerBaseUrl; no Host discovery candidate is available.')
-  await access(executable)
-  return new Promise((resolve, reject) => execFile(executable, ['--command', 'status', '--json'], { windowsHide: true, encoding: 'utf8', timeout: 3000, maxBuffer: 1024 * 1024, signal }, (error, stdout) => {
-    if (error) return reject(new Error('RabiRoute Host status failed: ' + error.message))
-    try { resolve(JSON.parse(stdout)) } catch { reject(new Error('RabiRoute Host returned invalid JSON.')) }
-  }))
-}
 
 function identity(meta) {
   if (typeof meta?.applicationGenerationId !== 'string' || !meta.applicationGenerationId.trim() || typeof meta?.managerInstanceId !== 'string' || !meta.managerInstanceId.trim()) throw new Error('RabiRoute Manager has no valid generation/instance identity.')

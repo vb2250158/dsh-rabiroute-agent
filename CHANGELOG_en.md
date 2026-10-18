@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.37 (2026-10-18)
+
+- Expose local Rabi Host discovery, status and explicit startup. A verified Host executable is remembered in machine-local adapter data; discovery checks configuration, history, the standard installation and the exact running Host, without scanning disks.
+- Activate through the official Host command without restarting an existing instance. Report launch acceptance separately from Manager readiness. Plugin activation starts no processes or Manager calls; stopped and undiscovered installations have structured states.
+
 ## 0.13.36 - 2026-10-18
 
 - Expose Hook progress for bound sessions and retain typed failure causes. Report a stopped Rabi Host before dispatch, without automatic replay.

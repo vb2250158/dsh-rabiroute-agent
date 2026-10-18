@@ -12,9 +12,11 @@ Hook 注入与继续处理消息统一使用 `source.kind: dsh-rabiroute-agent`�
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.36
+v0.13.37
 
 Manager 拒绝请求时保留具体原因；计划恢复明确返回 `commitState: not_started` 时报告尚未执行。缺少该回执的服务端失败继续保留写入不确定状态，均不自动重放。
+
+`rabiHost` 服务提供 `inspect(signal)` 与 `start(signal)`，分别读取真实状态和显式激活已发现的本机 Host。状态包括 `ready`、`stopped`、`starting`、`not-found` 与 `unavailable`；启动受理不表示 Manager 已就绪。适配器使用配置 `hostExecutable`、环境变量 `DSH_RABI_HOST_EXECUTABLE`、已记住的位置、Windows 标准安装位置和同名运行进程发现程序，不遍历磁盘。验证过的路径缓存在本机 `$DSH_HOME/plugins/dsh-rabiroute-agent/host-location.json`，不进入共享配置；`hostHistoryFile` 可覆盖缓存位置，`hostStatusTimeoutMs`（默认 3000）控制状态查询。现有 Manager 请求复用同一发现实现，每次仍核对 Host 与 Manager 身份。打开设置只读取状态，只有用户明确启动才调用官方 `--command activate`；不自动重启、安装或替换运行实例。
 
 普通回答通过可选 `proactive-answer.message` Component Factory 显示为提问回答卡片。来源封套仍由本插件处理；Factory 缺席或文本不匹配时保留原消息展示。
 

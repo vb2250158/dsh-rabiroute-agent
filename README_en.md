@@ -10,7 +10,7 @@ Hook context and continuation messages use `source.kind: dsh-rabiroute-agent`, r
 
 English | [简体中文](README.md)
 
-v0.13.36
+v0.13.37
 
 Manager rejections retain their cause. Plan recovery reports an unstarted operation only with its explicit `commitState: not_started` acknowledgement. Other server failures retain write uncertainty; neither case is replayed automatically.
 
@@ -40,6 +40,8 @@ Context assembly shares the sidebar's event-invalidated TTL cache and never wait
 
 
 # dsh-rabiroute-agent
+
+The `rabiHost` service exposes `inspect(signal)` and `start(signal)` for actual local lifecycle status and explicit activation. States are `ready`, `stopped`, `starting`, `not-found` and `unavailable`; launch acceptance does not imply Manager readiness. Discovery checks `hostExecutable`, `DSH_RABI_HOST_EXECUTABLE`, remembered paths, the standard Windows installation and the exact running Host process, without scanning disks. Verified paths are cached only in local `$DSH_HOME/plugins/dsh-rabiroute-agent/host-location.json`; `hostHistoryFile` overrides that location and `hostStatusTimeoutMs` controls status queries (default 3000). Existing Manager requests share this discovery and retain Host/Manager identity checks. Inspection never starts the Host; explicit startup uses official `--command activate` and does not restart, install or replace a running instance.
 
 ## Plan resource archiving (0.10.0)
 
@@ -284,8 +286,6 @@ Run `node --test tests/workspace-skills.test.mjs`. Set `DSH_SOURCE_ROOT` to a bu
 The plugin list shows **RabiRoute integration** in English and **RabiRoute 接入** in Chinese, following the DSH interface language. `locale/en.json` and `locale/zh.json` provide the title and description; `icon.svg` supplies self-contained artwork. The package exports and publishes these resources. The icon is adapted from Lucide; see [ICON_LICENSE.txt](ICON_LICENSE.txt).
 
 The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.
-
-
 
 ## Rabi assistant web access (0.13.25)
 
