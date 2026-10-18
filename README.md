@@ -12,7 +12,9 @@ Hook 注入与继续处理消息统一使用 `source.kind: dsh-rabiroute-agent`�
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.32
+v0.13.35
+
+Manager 拒绝请求时保留具体原因；计划恢复明确返回 `commitState: not_started` 时报告尚未执行。缺少该回执的服务端失败继续保留写入不确定状态，均不自动重放。
 
 普通回答通过可选 `proactive-answer.message` Component Factory 显示为提问回答卡片。来源封套仍由本插件处理；Factory 缺席或文本不匹配时保留原消息展示。
 

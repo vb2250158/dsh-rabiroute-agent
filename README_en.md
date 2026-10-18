@@ -10,7 +10,9 @@ Hook context and continuation messages use `source.kind: dsh-rabiroute-agent`, r
 
 English | [简体中文](README.md)
 
-v0.13.32
+v0.13.35
+
+Manager rejections retain their cause. Plan recovery reports an unstarted operation only with its explicit `commitState: not_started` acknowledgement. Other server failures retain write uncertainty; neither case is replayed automatically.
 
 Ordinary answers use the optional `proactive-answer.message` Component Factory. Source envelopes retain this plugin's presentation; a missing factory or unmatched text retains the original message fallback.
 

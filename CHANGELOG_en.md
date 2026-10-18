@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.35 (2026-10-18)
+
+- Retain the Manager rejection cause so context read timeouts remain visible.
+- Treat plan recovery rejection as unstarted only when its exact acknowledgement confirms this; retain identity checks and no replay for other failures.
+
 ## 0.13.34 (2026-10-18)
 
 - Fix ordinary requests and native Hooks aborting at a hidden 12-second cutoff. Requests share the configured operation budget, now 60 seconds by default. Preserve cancellation, identity checks and uncertain writes without automatic replay.
