@@ -2,7 +2,17 @@
 
 插件默认启用 `agentHooksEnabled`，直接监听 DSH 会话入口、用户提交、工具执行前后与轮次结束。自动化规则统一在 RabiRoute「人格 → 自动化 → Agent Hook」设置；不读取 Codex 配置，也不启动其它 Agent。Manager 返回的上下文、工具拒绝和本轮继续处理决定由 DSH 执行；继续处理每轮最多触发一次，仍受宿主权限限制。
 
-DSH 日志保存 `plugin:dsh-rabiroute-agent/hook-invoked` 与 `hook-result` 记录，供 `dsh-hook-insights` 0.2.0 起统计。记录只含阶段、关联标识、耗时、HTTP 状态与处理结果，不包含原始正文、工具参数或输出。Manager 失败、回执待核对和取消都留真实结果；不从缓存补造上下文、不自动重发。安装后需重启 DSH 并刷新页面，新轮次才产生记录。
+DSH 日志保存 `plugin:dsh-rabiroute-agent/hook-invoked` 与 `hook-result` 记录，供 `dsh-hook-insights` 0.2.0 起统计。记录只含阶段、关联标识、耗时、HTTP 状态与处理结果，不包含原始正文、工具参数或输出。Manager 失败、回执待核对和取消都留真实结果，不自动重发写操作。安装后需重启 DSH 并刷新页面，新轮次才产生记录。
+
+### 断连时的上下文快照
+
+0.13.38 起，宿主可通过 `rabiAgentHooks.requireBinding(sessionId, roleId, { allowCachedContext: true, prepareContext })` 选择缓存；同一会话的所有拥有者都须允许。`prepareContext(signal)` 在有界刷新中核对绑定，网络失败须携带 `offlineEligible: true`，显式拒绝或人格冲突仍停止依赖操作。未选择缓存的会话保持原有实时校验。`supportsContextCache` 用于能力检测，释放函数默认保留快照供重启读取；显式解绑须调用释放函数并传入 `{ forgetContext: true }`。
+
+快照仅来自已确认且绑定匹配的 SessionStart 完整上下文，可附加后续已确认的 UserPromptSubmit 上下文，按会话、人格、工作目录和连接配置隔离。失联后注明快照时间，允许普通对话；无有效快照时只使用当前对话，不补造人格、记忆或计划。工具权限、最新业务状态、投递和完成回执不从缓存取得。身份拒绝、冲突及显式解绑使对应快照失效。缓存不自动启动 Host，也不排队重放写入。
+
+`hookContextCacheEnabled` 默认 true，但仍需宿主选择。完整快照有效期 `hookContextCacheMaxAgeMs` 默认 86400000 毫秒，增量不延长完整快照寿命；文件预算 `hookContextCacheMaxBytes` 默认 2097152 字节，`hookContextCacheMaxEntries` 默认 64，每项最多 256 KiB 与 8 段上下文。`hookContextForegroundMs` 默认 1500 毫秒，超出后普通对话先继续，原请求保留到其原有超时，不重复派发；`hookContextRetryMs` 默认 15000 毫秒，在后续轮次按需重读。迟到的 Stop 继续决定仅适用于仍为当前轮次且未取消的会话。未确认同步独立报告，不冒充业务成功。
+
+快照包含私人上下文，默认保存在机器本地 `$DSH_HOME/plugins/dsh-rabiroute-agent/hook-context-cache.json`；可用 `hookContextCacheFile` 指定独立私有文件。不要将此文件纳入共享配置、插件包或 Git。写入采用独占临时文件与原子替换；损坏、超限或链接文件不用于恢复。`hook-cache-used`、`hook-sync-unconfirmed` 是额外的 ignorable 会话诊断事件，不携带原始快照正文；实际进入模型的文本仍由宿主消息日志保存。
 
 记录通过宿主传入会话的 `append()` 写入，并保留 `ignorable: true`；源码启动与构建版插件同时加载时，不跨模块调用 `Session` 私有方法。宿主须支持 `append()` 的 `ignorable` 选项。开发验收可设置 `DSH_TEST_SOURCE_ROOT` 为待测 harness 源码根目录，运行 `node --test tests/native-hooks-source-session.test.mjs`；测试使用源码会话、构建版插件和固定 Hook 回执快照，不调用真实 Manager。
 
@@ -12,7 +22,11 @@ Hook 注入与继续处理消息统一使用 `source.kind: dsh-rabiroute-agent`�
 
 This release requires DSH 0.2.1-alpha.1 or a compatible 0.2 release. See [compatibility details](docs/dsh-0.2-compatibility.md).
 
-v0.13.31
+v0.13.39
+
+Manager 拒绝请求时保留具体原因；计划恢复明确返回 `commitState: not_started` 时报告尚未执行。缺少该回执的服务端失败继续保留写入不确定状态，均不自动重放。
+
+`rabiHost` 服务提供 `inspect(signal)` 与 `start(signal)`，分别读取真实状态和显式激活已发现的本机 Host。状态包括 `ready`、`stopped`、`starting`、`not-found` 与 `unavailable`；启动受理不表示 Manager 已就绪。适配器使用配置 `hostExecutable`、环境变量 `DSH_RABI_HOST_EXECUTABLE`、已记住的位置、Windows 标准安装位置和同名运行进程发现程序，不遍历磁盘。验证过的路径缓存在本机 `$DSH_HOME/plugins/dsh-rabiroute-agent/host-location.json`，不进入共享配置；`hostHistoryFile` 可覆盖缓存位置，`hostStatusTimeoutMs`（默认 3000）控制状态查询。现有 Manager 请求复用同一发现实现，每次仍核对 Host 与 Manager 身份。打开设置只读取状态，只有用户明确启动才调用官方 `--command activate`；不自动重启、安装或替换运行实例。
 
 普通回答通过可选 `proactive-answer.message` Component Factory 显示为提问回答卡片。来源封套仍由本插件处理；Factory 缺席或文本不匹配时保留原消息展示。
 
@@ -89,7 +103,7 @@ Rabi助手模式装配 DSH 官方自动压缩、`/compact` 和工具结果裁剪
 
 功能归属遵循 Rabi 的[统一 Agent 接入规范](https://github.com/vb2250158/RabiRoute/blob/main/docs/agent-adapter-standard-requirements.md)：能由 Rabi 统一实现的业务和策略放在 Rabi，供 DSH、Codex 及其他 Agent 复用。Rabi 暂时缺接口时优先补公共接口，不在 DSH 复制业务规则、状态库或调度器。
 
-本插件只承担工具注册、请求与结果转换、连接校验和必要通信约束。必须进入 DSH 的内部事件、上下文注入、权限执行或 UI 才考虑宿主侧增强，并通过正式扩展点实现；Rabi 的业务决定不能扩大 DSH 本地权限。生命周期适配由独立 `rabi-dsh-context` Hook 负责，不在本插件重复实现。
+本插件承担工具注册、请求与结果转换、连接校验和必要通信约束。DSH 原生生命周期通过本插件的正式事件适配，Codex 生命周期仍由独立 `rabi-dsh-context` Hook 负责；Rabi 的业务决定不能扩大 DSH 本地权限。Manager 断连时无法向 DSH 交付上下文，因此已确认快照及有界等待由宿主适配层持有，业务真源和规则仍在 Rabi；不选择此增强时保持实时校验。
 
 新增需求必须说明：Rabi 为何无法直接完成、DSH 最小本地职责、业务真源、跨端共用合同、可选增强缺席时的行为及验收证据。公共能力不能要求 Codex 复制 DSH 界面，也不能把本插件的安装状态作为 Rabi 基础会话发现和投递的前提。能力说明分别标注工具接入、Hook 接入和实际业务验收，不把 API 名称当成 DSH 自有功能。
 
@@ -194,7 +208,7 @@ pnpm dsh plugin --profile web add --save-exact github:vb2250158/dsh-rabiroute-ag
     managerBaseUrl: ""
     hostExecutable: ""
     enforceAgentCommunication: true
-    requestTimeoutMs: 30000
+    requestTimeoutMs: 60000
 ```
 
 机器专属值只保存在本机，不加入共享补丁。
@@ -202,7 +216,7 @@ pnpm dsh plugin --profile web add --save-exact github:vb2250158/dsh-rabiroute-ag
 - `managerBaseUrl` 留空：每项操作经 Host `status --json` 发现当前完整地址，核对 `/meta` 的健康、必需能力及非空 generation/实例身份，与 Host 一致才发业务请求。不缓存旧地址，不扫描端口。
 - 非空 `managerBaseUrl`：显式开发/外部 Manager 的完整 HTTP(S) origin，不带路径、查询、片段或凭据；仍核对健康与身份，失败不换目标。源码模式可显式配置当前结构化 READY 地址。
 - `hostExecutable`：可选本机 Host 可执行文件。留空时 Windows 根据 `LOCALAPPDATA` 派生常规安装位置；其它平台需显式配置 Host 或 Manager。只执行只读 status，不启停服务。
-- `requestTimeoutMs`：整项操作预算，默认 30 秒，范围 1–120 秒。每次 HTTP 请求另限最多 12 秒，Host status 最多 3 秒，取消信号向下传播。
+- `requestTimeoutMs`：整项操作预算，默认 60 秒，范围 1–120 秒。业务请求与写后身份核对共用此预算，不再额外限制为 12 秒；Host status 最多 3 秒，取消信号向下传播。超时写入仍保留不确定状态，不自动重放。
 - `enforceAgentCommunication`：保留正式通信使用专用工具的约束。
 
 注册插件不访问 Host，Manager 不可用不阻止 DSH 启动。`active=true` 仅说明工具已注册，不是业务健康证明。已有显式旧地址需清空才能选择 Host 模式，不会偷偷忽略显式目标。
@@ -292,3 +306,11 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 ## 桌宠移动（0.13.20）
 
 `rabiroute_manager_api` 支持 `POST /api/desktop-pet/roles/:roleId/motion` 和 `GET /api/desktop-pet/roles/:roleId/motion/:requestId`。请求体、Idempotency-Key 与完成状态从当前 Rabi `/api/agent/help` 获取。移动业务和动画归 Rabi；受理不代表抵达。Rabi助手模式工具集合不变，内部 runtime 接口不开放。
+
+## 宿主绑定模式
+
+启用原生 Agent Hooks 后，插件提供 `rabiAgentHooks.requireBinding(sessionId, roleId)` 服务。DS Bot 等宿主先通过 Rabi Manager 核对原会话绑定，再登记该要求；返回的 disposer 在解除关联或宿主卸载时调用。此服务不创建人格、计划、记忆或会话绑定。已登记会话的 SessionStart、UserPromptSubmit、工具前后与 Stop 共用现有 Hook 链，连接或身份失败会终止当前操作。未登记的普通会话保持既有行为。绑定会话的模型、工具和审批仍由原 DSH owner 执行。
+
+已绑定会话在每次请求时自动发现并核对当前 Rabi Manager，无需重复手动连接。Host 明确停止时返回 `host_stopped` 且不发送业务请求。`rabiAgentHooks.statusOf(sessionId)` 只读发布正在执行的 Hook 或最后失败代码，解除绑定或卸载后清除；不返回人格正文，也不启动 Rabi。
+
+rc.2 文本通过公开 conversation.user.text Factory 渲染；旧宿主继续使用原文本投影。

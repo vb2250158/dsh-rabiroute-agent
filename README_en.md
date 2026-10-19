@@ -2,7 +2,17 @@
 
 `agentHooksEnabled` defaults to true. The plugin listens directly to DSH session entry, prompt submission, tool pre/post execution and turn stopping. Configure automation rules in RabiRoute under Persona → Automation → Agent Hook. It does not read Codex configuration or start another Agent. DSH applies Manager context, tool rejection and turn continuation decisions; continuation is limited to once per turn and retains host permissions.
 
-Durable `plugin:dsh-rabiroute-agent/hook-invoked` and `hook-result` records feed `dsh-hook-insights` 0.2.0. Records contain stage, correlation identity, duration, HTTP status and outcome, with no raw prompt, arguments or output. Failed, uncertain and cancelled requests retain their actual outcomes, without cached context or automatic replay. Restart DSH and refresh after installation; only new turns generate records.
+Durable `plugin:dsh-rabiroute-agent/hook-invoked` and `hook-result` records feed `dsh-hook-insights` 0.2.0. Records contain stage, correlation identity, duration, HTTP status and outcome, with no raw prompt, arguments or output. Failed, uncertain and cancelled requests retain their actual outcomes without automatically replaying writes. Restart DSH and refresh after installation; only new turns generate records.
+
+### Context snapshots while disconnected
+
+From 0.13.38, hosts can opt in with `rabiAgentHooks.requireBinding(sessionId, roleId, { allowCachedContext: true, prepareContext })`. Every owner of that session must opt in. `prepareContext(signal)` verifies bindings inside the bounded refresh; connectivity failures carry `offlineEligible: true`, while explicit rejection and persona conflicts still stop dependent operations. Other sessions retain live verification. Detect support through `supportsContextCache`. Releasing ownership preserves snapshots for restart; explicit unlink releases with `{ forgetContext: true }`.
+
+Only confirmed, matching SessionStart context creates a full snapshot. Confirmed UserPromptSubmit context may add deltas. Session, persona, working directory and connection configuration isolate entries. Offline ordinary conversation uses a dated historical snapshot; a cold cache uses only existing conversation and never invents persona, memories or plans. Cache never grants tool permission or confirms current business state, delivery or completion. Explicit rejection, conflicts and unlink invalidate snapshots. No Host startup or queued write replay occurs.
+
+`hookContextCacheEnabled` defaults to true and still requires host opt-in. Full snapshots expire after `hookContextCacheMaxAgeMs` (default 86400000); deltas do not extend that lifetime. `hookContextCacheMaxBytes` defaults to 2097152 and `hookContextCacheMaxEntries` to 64; each entry holds at most 256 KiB and eight context segments. `hookContextForegroundMs` defaults to 1500: conversation continues after that deadline while the original request retains its original timeout, without duplicate dispatch. `hookContextRetryMs` defaults to 15000 for demand-driven refresh on subsequent turns. Late Stop continuation applies only to the still-current, uncancelled turn. Unconfirmed synchronization is reported separately from business success.
+
+Private snapshots default to `$DSH_HOME/plugins/dsh-rabiroute-agent/hook-context-cache.json`; `hookContextCacheFile` selects another private file. Exclude it from shared configuration, plugin packages and Git. Exclusive temporary files and atomic replacement protect writes; corrupt, oversized and linked files provide no recovery context. Additional ignorable `hook-cache-used` and `hook-sync-unconfirmed` diagnostics contain no raw snapshot. The host logs actual model-visible context as ordinary injected messages.
 
 Records use the host-owned session's `append()` with `ignorable: true`, avoiding calls to another module's private `Session` methods when source launch and built plugins coexist. The host must support the `ignorable` append option. Set `DSH_TEST_SOURCE_ROOT` to the harness source root and run `node --test tests/native-hooks-source-session.test.mjs` to verify a source session with built hooks against a fixed receipt snapshot; the test does not call a real Manager.
 
@@ -10,7 +20,9 @@ Hook context and continuation messages use `source.kind: dsh-rabiroute-agent`, r
 
 English | [简体中文](README.md)
 
-v0.13.31
+v0.13.39
+
+Manager rejections retain their cause. Plan recovery reports an unstarted operation only with its explicit `commitState: not_started` acknowledgement. Other server failures retain write uncertainty; neither case is replayed automatically.
 
 Ordinary answers use the optional `proactive-answer.message` Component Factory. Source envelopes retain this plugin's presentation; a missing factory or unmatched text retains the original message fallback.
 
@@ -38,6 +50,8 @@ Context assembly shares the sidebar's event-invalidated TTL cache and never wait
 
 
 # dsh-rabiroute-agent
+
+The `rabiHost` service exposes `inspect(signal)` and `start(signal)` for actual local lifecycle status and explicit activation. States are `ready`, `stopped`, `starting`, `not-found` and `unavailable`; launch acceptance does not imply Manager readiness. Discovery checks `hostExecutable`, `DSH_RABI_HOST_EXECUTABLE`, remembered paths, the standard Windows installation and the exact running Host process, without scanning disks. Verified paths are cached only in local `$DSH_HOME/plugins/dsh-rabiroute-agent/host-location.json`; `hostHistoryFile` overrides that location and `hostStatusTimeoutMs` controls status queries (default 3000). Existing Manager requests share this discovery and retain Host/Manager identity checks. Inspection never starts the Host; explicit startup uses official `--command activate` and does not restart, install or replace a running instance.
 
 ## Plan resource archiving (0.10.0)
 
@@ -109,7 +123,7 @@ This plugin adapts DSH tool calls to Rabi; it is not a plan, memory, persona or 
 
 Follow Rabi's [shared Agent integration requirements](https://github.com/vb2250158/RabiRoute/blob/main/docs/agent-adapter-standard-requirements_en.md): business behavior and policies that Rabi can implement centrally belong in Rabi, for reuse by DSH, Codex and other Agents. When a Rabi API is missing, extend the shared API first rather than duplicating business rules, state stores or schedulers in DSH.
 
-This plugin owns only tool registration, request/result translation, connection checks and necessary communication constraints. Consider host enhancements only for DSH internal events, context injection, permission enforcement or UI that require host access, using supported extension points. Rabi business decisions cannot expand DSH local permissions. The separate `rabi-dsh-context` Hook owns lifecycle adaptation; do not duplicate it here.
+This plugin owns tool registration, request/result conversion, connection verification and required communication constraints. Native DSH lifecycle adaptation uses this plugin's documented events; Codex retains the separate `rabi-dsh-context` Hook. Rabi decisions cannot widen DSH local permissions. A disconnected Manager cannot deliver context to DSH, so the host adapter owns confirmed snapshots and bounded waiting while Rabi retains business data and rules. Hosts without this enhancement retain live verification.
 
 Each new requirement must identify why Rabi cannot perform it directly, DSH's minimum local responsibility, authoritative business state, the shared cross-Agent contract, behavior without optional enhancements and acceptance evidence. Shared capabilities must not require Codex to reproduce DSH UI or make this plugin's installation a prerequisite for Rabi base session discovery and delivery. Describe tool integration, Hook integration and real business acceptance separately; API names are not DSH-owned business features.
 
@@ -190,7 +204,7 @@ In the active profile's `cordis.patch.yml`:
     managerBaseUrl: ""
     hostExecutable: ""
     enforceAgentCommunication: true
-    requestTimeoutMs: 30000
+    requestTimeoutMs: 60000
 ```
 
 Keep machine-specific values local, outside shared patches.
@@ -198,7 +212,7 @@ Keep machine-specific values local, outside shared patches.
 - Empty `managerBaseUrl`: discover the complete current address through Host `status --json` for each operation; verify `/meta` health, required capabilities and nonempty generation/instance identities against Host before business dispatch. No stale-address cache or port scan.
 - Nonempty `managerBaseUrl`: explicitly select a development/external HTTP(S) origin without path, query, fragment or credentials. Health and identity checks remain mandatory; failure never changes target. Source mode can explicitly configure its current structured READY address.
 - `hostExecutable`: optional local Host executable. On Windows, the empty setting derives the conventional installation location from `LOCALAPPDATA`; other platforms require an explicit Host or Manager. Only read-only status is executed, never service start/stop.
-- `requestTimeoutMs`: whole-operation budget, default 30 seconds, range 1–120 seconds. Each HTTP request is capped at 12 seconds; Host status at 3 seconds. Cancellation propagates.
+- `requestTimeoutMs`: whole-operation budget, default 60 seconds, range 1–120 seconds. Business requests and post-write identity checks share this budget without a separate 12-second cutoff; Host status stays capped at 3 seconds. Cancellation propagates. Timed-out writes remain uncertain and are never replayed automatically.
 - `enforceAgentCommunication`: retain dedicated-tool enforcement for formal communication.
 
 Registration does not access Host, so Manager absence does not prevent DSH startup. `active=true` means tools registered, not business health. Clear an explicitly configured old address to select Host mode; explicit targets are never silently ignored.
@@ -283,8 +297,6 @@ The plugin list shows **RabiRoute integration** in English and **RabiRoute 接�
 
 The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.
 
-
-
 ## Rabi assistant web access (0.13.25)
 
 The registered `rabi-assistant` preset provides all three Rabi tools plus official `web_search` and `web_fetch`. Web tools are mounted in the preset scope; each created or resumed agent filters its inherited catalog before the first prompt assembly. Shell, generic files, browser control, generic skills and unrelated tools remain hidden and denied. Bound-persona skills stay available through Rabi. Search can still retrieve public information while Rabi is unavailable, but must never fabricate persona context or send private memories, messages or credentials as queries.
@@ -292,3 +304,11 @@ The registered `rabi-assistant` preset provides all three Rabi tools plus offici
 ## Desktop-pet movement (0.13.20)
 
 `rabiroute_manager_api` supports `POST /api/desktop-pet/roles/:roleId/motion` and `GET /api/desktop-pet/roles/:roleId/motion/:requestId`. Read the current Rabi `/api/agent/help` for body, Idempotency-Key and completion semantics. Rabi owns motion and animation; acceptance does not prove arrival. Assistant-mode tools remain unchanged; runtime claim/result APIs are excluded.
+
+## Host binding mode
+
+With native Agent Hooks enabled, the plugin provides `rabiAgentHooks.requireBinding(sessionId, roleId)`. A host such as DS Bot verifies the original Rabi session binding before registering its requirement and calls the returned disposer on unlink or unload. This service creates no persona, plan, memory or remote session binding. Registered sessions use the existing SessionStart, UserPromptSubmit, tool and Stop Hook pipeline; connection or identity failures stop the dependent operation. Ordinary sessions retain their existing behavior. The original DSH owner continues to execute the session model, tools and approvals.
+
+Bound sessions discover and verify the current Rabi Manager on each request without a manual reconnect. A stopped Host returns `host_stopped` before dispatch. `rabiAgentHooks.statusOf(sessionId)` exposes the active Hook or last failure code until unlink or unload; it contains no persona body and does not start Rabi.
+
+On rc.2, text uses the public conversation.user.text Factory; earlier Hosts retain their original text projection.

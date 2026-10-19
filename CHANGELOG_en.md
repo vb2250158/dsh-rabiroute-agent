@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.13.39 (2026-10-19)
+
+- Render images through conversation.images.content with the Host-authorized loadImage capability; retain the legacy gallery callback.
+
+- Use the public conversation.user.text Factory on rc.2 while retaining legacy Host projection; preserve message text, references and skills without calling a removed export.
+
+## 0.13.38 (Unreleased)
+
+- Add explicit host opt-in for confirmed Hook snapshots isolated by session, persona, workspace and connection. Offline ordinary conversation continues; a cold cache invents no persona data.
+- Bound foreground binding, context and Stop waits, coalesce refreshes and retain real write uncertainty without replay. Tool permission and business receipts still require live confirmation; explicit rejection, cancellation and unlink remain enforced.
+- Bound private snapshots by lifetime, count and bytes, persist atomically across restarts, and expose cached/offline/unconfirmed synchronization status.
+
+## 0.13.37 (2026-10-18)
+
+- Expose local Rabi Host discovery, status and explicit startup. A verified Host executable is remembered in machine-local adapter data; discovery checks configuration, history, the standard installation and the exact running Host, without scanning disks.
+- Activate through the official Host command without restarting an existing instance. Report launch acceptance separately from Manager readiness. Plugin activation starts no processes or Manager calls; stopped and undiscovered installations have structured states.
+
+## 0.13.36 - 2026-10-18
+
+- Expose Hook progress for bound sessions and retain typed failure causes. Report a stopped Rabi Host before dispatch, without automatic replay.
+
+## 0.13.35 (2026-10-18)
+
+- Retain the Manager rejection cause so context read timeouts remain visible.
+- Treat plan recovery rejection as unstarted only when its exact acknowledgement confirms this; retain identity checks and no replay for other failures.
+
+## 0.13.34 (2026-10-18)
+
+- Fix ordinary requests and native Hooks aborting at a hidden 12-second cutoff. Requests share the configured operation budget, now 60 seconds by default. Preserve cancellation, identity checks and uncertain writes without automatic replay.
+
+## 0.13.32 (2026-10-17)
+
+- Expose host-owned Rabi persona binding requirements. Native Hooks remain the single owner of persona, memory, plan, role-skill, tool and Stop integration.
+- Required sessions stop on connection errors, changed bindings or unload cancellation. An explicit retry repeats failed SessionStart initialization without fabricating context.
+
 ## 0.13.31 (2026-10-13)
 
 - Delegate ordinary answers to the optional proactive-answer.message Component Factory while retaining Rabi source envelopes and the original fallback.

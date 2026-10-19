@@ -9,7 +9,7 @@ const raw = '[消息源]\r\n类型：Agent｜处理端：DSH\r\n会话：Test se
 const systemRaw = ['[消息源]', '消息源类型：系统', '事件类型：agent_request_reminder', '事件名称：Agent 回复提醒', '事件 ID：ev-1', '消息包发送时间：2026/9/16 22:15:17', '投递 ID：d-1', '', '[消息内容]', 'MARKER_BODY_TEXT'].join('\n')
 const planRaw = ['[消息源]', '消息源类型：计划', '计划名称：示例计划', '计划 ID：plan-abc', '消息包发送时间：2026/9/16 22:15:17', '', '[消息内容]', 'MARKER_BODY_TEXT'].join('\n')
 
-function harness(storage = new Map()) {
+function harness(storage = new Map(), legacyProjection = true) {
   let states = [], cursor = 0
   const effects = [], projections = [], images = [], copied = [], opened = [], panelCalls = []
   let panelStream
@@ -29,11 +29,12 @@ function harness(storage = new Map()) {
   const sessions = { refresh: async () => {}, list: { getSnapshot: () => ({ phase: 'ready', ids: ['exact-id'], byId: { 'exact-id': { id: 'exact-id' } } }) }, open: id => opened.push(id) }
   const React = { Fragment: 'Fragment', createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value }] }, useRef: initial => { const index = cursor++; return states[index] ?? (states[index] = { current: initial }) }, useCallback: fn => fn, useEffect: (fn, deps) => { const index = cursor++; const previous = states[index]; if (!previous || !deps || deps.some((value, i) => !Object.is(value, previous.deps?.[i]))) { previous?.dispose?.(); const dispose = fn(); states[index] = { deps, dispose }; effects[index] = dispose } } }
   const context = { React, EventSource, MutationObserver, URL, URLSearchParams, document: { querySelector: () => panelElement, addEventListener() {}, removeEventListener() {} }, sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController, setTimeout, clearTimeout }
+  if (!legacyProjection) context.projectUserText = undefined
   vm.createContext(context)
   vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
   const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
-  const render = (content, kind = 'user', extras = {}, renderFactorySlot = (_name, _props, options) => options.fallback) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderFactorySlot, renderMessageImages: args => { images.push(args); return { type: 'image', props: args, children: [] } } }) }
+  const render = (content, kind = 'user', extras = {}, renderFactorySlot = (_name, _props, options) => options.fallback) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderFactorySlot, loadImage: async () => 'data:image/png;base64,fixture', renderMessageImages: legacyProjection ? args => { images.push(args); return { type: 'image', props: args, children: [] } } : undefined }) }
   const renderPlanBody = (sessionId = 'session-1') => { cursor = 0; return context.api.RabiPlanBody({ sessionId, t: planT }) }
   const renderPlanLauncher = (sessionId = 'session-1', openRabiPlanTab = () => {}, getRabiPanelView = () => ({ expanded: false, activeKind: undefined })) => { cursor = 0; return context.api.RabiPlanLauncher({ sessionId, t: planT, openRabiPlanTab, getRabiPanelView }) }
   return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, storage,
@@ -50,6 +51,33 @@ function nodes(tree, type) {
 }
 /** Let the panel's fetch-then-setState chain settle before asserting on the next render. */
 const flush = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)) }
+
+test('rc.2 messages use the user-text factory when the legacy export is absent', () => {
+  const h = harness(new Map(), false), calls = []
+  const tree = h.render([{ type: 'text', text: 'hello @reference /skill' }], 'user', {}, (name, props, options) => {
+    calls.push({ name, props })
+    return name === 'conversation.user.text' ? { type: 'projected', props: {}, children: [props.text] } : options.fallback
+  })
+  const text = calls.find(call => call.name === 'conversation.user.text')
+  assert.equal(text.props.text, 'hello @reference /skill')
+  assert.deepEqual(JSON.parse(JSON.stringify(text.props.facts)), { sessionLabels: ['reference'], skillNames: ['skill'] })
+  assert.equal(text.props.interactive, true)
+  assert.equal(nodes(tree, 'projected').length, 1)
+  assert.equal(Object.hasOwn(calls.find(call => call.name === 'proactive-answer.message').props, 'renderFactorySlot'), false)
+})
+
+test('rc.2 image messages retain authorized loading without the legacy gallery callback', () => {
+  const h = harness(new Map(), false), calls = []
+  h.render([{ type: 'image', attachment: { id: 'image-1' } }], 'user', {}, (name, props, options) => {
+    calls.push({ name, props })
+    return name === 'proactive-answer.message' ? options.fallback : null
+  })
+  const gallery = calls.find(call => call.name === 'conversation.images.content')
+  assert.equal(gallery.props.images[0].attachment.id, 'image-1')
+  assert.equal(typeof gallery.props.loadImage, 'function')
+  assert.equal(gallery.props.align, 'end')
+  assert.equal(typeof calls.find(call => call.name === 'proactive-answer.message').props.loadImage, 'function')
+})
 
 test('ordinary rows delegate optional answer presentation while source envelopes retain their renderer', () => {
   const h = harness()

@@ -13,13 +13,23 @@ import { createSpeechHandler, SPEECH_PATH } from './speech.js'
 import { createAsrHandler, SPEECH_ASR_PATH } from './speech-asr.js'
 import { rabiAssistantPreset } from './assistant-preset.js'
 import { installNativeHooks } from './native-hooks.js'
+import { createHostController } from './host-control.js'
 
 export const Config = z.object({
   agentHooksEnabled: z.boolean().default(true),
+  hookContextCacheEnabled: z.boolean().default(true),
+  hookContextCacheFile: z.string().default(''),
+  hookContextCacheMaxAgeMs: z.number().min(1000).max(2592000000).step(1).default(86400000),
+  hookContextCacheMaxBytes: z.number().min(4096).max(16777216).step(1).default(2097152),
+  hookContextCacheMaxEntries: z.number().min(1).max(512).step(1).default(64),
+  hookContextForegroundMs: z.number().min(1).max(120000).step(1).default(1500),
+  hookContextRetryMs: z.number().min(1000).max(300000).step(1).default(15000),
   managerBaseUrl: z.string().default(''),
   hostExecutable: z.string().default(''),
+  hostHistoryFile: z.string().default(''),
+  hostStatusTimeoutMs: z.number().min(1000).max(120000).step(1).default(3000),
   enforceAgentCommunication: z.boolean().default(true),
-  requestTimeoutMs: z.number().default(30000),
+  requestTimeoutMs: z.number().default(60000),
   workspaceSkillsEnabled: z.boolean().default(true),
   workspacePlanCachePages: z.number().min(1).max(256).step(1).default(32),
   workspacePlanEventDelayMs: z.number().min(50).max(10000).step(1).default(200),
@@ -43,7 +53,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.30'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.38'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
@@ -177,7 +187,11 @@ export function apply(ctx, config = {}) {
   })
   const status = createRabiRouteAgentRuntimeStatus(config)
   const resolved = { ...config, managerBaseUrl: status.managerBaseUrl, enforceAgentCommunication: status.enforceAgentCommunication, requestTimeoutMs: status.requestTimeoutMs }
-  if (resolved.agentHooksEnabled !== false) ctx.inject(['sessionProjections', 'workingDirectory'], runtime => installNativeHooks(runtime, resolved))
+  ctx.effect(() => ctx.provide('rabiHost', createHostController(resolved, { managerStatus: (signal, descriptor) => managerRequest(resolved, '/meta', { method: 'GET' }, signal, descriptor ? { hostStatus: async () => descriptor } : {}) })))
+  if (resolved.agentHooksEnabled !== false) ctx.inject(['sessionProjections', 'workingDirectory'], runtime => {
+    const hooks = installNativeHooks(runtime, resolved)
+    runtime.effect(() => runtime.provide('rabiAgentHooks', hooks))
+  })
   const statusCache = createPlanStatusCache(resolved)
   ctx.effect(() => () => statusCache.dispose())
   if (resolved.planContextEnabled !== false) ctx.inject(['systemPrompt'], runtime => installPlanContext(runtime, statusCache, resolved))

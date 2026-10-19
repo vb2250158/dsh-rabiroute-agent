@@ -1,6 +1,4 @@
-import { execFile } from 'node:child_process'
-import { access } from 'node:fs/promises'
-import path from 'node:path'
+import { readHostStatus as hostStatus } from './host-control.js'
 
 export function cleanBaseUrl(value) {
   const text = String(value || '').trim().replace(/\/+$/, '')
@@ -10,17 +8,7 @@ export function cleanBaseUrl(value) {
   return url.origin
 }
 
-export function timeoutBudget(value) { return Math.min(120000, Math.max(1000, Math.floor(Number(value) || 30000))) }
-
-async function hostStatus(config, signal) {
-  const executable = String(config.hostExecutable || '').trim() || (process.platform === 'win32' && process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'RabiRoute', 'RabiRouteHost.exe') : '')
-  if (!executable) throw new Error('Configure hostExecutable or an explicit development managerBaseUrl; no Host discovery candidate is available.')
-  await access(executable)
-  return new Promise((resolve, reject) => execFile(executable, ['--command', 'status', '--json'], { windowsHide: true, encoding: 'utf8', timeout: 3000, maxBuffer: 1024 * 1024, signal }, (error, stdout) => {
-    if (error) return reject(new Error('RabiRoute Host status failed: ' + error.message))
-    try { resolve(JSON.parse(stdout)) } catch { reject(new Error('RabiRoute Host returned invalid JSON.')) }
-  }))
-}
+export function timeoutBudget(value) { return Math.min(120000, Math.max(1000, Math.floor(Number(value) || 60000))) }
 
 function identity(meta) {
   if (typeof meta?.applicationGenerationId !== 'string' || !meta.applicationGenerationId.trim() || typeof meta?.managerInstanceId !== 'string' || !meta.managerInstanceId.trim()) throw new Error('RabiRoute Manager has no valid generation/instance identity.')
@@ -82,8 +70,7 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
   else callerSignal?.addEventListener('abort', abort, { once: true })
   const fetcher = dependencies.fetch || globalThis.fetch
   const request = async (url, options = {}) => {
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(12000)])
-    const response = await fetcher(url, { ...options, signal, redirect: 'error' })
+    const response = await fetcher(url, { ...options, signal: controller.signal, redirect: 'error' })
     let body
     const contentType = response.headers.get('content-type') || ''
     if (contentType && !/^(?:text\/|application\/(?:[^;]+\+)?json\b|application\/(?:xml|javascript|x-www-form-urlencoded)\b)/i.test(contentType)) {
@@ -111,6 +98,7 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
         const explicit = cleanBaseUrl(config.managerBaseUrl)
         const descriptor = explicit ? null : await (dependencies.hostStatus || hostStatus)(config, controller.signal)
         base = explicit || cleanBaseUrl(descriptor?.managerBaseUrl)
+        if (descriptor?.state === 'stopped') throw Object.assign(new Error('Rabi is not running. Start Rabi, then send your message again.'), { kind: 'host_stopped' })
         if (!base) throw new Error('Host has no active Manager URL.')
         observedMeta = await metaAt(base)
         before = observedMeta.identity
@@ -137,10 +125,15 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
     } catch (error) {
       return { statusCode: 0, ok: false, body: '{}', headers: {}, etag: '', identity: before, uncertain: write, error: { kind: write ? 'write_outcome_uncertain' : 'request_failed', message: error.message + (write ? ' Keep the original request and idempotency key; read back before retrying.' : '') } }
     }
+    const rejectedBeforeStart = method === 'POST' && pathname === '/api/codex-hook/context'
+      && result.statusCode === 503 && result.parsed?.error === 'PLAN_STORAGE_STARTUP_UNAVAILABLE'
+      && result.parsed?.commitState === 'not_started'
+    const rejectionCode = typeof result.parsed?.error === 'string' ? result.parsed.error : undefined
+    const rejectionCause = typeof result.parsed?.message === 'string' ? result.parsed.message.trim().slice(0, 1000) : ''
     delete result.parsed
     result.identity = before
-    result.uncertain = write && result.statusCode >= 500
-    if (!result.ok) result.error = { kind: result.uncertain ? 'write_outcome_uncertain' : 'manager_rejected', message: 'Manager HTTP ' + result.statusCode + '; inspect the original response body. No automatic replay was performed.' }
+    result.uncertain = write && result.statusCode >= 500 && !rejectedBeforeStart
+    if (!result.ok) result.error = { kind: result.uncertain ? 'write_outcome_uncertain' : 'manager_rejected', ...(rejectionCode ? { code: rejectionCode } : {}), message: 'Manager HTTP ' + result.statusCode + (rejectionCause ? ': ' + rejectionCause : '; inspect the original response body.') + ' No automatic replay was performed.' }
     if (write) {
       try {
         if (!same(before, (await metaAt(base)).identity)) throw new Error('Manager identity changed after the write.')
@@ -152,7 +145,7 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
     }
     return result
   } catch (error) {
-    return { statusCode: 0, ok: false, body: '{}', headers: {}, etag: '', uncertain: false, error: { kind: 'connection_not_ready', message: error.message + ' No business request was sent; an old endpoint failure does not prove Manager is offline.' } }
+    return { statusCode: 0, ok: false, body: '{}', headers: {}, etag: '', uncertain: false, error: { kind: error.kind === 'host_stopped' ? 'host_stopped' : 'connection_not_ready', message: error.message + ' No business request was sent; an old endpoint failure does not prove Manager is offline.' } }
   } finally {
     clearTimeout(timer)
     callerSignal?.removeEventListener('abort', abort)

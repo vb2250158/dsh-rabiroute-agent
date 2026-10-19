@@ -107,3 +107,15 @@ test('post-write changed or unverifiable identities stay uncertain without repla
     assert.equal(JSON.parse(result.body).id, 'plan')
   }
 })
+
+
+test('a stopped Host is reported explicitly without dispatching a business request', async () => {
+  let sent = 0;
+  const result = await managerRequest({}, '/api/codex-hook/context', { method: 'POST' }, undefined, {
+    hostStatus: async () => ({ ok: true, state: 'stopped' }),
+    fetch: async () => { sent++; throw new Error('unexpected request'); },
+  });
+  assert.equal(result.error.kind, 'host_stopped');
+  assert.equal(result.uncertain, false);
+  assert.equal(sent, 0);
+});
