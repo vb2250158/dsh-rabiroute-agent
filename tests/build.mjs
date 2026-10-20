@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 await mkdir(new URL('lib/', root), { recursive: true })
 await copyFile(new URL('src/native-hooks.js', root), new URL('lib/native-hooks.js', root))
+await copyFile(new URL('src/hook-context-cache.js', root), new URL('lib/hook-context-cache.js', root))
 await copyFile(new URL('src/host-control.js', root), new URL('lib/host-control.js', root))
 for (const name of ['plan-advance.js', 'workspace-plan-delta.js', 'workspace-plans.js', 'plan-resources.js', 'plan-resources-install.js', 'plan-context.js', 'plan-events.js', 'plan-status.js', 'workspace-skills.js', 'index.js', 'connection.js', 'plan-panel.js', 'locate-agent.js', 'speech.js', 'speech-asr.js', 'message-mode.js', 'assistant-mode.js', 'assistant-preset.js']) await copyFile(new URL('src/' + name, root), new URL('lib/' + name, root))
 

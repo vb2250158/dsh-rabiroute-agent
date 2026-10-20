@@ -101,7 +101,7 @@ export function rabiEnvelopeHeader(envelope, t) {
  * @param props - the message, owner image/file callbacks, Factory renderer, copy locale and session service.
  * @returns the source card, answer card or original ordinary message.
  */
-export function RabiMessageNodeView({ node, renderMessageImages, renderFactorySlot, openFile, openSkill, t, rabiSessions }) {
+export function RabiMessageNodeView({ node, renderMessageImages, loadImage, renderFactorySlot, openFile, openSkill, t, rabiSessions }) {
   const { text, attachments, rest } = rabiContentParts(node.data.content)
   const envelope = parseRabiMessageEnvelope(text)
   const [menuOpen, setMenuOpen] = React.useState(false)
@@ -153,7 +153,9 @@ export function RabiMessageNodeView({ node, renderMessageImages, renderFactorySl
   // is the expensive part and whose output is not on screen anyway.
   const body = () => React.createElement(React.Fragment, null,
     (displayedText !== '' || rest.length > 0) && React.createElement('div', { style: rabiClientStyles.bubble },
-      projectUserText(displayedText, referenceLabels, skillNames),
+      typeof projectUserText === 'function'
+        ? projectUserText(displayedText, referenceLabels, skillNames)
+        : renderFactorySlot('conversation.user.text', { text: displayedText, facts: { sessionLabels: referenceLabels, skillNames }, interactive: true }),
       rest.map((block, index) => React.createElement(JsonBlock, { key: index, payload: block, label: t('extra'), truncatedLabel: total => t('truncated', { total }) }))),
     referenceLabels.length > 0 && React.createElement('div', { style: rabiClientStyles.muted }, t('references', { labels: referenceLabels.join(t('separator')) })))
   // An `agent` envelope keeps its body visible: that row's header is a locate
@@ -177,7 +179,9 @@ export function RabiMessageNodeView({ node, renderMessageImages, renderFactorySl
         })),
       attachments.length > 0 && React.createElement('div', { style: rabiClientStyles.attachments, 'data-message-attachments': true },
         attachments.map((attachment, index) => attachment.type === 'image'
-          ? React.createElement(React.Fragment, { key: `image:${index}` }, renderMessageImages({ images: [attachment.image], align: 'end', compact: attachments.length > 1 }))
+          ? React.createElement(React.Fragment, { key: `image:${index}` }, typeof renderMessageImages === 'function'
+            ? renderMessageImages({ images: [attachment.image], align: 'end', compact: attachments.length > 1 })
+            : renderFactorySlot('conversation.images.content', { images: [attachment.image], loadImage, align: 'end', compact: attachments.length > 1 }))
           : React.createElement('span', { key: `file:${index}`, style: rabiClientStyles.file, title: attachment.file.name },
             React.createElement('span', null, attachment.file.name),
             React.createElement('span', { style: rabiClientStyles.muted }, [attachment.file.mediaType, fileSizeText(attachment.file.bytes)].filter(Boolean).join(' · '))))),
@@ -189,7 +193,7 @@ export function RabiMessageNodeView({ node, renderMessageImages, renderFactorySl
     notice && React.createElement('div', { role: notice.error ? 'alert' : 'status', style: rabiClientStyles.muted }, notice.text),
     envelope && React.createElement(Modal, { open: rawOpen, title: t('raw'), closeLabel: t('close'), onClose: () => setRawOpen(false) },
       React.createElement('pre', { style: rabiClientStyles.raw }, envelope.raw)))
-  return envelope ? fallback : renderFactorySlot('proactive-answer.message', { node, renderMessageImages, openFile, openSkill, fallback }, { fallback })
+  return envelope ? fallback : renderFactorySlot('proactive-answer.message', { node, renderMessageImages, loadImage, openFile, openSkill, fallback }, { fallback })
 }
 
 export const inject = ['slots', 'sessions', 'locale', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace']
