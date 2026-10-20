@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.40 (2026-10-20)
+
+- Checkpoint changed archive failure descriptions together at the end of each retry pass. Unchanged failures no longer rewrite the queue, reducing background disk and memory work during initial loading.
+- Reconcile uncertain attachment transactions using their saved digest without rereading attachments. Persist each outgoing transaction and idempotency key before sending, retain unconfirmed resources and prevent automatic replay.
+- Load the JSONL persistence plugin through its current named exports in real DSH loop tests.
+
 ## 0.13.39 (2026-10-19)
 
 - Render images through conversation.images.content with the Host-authorized loadImage capability; retain the legacy gallery callback.

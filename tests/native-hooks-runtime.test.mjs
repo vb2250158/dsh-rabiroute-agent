@@ -36,7 +36,7 @@ test('the real DSH loop completes an offline cached reply and restores its exact
   root.provide('workingDirectory', { get: () => 'fixture-workspace', ensure: async () => 'fixture-workspace' })
   try {
     for (const name of ['llm', 'session', 'session-projection', 'system-prompt', 'tools', 'agent']) await root.plugin(profile('@deepseek-ai/dsh-' + name).default, name === 'tools' ? { mode: 'native' } : {})
-    await root.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl').default, { root: storageRoot, compression: 'none' })
+    await root.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl'), { root: storageRoot, compression: 'none' })
     await root.plugin(profile('@deepseek-ai/dsh-agent-loop').default, { agents: [] })
     await root.plugin({ inject: ['sessionProjections', 'workingDirectory'], apply(ctx) {
       hooks = installNativeHooks(ctx, { hookContextCacheFile: join(storageRoot, 'private-cache.json'), hookContextForegroundMs: 1000 }, {
@@ -65,7 +65,7 @@ test('the real DSH loop completes an offline cached reply and restores its exact
     await root.sessions.flush(agent.session); await root.fiber.dispose()
     const reader = new Context()
     try {
-      await reader.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl').default, { root: storageRoot, compression: 'none' })
+      await reader.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl'), { root: storageRoot, compression: 'none' })
       const handle = await reader.sessionPersistence.open(agent.session.id, 'read')
       try {
         const stored = (await handle.read()).events
@@ -89,7 +89,7 @@ test('built native hooks participate in the real DSH loop, preserve model contex
     for (const name of ['llm', 'session', 'session-projection', 'system-prompt', 'tools', 'agent']) {
       await root.plugin(profile('@deepseek-ai/dsh-' + name).default, name === 'tools' ? { mode: 'native' } : {})
     }
-    await root.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl').default, { root: storageRoot, compression: 'none' })
+    await root.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl'), { root: storageRoot, compression: 'none' })
     await root.plugin(profile('@deepseek-ai/dsh-agent-loop').default, { agents: [] })
     await root.plugin({ inject: ['sessionProjections', 'workingDirectory'], apply(ctx) {
       installNativeHooks(ctx, {}, { request: async (_config, _path, options) => {
@@ -123,7 +123,7 @@ test('built native hooks participate in the real DSH loop, preserve model contex
     await root.fiber.dispose()
     const reader = new Context()
     try {
-      await reader.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl').default, { root: storageRoot, compression: 'none' })
+      await reader.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl'), { root: storageRoot, compression: 'none' })
       const handle = await reader.sessionPersistence.open(agent.session.id, 'read')
       try {
         const stored = (await handle.read()).events
