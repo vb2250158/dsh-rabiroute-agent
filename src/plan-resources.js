@@ -101,7 +101,7 @@ export function createPlanResources(config, cache, attachments, dependencies = {
   }
   async function deliver(item, signal) {
     const target = item.target
-    const bytes = item.kind === 'attachment' ? await content(item, signal) : undefined
+    const bytes = item.kind === 'attachment' && !item.uncertain ? await content(item, signal) : undefined
     if (bytes) item.sha256 = hash(bytes)
     const { plan, etag } = await readPlan(target, item.sessionId, signal)
     if (present(plan, item)) { items.delete(item.id); await save(); return }
@@ -139,18 +139,29 @@ export function createPlanResources(config, cache, attachments, dependencies = {
     running = (async () => {
       await ready
       await serial
-      for (const item of items.values()) {
-        if (closed) break
-        if (!item.target) {
-          const found = plans(item.sessionId)
-          if (item.kind !== 'attachment' || !found.fresh || found.values.length !== 1 || item.requiresChoice) continue
-          item.target = { roleId: found.values[0].roleId, planId: found.values[0].planId }
-          await save()
+      let errorsChanged = false
+      try {
+        for (const item of items.values()) {
+          if (closed) break
+          if (!item.target) {
+            const found = plans(item.sessionId)
+            if (item.kind !== 'attachment' || !found.fresh || found.values.length !== 1 || item.requiresChoice) continue
+            item.target = { roleId: found.values[0].roleId, planId: found.values[0].planId }
+            await save()
+          }
+          inFlight.add(item.id)
+          try { await deliver(item, AbortSignal.timeout(config.planResourceTimeoutMs ?? 12000)) }
+          catch (error) {
+            if (item.error !== error.message) {
+              item.error = error.message
+              errorsChanged = true
+            }
+          }
+          finally { inFlight.delete(item.id) }
         }
-        inFlight.add(item.id)
-        try { await deliver(item, AbortSignal.timeout(config.planResourceTimeoutMs ?? 12000)) }
-        catch (error) { item.error = error.message; await save() }
-        finally { inFlight.delete(item.id) }
+      } finally {
+        // Failure descriptions share one checkpoint; transaction intent is still saved before each write.
+        if (errorsChanged) await save()
       }
     })().finally(() => { running = null })
     running.catch(error => { failure = error.message })

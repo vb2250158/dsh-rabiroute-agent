@@ -10,4 +10,6 @@
 
 `planResourcesEnabled` 默认开启。`planResourcesDirectory` 默认位于当前 DSH 数据目录的 `storages/rabiroute-plan-resources`；`planResourceRetryMs` 默认 30000；`planResourceTimeoutMs` 默认 12000；`planResourceMaxBytes` 默认 10485760。超过单文件限制的材料保留在 DSH，并显示待归档错误。队列中的 `pending` 清空才表示相关材料已确认保存。不要手工删除待发送队列。
 
+失败说明在每轮重试结束时合并落盘；相同失败不重复写入整份队列。不确定事务的回读使用已保存的摘要，不重新读取附件；对外写入前仍逐笔保存事务和幂等键。
+
 需要支持步骤资源记录和分批追加附件的 Rabi 版本。旧服务拒绝或丢弃新字段时，插件保留待确认状态，不报告成功。原计划附件保留，新上传仍遵守单次最多 8 个、每文件 10 MiB、单次内容总量 25 MiB 的服务限制。

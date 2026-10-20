@@ -107,6 +107,58 @@ test('uncertain requests are retained and not replayed on the next flush', async
   assert.equal(saved.items[0].transaction.body, f.writes[0].body)
 })
 
+test('uncertain attachment reconciliation does not reread the attachment', async t => {
+  const f = await fixture(t)
+  f.setUncertain(true)
+  f.service.capture(f.session, f.event)
+  await f.service.flush()
+  await f.service.dispose()
+  const restored = createPlanResources({ planResourcesDirectory: f.directory }, { get: () => ({}) }, {
+    readImage() { throw new Error('Attachment must not be read during reconciliation') },
+  }, { request: async (_url, init) => {
+    assert.equal(init.method, 'GET')
+    return { ok: true, body: JSON.stringify({ data: f.plans[0] }), etag: '"revision"' }
+  } })
+  t.after(() => restored.dispose())
+  await restored.flush()
+  assert.match(restored.status(f.session.id).pending[0].error, /Previous archive write is uncertain/)
+  assert.equal(f.writes.length, 1)
+})
+
+test('failed retries checkpoint changed errors once and leave unchanged failures on disk', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'rabi-resource-retries-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const items = Array.from({ length: 3 }, (_, index) => ({
+    id: `pending-${index}`, kind: 'attachment', sessionId: 'session-test',
+    target: { roleId: 'r', planId: 'p' }, uncertain: true,
+    transaction: { key: `request-${index}`, etag: '"revision"', body: `retained-${index}` },
+  }))
+  const file = path.join(directory, 'pending.json')
+  await writeFile(file, JSON.stringify({ version: 1, items }))
+  const stringify = JSON.stringify
+  let checkpoints = 0
+  t.mock.method(JSON, 'stringify', (value, ...args) => {
+    if (value?.version === 1 && Array.isArray(value.items)) checkpoints++
+    return stringify(value, ...args)
+  })
+  const service = createPlanResources({ planResourcesDirectory: directory }, {}, {
+    readImage() { throw new Error('Uncertain attachments are readback-only') },
+  }, { request: async (_url, init) => {
+    assert.equal(init.method, 'GET')
+    return { ok: false }
+  } })
+  t.after(() => service.dispose())
+  await service.flush()
+  assert.equal(checkpoints, 1)
+  const saved = await readFile(file, 'utf8')
+  assert.deepEqual(JSON.parse(saved).items, items.map(item => ({
+    ...item, error: 'Plan details unavailable; resources remain pending.',
+  })))
+  await service.flush()
+  assert.equal(checkpoints, 1)
+  assert.equal(await readFile(file, 'utf8'), saved)
+})
+
 test('changed files require a selected step, preserve its text, and reject outside paths', async t => {
   const f = await fixture(t)
   await writeFile(path.join(f.directory, 'code.txt'), 'changed')
