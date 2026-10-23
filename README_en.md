@@ -87,7 +87,7 @@ Rabi owns messages, sessions and plans. DSH owns the picker and local tool enfor
 
 After installing a fixed Git revision, copy the installed package's two `presets/message-processing/` YAML files into the actual DSH Home's `.agent-presets/message-processing/`. Inspect an existing preset before changing it; do not overwrite user configuration. The preset references the package export `dsh-rabiroute-agent/message-mode` without copying runtime code. Alternatively append the installed package's `presets/` directory to `agent-presets.config.roots`, preserving existing roots and the default. Official discovery supplies the picker; select the mode for a new session. Sessions with recorded messages cannot switch presets. Missing Rabi tools or missing `tools.guard`, `tools.restrict` or `tools.presentAs` support fail mounting explicitly.
 
-Run `npm test`, then set `DSH_SOURCE_ROOT` to a built official checkout and run `node --test tests/message-mode.integration.mjs` for real tool-runtime scope, denial, Rabi forwarding and disposal checks. Manager receipts in that test are simulated; installation, visible UI and real business delivery require separate acceptance.
+Run `npm test`, then set `DSH_SOURCE_ROOT` to an rc.3 source checkout and run `node --test tests/message-mode.rc3.integration.mjs` for real tool-runtime scope, denial, Rabi forwarding and disposal checks. Manager receipts in that test are simulated; installation, visible UI and real business delivery require separate acceptance.
 
 ## Reply mini player (0.5.0)
 

@@ -1,4 +1,4 @@
-// Run against a built official checkout: DSH_SOURCE_ROOT=<checkout> node --test tests/message-mode.integration.mjs
+// Legacy pre-rc.3 fixture. Current rc.3 check: DSH_SOURCE_ROOT=<checkout> node --test tests/message-mode.rc3.integration.mjs
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { resolve } from 'node:path'

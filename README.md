@@ -87,7 +87,7 @@ Rabi助手模式装配 DSH 官方自动压缩、`/compact` 和工具结果裁剪
 
 安装新插件固定 Git 提交后，将已安装包的 `presets/message-processing/` 两个 YAML 文件复制到实际 DSH Home 的 `.agent-presets/message-processing/`；存在同名预设时先核对，不覆盖用户配置。预设只引用包导出 `dsh-rabiroute-agent/message-mode`，不复制运行代码。也可把已安装包的 `presets/` 追加到现有 `agent-presets.config.roots`，保留其他根与默认模式。官方预设发现负责显示菜单，新会话选择此模式；已有消息的会话不能切换模式。需要提供 `tools.guard`、`tools.restrict`、`tools.presentAs` 的 DSH，缺少接口或未注册 Rabi 工具时拒绝启动该模式。
 
-`npm test` 验证接口和预设；在已构建的官方源码环境设置 `DSH_SOURCE_ROOT` 后运行 `node --test tests/message-mode.integration.mjs`，验证实际工具运行时的作用域、拒绝、Rabi 转发及卸载。集成测试使用模拟 Manager 回执，不对外发消息；本机安装、菜单显示和真实业务验收另行报告。
+`npm test` 验证接口和预设；设置 `DSH_SOURCE_ROOT` 指向 rc.3 源码后运行 `node --test tests/message-mode.rc3.integration.mjs`，验证实际工具运行时的作用域、拒绝、Rabi 转发及卸载。集成测试使用模拟 Manager 回执，不对外发消息；本机安装、菜单显示和真实业务验收另行报告。
 
 工作区 Rabi 计划弹窗提供“检查推进”和“推进设置”。规则按人格工作区保存，每种计划状态分别设置提示词、触发条件、动作、冷却时间和当前步骤次数上限。自动推进默认关闭；开启后监听计划及反馈变化、会话结束，并可选择启动检查和到期检查。检查页先展示可推进项和实际投递提示词，选中后只向原绑定 DSH 会话排队投递；“推进所有非运行中的会话”复用当前检查页并继续逐页查找，每个符合规则的空闲原会话本轮最多投递一次。查找和启动分别显示进度条；没有候选时禁用批量按钮，可重新检查。待审批、暂停、终态、绑定不匹配和运行中会话会跳过。Rabi 保存派发回执，避免同一计划变化重复投递；结果不明确时停止重试并等待核对。
 
