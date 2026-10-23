@@ -1,3 +1,6 @@
+- id: native-tool-executor
+  name: '@deepseek-ai/dsh-tool-executor-native'
+
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:

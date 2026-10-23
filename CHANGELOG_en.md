@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.41 (2026-10-24)
+
+- Compose both Rabi presets with the rc.3 native executor instead of the removed tools.presentAs API; retain scoped tool restrictions and final execution guards.
+
+
 ## 0.13.40 (2026-10-20)
 
 - Checkpoint changed archive failure descriptions together at the end of each retry pass. Unchanged failures no longer rewrite the queue, reducing background disk and memory work during initial loading.

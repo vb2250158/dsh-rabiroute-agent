@@ -23,12 +23,11 @@ export function apply(ctx) {
 
 /** The message preset exposes only Rabi tools in its scope. */
 export function mountRabiOnlyTools(ctx, label) {
-  if (typeof ctx.tools.guard !== 'function' || typeof ctx.tools.restrict !== 'function' || typeof ctx.tools.presentAs !== 'function') {
-    throw new Error(`${label}需要支持 tools.guard、tools.restrict 和 tools.presentAs 的 DSH；请先更新宿主。`)
+  if (typeof ctx.tools.guard !== 'function' || typeof ctx.tools.restrict !== 'function') {
+    throw new Error(`${label}需要支持 tools.guard 和 tools.restrict 的 DSH；请先更新宿主。`)
   }
   // Missing host tools fail at mount rather than exposing a partly working mode.
   ctx.tools.restrict({ allow: RABIROUTE_AGENT_TOOL_NAMES })
-  ctx.tools.presentAs('native')
   ctx.tools.guard(messageModeGuard)
 }
 

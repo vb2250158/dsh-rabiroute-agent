@@ -5,6 +5,7 @@ export const rabiAssistantPreset = {
   description: '沿用 Rabi 绑定的人格，可调用全部 Rabi 接口，保留联网搜索与网页读取。',
   order: 49,
   plugins: [
+    { id: 'native-tool-executor', name: '@deepseek-ai/dsh-tool-executor-native' },
     { id: 'persona', name: '@deepseek-ai/dsh-persona', config: { prefix: '按 Rabi 当前绑定的人格进行对话。', includeRuntimeContext: false } },
     { id: 'tool-web', name: '@deepseek-ai/dsh-tool-web', config: { search: true, fetch: true, searchTimeoutMs: 60000 } },
     // Context pressure is owned by the DSH session, including resumed assistant sessions.

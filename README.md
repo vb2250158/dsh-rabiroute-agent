@@ -1,3 +1,7 @@
+## DSH rc.3 工具执行器（0.13.41）
+
+Rabi助手和消息处理 preset 显式加载 `@deepseek-ai/dsh-tool-executor-native`，要求 DSH 0.2.1-rc.3 或兼容宿主。原工具目录限制和最终执行 guard 均保留；直接组合 `assistant-mode` 或 `message-mode` 时也须在同一 preset scope 加载该执行器。
+
 ## DSH 原生钩子（0.13.29）
 
 插件默认启用 `agentHooksEnabled`，直接监听 DSH 会话入口、用户提交、工具执行前后与轮次结束。自动化规则统一在 RabiRoute「人格 → 自动化 → Agent Hook」设置；不读取 Codex 配置，也不启动其它 Agent。Manager 返回的上下文、工具拒绝和本轮继续处理决定由 DSH 执行；继续处理每轮最多触发一次，仍受宿主权限限制。

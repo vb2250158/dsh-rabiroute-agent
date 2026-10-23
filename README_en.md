@@ -1,3 +1,7 @@
+## DSH rc.3 tool executor (0.13.41)
+
+The assistant and message-processing presets explicitly mount `@deepseek-ai/dsh-tool-executor-native` and require DSH 0.2.1-rc.3 or a compatible host. Catalog restrictions and final execution guards remain active. Custom compositions of `assistant-mode` or `message-mode` must also mount that executor in the same preset scope.
+
 ## Native DSH hooks (0.13.29)
 
 `agentHooksEnabled` defaults to true. The plugin listens directly to DSH session entry, prompt submission, tool pre/post execution and turn stopping. Configure automation rules in RabiRoute under Persona → Automation → Agent Hook. It does not read Codex configuration or start another Agent. DSH applies Manager context, tool rejection and turn continuation decisions; continuation is limited to once per turn and retains host permissions.

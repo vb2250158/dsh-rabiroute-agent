@@ -50,11 +50,10 @@ test('all plan operations, message processing and persona messaging stay availab
 test('mount uses the scoped catalog, native tools and a monotonic execution guard', () => {
   const seen = {}
   apply({ tools: {
-    restrict: value => { seen.restriction = value }, presentAs: value => { seen.mode = value },
+    restrict: value => { seen.restriction = value },
     guard: value => { seen.guard = value },
   }, systemPrompt: { section: value => { seen.prompt = value.text() } } })
   assert.deepEqual(seen.restriction.allow, RABIROUTE_AGENT_TOOL_NAMES)
-  assert.equal(seen.mode, 'native')
   assert.equal(seen.guard, messageModeGuard)
   assert.match(seen.prompt, /优先分工，不是接口权限限制/)
   assert.throws(() => apply({ tools: {} }), /请先更新宿主/)
@@ -78,7 +77,7 @@ test('packaged preset names the picker mode without mounting file or coding plug
   assert.equal(manifest.exports['./message-mode'], './lib/message-mode.js')
   assert.ok(manifest.files.includes('presets'))
   const preset = await readFile(new URL('presets/message-processing/agent.cordis.yml', root), 'utf8')
-  assert.deepEqual([...preset.matchAll(/name: (.+)/g)].map(match => match[1]), ["'@deepseek-ai/dsh-persona'", 'dsh-rabiroute-agent/message-mode'])
+  assert.deepEqual([...preset.matchAll(/name: (.+)/g)].map(match => match[1]), ["'@deepseek-ai/dsh-tool-executor-native'", "'@deepseek-ai/dsh-persona'", 'dsh-rabiroute-agent/message-mode'])
   assert.match(preset, /includeRuntimeContext: false/)
   assert.match(await readFile(new URL('presets/message-processing/preset.yml', root), 'utf8'), /name: 消息处理模式/)
   assert.equal(await readFile(new URL('src/message-mode.js', root), 'utf8'), await readFile(new URL('lib/message-mode.js', root), 'utf8'))
