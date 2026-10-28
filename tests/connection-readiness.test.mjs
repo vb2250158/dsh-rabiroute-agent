@@ -5,6 +5,52 @@ const config = { managerBaseUrl: 'http://localhost:12345' }
 const meta = (health = {}) => ({ applicationGenerationId: 'generation', managerInstanceId: 'instance', health: { state: 'degraded', live: true, requiredReady: true, businessReady: false, ...health } })
 const response = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers })
 
+test('verified endpoint hints avoid Host process queries and stale hints rediscover before a single write', async () => {
+  for (const stale of [false, true]) {
+    let hosts = 0, writes = 0
+    const paths = []
+    const result = await managerRequest({}, '/api/codex-hook/context', { method: 'POST' }, undefined, {
+      endpointHint: async () => ({ ...meta(), managerBaseUrl: 'http://localhost:11111' }),
+      hostStatus: async () => { hosts++; return { ...meta(), managerBaseUrl: config.managerBaseUrl } },
+      onTiming: row => paths.push(row),
+      fetch: async url => {
+        if (url.endsWith('/meta')) return response(stale && url.includes('11111') ? { ...meta(), managerInstanceId: 'old' } : meta())
+        writes++; return response({ code: 0 })
+      },
+    })
+    assert.equal(result.ok, true); assert.equal(writes, 1); assert.equal(hosts, Number(stale))
+    assert.equal(paths.filter(row => row.path[0] === 'manager-request').length, 1)
+    assert.equal(paths.some(row => row.path[0] === 'manager-meta-after'), true)
+    assert.ok(paths.every(row => row.startMs >= 0 && row.durationMs >= 0))
+  }
+})
+
+test('Hook timing separates transport checks and bounded server steps without copying payloads', async () => {
+  const timings = []
+  const result = await managerRequest(config, '/api/codex-hook/context', { method: 'POST', body: 'private-prompt' }, undefined, {
+    onTiming: row => timings.push(row),
+    fetch: async url => {
+      if (url.endsWith('/meta')) return response(meta())
+      await new Promise(resolve => setTimeout(resolve, 8))
+      return response({ code: 0, data: { additionalContext: 'private-context', timings: [
+        { name: 'plan-followup', startMs: 0, durationMs: 2 }, { name: 'plan-completion', startMs: 2, durationMs: 2 },
+        { name: 'secret/value', startMs: 0, durationMs: 2 }, { name: 'invalid', startMs: -1, durationMs: 1 },
+        { name: 'future', startMs: 1e12, durationMs: 1 }, null,
+      ] } })
+    },
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(timings.map(row => row.path), [['manager-meta-before'], ['manager-request'],
+    ['manager-request', 'plan-followup'], ['manager-request', 'plan-completion'], ['manager-meta-after']])
+  assert.doesNotMatch(JSON.stringify(timings), /private|secret/)
+  const failed = []
+  await managerRequest(config, '/api/codex-hook/context', { method: 'POST' }, undefined, {
+    onTiming: row => failed.push(row), fetch: async url => url.endsWith('/meta') ? response(meta()) : Promise.reject(new Error('offline')),
+  })
+  assert.equal(failed.at(-1).failed, true)
+  assert.deepEqual(failed.at(-1).path, ['manager-request'])
+})
+
 test('degraded required-ready Manager accepts business reads, writes and UI discovery', async () => {
   for (const method of ['GET', 'POST']) {
     let business = 0

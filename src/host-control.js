@@ -51,6 +51,25 @@ export async function discoverHost(config, signal, dependencies = {}) {
   return { executable, remembered, rememberedExecutable }
 }
 
+/** Read the Host-published endpoint hint. The caller must verify its identity with live /meta before use. */
+export async function readManagerEndpoint(config, signal) {
+  try {
+    const { executable } = await discoverHost(config, signal)
+    if (!executable) return null
+    const hint = JSON.parse(await readFile(path.join(path.dirname(executable), 'manager-endpoint.json'), 'utf8'))
+    if (hint.schemaVersion !== 1 || typeof hint.managerBaseUrl !== 'string'
+      || typeof hint.applicationGenerationId !== 'string' || !hint.applicationGenerationId.trim()
+      || typeof hint.managerInstanceId !== 'string' || !hint.managerInstanceId.trim()) return null
+    const url = new URL(hint.managerBaseUrl)
+    if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+      || url.username || url.password || url.pathname !== '/' || url.search || url.hash) return null
+    return { managerBaseUrl: url.origin, applicationGenerationId: hint.applicationGenerationId, managerInstanceId: hint.managerInstanceId }
+  } catch (error) {
+    signal?.throwIfAborted()
+    return null // A missing or stale hint falls back to the official Host status protocol.
+  }
+}
+
 /** Query the official Host protocol and remember a verified executable in machine-local adapter data. */
 export async function readHostStatus(config, signal, dependencies = {}) {
   const location = await discoverHost(config, signal, dependencies)

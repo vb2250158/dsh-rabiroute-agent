@@ -163,14 +163,28 @@ async function fixture(reply, options = {}) {
   const ctx = { effect: callback => effects.push(callback()), on: (point, listener) => handlers.set(point, listener),
     workingDirectory: { get: () => 'test-workspace' }, sessionProjections: { stateOf: () => ({ lastTurn: 1 }) },
     logger: { warn: (...args) => warnings.push(args) } }
-  const hooks = installNativeHooks(ctx, options.config ?? {}, { ...options.dependencies, request: async (_config, path, requestOptions, signal) => {
+  const hooks = installNativeHooks(ctx, options.config ?? {}, { ...options.dependencies, request: async (_config, path, requestOptions, signal, timing) => {
     const body = JSON.parse(requestOptions.body); requests.push({ path, body, signal })
-    return reply ? reply(body, signal) : { ok: true, statusCode: 200, body: JSON.stringify({ code: 0, data: { additionalContext: 'context from Rabi' } }) }
+    return reply ? reply(body, signal, timing) : { ok: true, statusCode: 200, body: JSON.stringify({ code: 0, data: { additionalContext: 'context from Rabi' } }) }
   } })
   return { session, handlers, requests, agent, injected, steered, warnings, hooks, ctx,
     records: () => session.snapshotEvents().filter(event => event.type.startsWith('plugin:')),
     dispose: async () => { for (const effect of effects.reverse()) await effect?.(); await root.fiber.dispose() } }
 }
+
+test('Hook diagnostic records retain transport substeps and omit prompt and context content', async () => {
+  const f = await fixture((_body, _signal, timing) => {
+    timing.onTiming({ path: ['host-discovery'], startMs: 0, durationMs: 1 })
+    return okContext('private-context-never-in-telemetry')
+  })
+  try {
+    await step(f)
+    const results = f.records().filter(row => row.type.endsWith('hook-result'))
+    assert.equal(results.length, 2)
+    assert.ok(results.every(row => row.data.timings.some(part => part.path[0] === 'host-discovery')))
+    assert.doesNotMatch(JSON.stringify(results), /private-context-never-in-telemetry/)
+  } finally { await f.dispose() }
+})
 
 test('DSH lifecycle records real SessionStart, prompt, tool and Stop events with the owning session identity', async () => {
   const f = await fixture()

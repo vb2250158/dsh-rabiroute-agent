@@ -3,9 +3,19 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
-import { createHostController, discoverHost, readHostStatus } from '../src/host-control.js'
+import { createHostController, discoverHost, readHostStatus, readManagerEndpoint } from '../src/host-control.js'
 
 const ready = async () => ({ ok: true, body: JSON.stringify({ health: { state: 'healthy', live: true, requiredReady: true } }) })
+
+test('endpoint hints require versioned loopback identity and never execute the Host', async t => {
+  const f = await fixture(t)
+  const hint = { schemaVersion: 1, managerBaseUrl: 'http://127.0.0.1:12345', applicationGenerationId: 'generation', managerInstanceId: 'instance' }
+  for (const patch of [{}, { schemaVersion: 0 }, { managerInstanceId: '' }, { managerBaseUrl: 'https://example.org' }, { managerBaseUrl: 'http://user:password@localhost:12345' }]) {
+    await writeFile(path.join(f.root, 'manager-endpoint.json'), JSON.stringify({ ...hint, ...patch }))
+    const result = await readManagerEndpoint(f.config)
+    assert.equal(result !== null, Object.keys(patch).length === 0)
+  }
+})
 async function fixture(t) {
   const root = await mkdtemp(path.join(tmpdir(), 'rabi-host-control-'))
   t.after(() => rm(root, { recursive: true, force: true }))

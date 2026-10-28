@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.42 (2026-10-28)
+
+- Record hook connection discovery, pre/post-request identity checks, API requests and reported server substeps for the performance view, without copying prompts, tool arguments, replies or credentials.
+- Verify the Host-published dynamic endpoint hint against live Manager identity before use. Valid hints avoid spawning the Host query process per request; stale hints fall back to official discovery before any business write. Post-write identity checks and uncertain-write replay restrictions remain in force.
+- Cover current/stale hints, nested timing, failures, cancellation, older servers and durable Session records.
+
 ## 0.13.41 (2026-10-24)
 
 - Compose both Rabi presets with the rc.3 native executor instead of the removed tools.presentAs API; retain scoped tool restrictions and final execution guards.

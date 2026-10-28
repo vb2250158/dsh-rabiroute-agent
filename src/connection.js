@@ -1,4 +1,4 @@
-import { readHostStatus as hostStatus } from './host-control.js'
+import { readHostStatus as hostStatus, readManagerEndpoint } from './host-control.js'
 
 export function cleanBaseUrl(value) {
   const text = String(value || '').trim().replace(/\/+$/, '')
@@ -63,6 +63,14 @@ function isReadOnlyThreadPost(pathname, method, body) {
 }
 
 export async function managerRequest(config, pathname, init = {}, callerSignal, dependencies = {}) {
+  const started = performance.now()
+  const timed = async (path, task) => {
+    const start = performance.now()
+    let failed = false
+    try { return await task() }
+    catch (error) { failed = true; throw error }
+    finally { dependencies.onTiming?.({ path, startMs: start - started, durationMs: performance.now() - start, ...(failed ? { failed } : {}) }) }
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(new Error('RabiRoute operation timed out.')), timeoutBudget(config.requestTimeoutMs))
   const abort = () => controller.abort(callerSignal.reason)
@@ -82,8 +90,8 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
     const headers = Object.fromEntries(response.headers)
     return { statusCode: response.status, ok: response.ok && body?.code !== -1, body: JSON.stringify(body), headers, etag: headers.etag || '', parsed: body }
   }
-  const metaAt = async base => {
-    const result = await request(base + '/meta')
+  const metaAt = async (base, phase) => {
+    const result = await timed([phase], () => request(base + '/meta'))
     if (!result.ok) throw new Error('Manager /meta HTTP ' + result.statusCode)
     return { result, identity: identity(result.parsed) }
   }
@@ -94,19 +102,23 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
   try {
     // Only discovery is retried. Even business GETs can update viewedAt.
     for (let attempt = 0; ; attempt++) {
+      let usedHint = false
       try {
         const explicit = cleanBaseUrl(config.managerBaseUrl)
-        const descriptor = explicit ? null : await (dependencies.hostStatus || hostStatus)(config, controller.signal)
+        const hintReader = dependencies.endpointHint ?? (dependencies.hostStatus ? async () => null : readManagerEndpoint)
+        const hint = explicit || attempt ? null : await timed(['endpoint-hint'], () => hintReader(config, controller.signal))
+        usedHint = hint !== null
+        const descriptor = explicit ? null : hint ?? await timed(['host-discovery'], () => (dependencies.hostStatus || hostStatus)(config, controller.signal))
         base = explicit || cleanBaseUrl(descriptor?.managerBaseUrl)
         if (descriptor?.state === 'stopped') throw Object.assign(new Error('Rabi is not running. Start Rabi, then send your message again.'), { kind: 'host_stopped' })
         if (!base) throw new Error('Host has no active Manager URL.')
-        observedMeta = await metaAt(base)
+        observedMeta = await metaAt(base, 'manager-meta-before')
         before = observedMeta.identity
         if (descriptor && !same(before, descriptor)) throw new Error('Host and Manager generation/instance identities do not match.')
         if (!diagnostic) assertRequestReady(observedMeta.result.parsed)
         break
       } catch (error) {
-        if (attempt || write || controller.signal.aborted) throw error
+        if (attempt || write && !usedHint || controller.signal.aborted) throw error
       }
     }
     if (diagnostic) {
@@ -121,7 +133,19 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
         'x-rabiroute-expected-application-generation-id': before.applicationGenerationId,
         'x-rabiroute-expected-manager-instance-id': before.managerInstanceId,
       } : {}
-      result = await request(base + pathname, { ...init, headers: { accept: 'application/json', 'content-type': 'application/json', ...init.headers, ...fence } })
+      const requestStarted = performance.now() - started
+      result = await timed(['manager-request'], () => request(base + pathname, { ...init, headers: { accept: 'application/json', 'content-type': 'application/json', ...init.headers, ...fence } }))
+      // Server offsets use the server's own monotonic clock, aligned to request dispatch.
+      // Network/serialization time remains attributed to the enclosing request.
+      if (pathname === '/api/codex-hook/context' && Array.isArray(result.parsed?.data?.timings)) {
+        const elapsed = performance.now() - started - requestStarted
+        for (const item of result.parsed.data.timings.slice(0, 64)) {
+          if (typeof item?.name !== 'string' || !/^[a-z][a-z0-9-]{0,79}$/u.test(item.name)
+            || !Number.isFinite(item.startMs) || !Number.isFinite(item.durationMs) || item.startMs < 0 || item.durationMs < 0
+            || item.startMs + item.durationMs > elapsed) continue
+          dependencies.onTiming?.({ path: ['manager-request', item.name], startMs: requestStarted + item.startMs, durationMs: item.durationMs })
+        }
+      }
     } catch (error) {
       return { statusCode: 0, ok: false, body: '{}', headers: {}, etag: '', identity: before, uncertain: write, error: { kind: write ? 'write_outcome_uncertain' : 'request_failed', message: error.message + (write ? ' Keep the original request and idempotency key; read back before retrying.' : '') } }
     }
@@ -136,7 +160,7 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
     if (!result.ok) result.error = { kind: result.uncertain ? 'write_outcome_uncertain' : 'manager_rejected', ...(rejectionCode ? { code: rejectionCode } : {}), message: 'Manager HTTP ' + result.statusCode + (rejectionCause ? ': ' + rejectionCause : '; inspect the original response body.') + ' No automatic replay was performed.' }
     if (write) {
       try {
-        if (!same(before, (await metaAt(base)).identity)) throw new Error('Manager identity changed after the write.')
+        if (!same(before, (await metaAt(base, 'manager-meta-after')).identity)) throw new Error('Manager identity changed after the write.')
       } catch (error) {
         result.ok = false
         result.uncertain = true

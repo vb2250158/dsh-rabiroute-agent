@@ -9,7 +9,7 @@ const profile = createRequire(join(process.env.DSH_HOME ?? join(homedir(), '.dsh
 const { Context } = profile('@deepseek-ai/cordis')
 const { LlmAdapter, createUserMessage, ToolCallId } = profile('@deepseek-ai/dsh-llm')
 const { SessionId } = profile('@deepseek-ai/dsh-session')
-const { defineContentToolFixture } = profile('@deepseek-ai/dsh-tools')
+const { defineTool } = profile('@deepseek-ai/dsh-tools')
 
 class Adapter extends LlmAdapter {
   requests = []
@@ -35,7 +35,10 @@ test('the real DSH loop completes an offline cached reply and restores its exact
   let connected = true, hooks
   root.provide('workingDirectory', { get: () => 'fixture-workspace', ensure: async () => 'fixture-workspace' })
   try {
-    for (const name of ['llm', 'session', 'session-projection', 'system-prompt', 'tools', 'agent']) await root.plugin(profile('@deepseek-ai/dsh-' + name).default, name === 'tools' ? { mode: 'native' } : {})
+    for (const name of ['llm', 'session', 'session-projection', 'system-prompt', 'tools', 'tool-executor-native', 'agent']) {
+      const plugin = profile('@deepseek-ai/dsh-' + name)
+      await root.plugin(plugin.default ?? plugin, {})
+    }
     await root.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl'), { root: storageRoot, compression: 'none' })
     await root.plugin(profile('@deepseek-ai/dsh-agent-loop').default, { agents: [] })
     await root.plugin({ inject: ['sessionProjections', 'workingDirectory'], apply(ctx) {
@@ -86,8 +89,9 @@ test('built native hooks participate in the real DSH loop, preserve model contex
   const storageRoot = await mkdtemp(join(tmpdir(), 'dsh-native-hook-persistence-'))
   root.provide('workingDirectory', { get: () => process.cwd(), ensure: async () => process.cwd() })
   try {
-    for (const name of ['llm', 'session', 'session-projection', 'system-prompt', 'tools', 'agent']) {
-      await root.plugin(profile('@deepseek-ai/dsh-' + name).default, name === 'tools' ? { mode: 'native' } : {})
+    for (const name of ['llm', 'session', 'session-projection', 'system-prompt', 'tools', 'tool-executor-native', 'agent']) {
+      const plugin = profile('@deepseek-ai/dsh-' + name)
+      await root.plugin(plugin.default ?? plugin, {})
     }
     await root.plugin(profile('@deepseek-ai/dsh-session-persistence-jsonl'), { root: storageRoot, compression: 'none' })
     await root.plugin(profile('@deepseek-ai/dsh-agent-loop').default, { agents: [] })
@@ -99,8 +103,9 @@ test('built native hooks participate in the real DSH loop, preserve model contex
       } })
     } })
     root.llm.registerAdapter(['fixture'], adapter)
-    root.tools.register(defineContentToolFixture({ name: 'echo', description: 'fixture echo',
-      parameters: { text: { type: 'string', required: true } }, execute: async ({ text }) => [{ type: 'text', text }] }))
+    root.tools.register(defineTool({ name: 'echo', description: 'fixture echo',
+      parameters: { text: { type: 'string', required: true } }, output: { schema: { type: 'string' }, render: (_args, text) => [{ type: 'text', text }] },
+      execute: async ({ text }) => text }))
     const agent = await root.agentLoop.create(SessionId('native-hook-fixture'), { provider: 'fixture', model: 'fixture' })
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } }))
     await agent.whenIdle()

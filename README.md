@@ -4,6 +4,10 @@ Rabi助手和消息处理 preset 显式加载 `@deepseek-ai/dsh-tool-executor-na
 
 ## DSH 原生钩子（0.13.29）
 
+0.13.42 起，`hook-result.timings` 保存固定操作路径、相对开始时间、耗时及失败标识，供 `dsh-performance-statistics >=0.1.10` 逐层查看连接与服务端处理。只保存计时标签，不复制请求或响应正文；旧 Manager 不提供内部步骤时仍显示连接和请求计时。
+
+连接优先读取已发现 Host 旁的 `manager-endpoint.json` 地址提示，必须经实时 `/meta` 核对 generation、instance 与健康状态后使用；提示过期时，在发送业务请求前回退到 Host 正式状态协议。每次写入仍保留身份围栏和写后复核，不复用未核验地址，不重放不确定请求。
+
 插件默认启用 `agentHooksEnabled`，直接监听 DSH 会话入口、用户提交、工具执行前后与轮次结束。自动化规则统一在 RabiRoute「人格 → 自动化 → Agent Hook」设置；不读取 Codex 配置，也不启动其它 Agent。Manager 返回的上下文、工具拒绝和本轮继续处理决定由 DSH 执行；继续处理每轮最多触发一次，仍受宿主权限限制。
 
 DSH 日志保存 `plugin:dsh-rabiroute-agent/hook-invoked` 与 `hook-result` 记录，供 `dsh-hook-insights` 0.2.0 起统计。记录只含阶段、关联标识、耗时、HTTP 状态与处理结果，不包含原始正文、工具参数或输出。Manager 失败、回执待核对和取消都留真实结果，不自动重发写操作。安装后需重启 DSH 并刷新页面，新轮次才产生记录。

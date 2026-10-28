@@ -4,6 +4,10 @@ The assistant and message-processing presets explicitly mount `@deepseek-ai/dsh-
 
 ## Native DSH hooks (0.13.29)
 
+Since 0.13.42, `hook-result.timings` records fixed operation paths, relative start times, durations and failure flags for `dsh-performance-statistics >=0.1.10`. No request or response content is copied. Older Managers still provide connection and request readings without fabricated server steps.
+
+Connections first read the discovered Host's adjacent `manager-endpoint.json` hint and verify generation, instance and readiness through live `/meta`. Stale hints fall back to official Host status discovery before business dispatch. Mutation identity fencing and post-write verification remain mandatory; unverified addresses are not reused and uncertain requests are not replayed.
+
 `agentHooksEnabled` defaults to true. The plugin listens directly to DSH session entry, prompt submission, tool pre/post execution and turn stopping. Configure automation rules in RabiRoute under Persona → Automation → Agent Hook. It does not read Codex configuration or start another Agent. DSH applies Manager context, tool rejection and turn continuation decisions; continuation is limited to once per turn and retains host permissions.
 
 Durable `plugin:dsh-rabiroute-agent/hook-invoked` and `hook-result` records feed `dsh-hook-insights` 0.2.0. Records contain stage, correlation identity, duration, HTTP status and outcome, with no raw prompt, arguments or output. Failed, uncertain and cancelled requests retain their actual outcomes without automatically replaying writes. Restart DSH and refresh after installation; only new turns generate records.
