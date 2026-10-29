@@ -322,3 +322,31 @@ test('required-session Hook status is visible while waiting, retains a typed fai
     assert.equal(f.hooks.statusOf(f.session.id), null);
   } finally { release(); await f.dispose(); }
 });
+
+test('live Hook progress and timeout diagnostics remain visible in the durable Session', async () => {
+  let release
+  const gate = new Promise(resolve => { release = resolve })
+  const diagnostic = { timeoutMs: 1000, reason: 'timeout', stage: ['manager-request', 'response-headers'] }
+  const f = await fixture(async (_body, _signal, callbacks) => {
+    callbacks.onProgress({ path: ['manager-request', 'response-headers'], phase: 'started', elapsedMs: 2 })
+    await gate
+    callbacks.onProgress({ path: ['manager-request', 'response-headers'], phase: 'failed', elapsedMs: 1002, durationMs: 1000 })
+    return { ok: false, statusCode: 0, uncertain: true, diagnostic, error: { kind: 'write_outcome_uncertain', message: 'timed out' } }
+  }, { config: { requestTimeoutMs: 1000, localAgentUnrestricted: true } })
+  try {
+    const pending = f.handlers.get('agent/turn-stopping')({ agent: f.agent, turn: 1 })
+    await new Promise(resolve => setImmediate(resolve))
+    const before = f.records()
+    assert.equal(before.find(x => x.type.endsWith('hook-invoked')).data.timeoutMs, 1000)
+    assert.equal(before.at(-1).type, 'plugin:dsh-rabiroute-agent/hook-progress')
+    assert.equal(before.at(-1).data.phase, 'started')
+    assert.equal(before.some(x => x.type.endsWith('hook-result')), false)
+    release()
+    await pending
+    const result = f.records().at(-1)
+    assert.equal(result.type, 'plugin:dsh-rabiroute-agent/hook-result')
+    assert.deepEqual(result.data.diagnostic, diagnostic)
+    assert.equal(result.data.uncertain, true)
+    assert.ok(f.records().every(x => x.ignorable === true))
+  } finally { release(); await f.dispose() }
+})

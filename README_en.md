@@ -332,3 +332,9 @@ Remove an unused peer dependency that prevented fixed GitHub installation.
 ## 0.13.45
 
 Unrestricted local transport also bypasses extra Rabi tool denials and records the local policy. Remote responses cannot opt themselves into local mode.
+
+## 0.13.46
+
+The `hook-progress` event records endpoint discovery, waiting for response headers and reading the response body. `hook-result.diagnostic` records the actual timeout budget, timeout or cancellation reason, deepest failing stage and any received request ID. These records omit prompts, replies and credentials and do not add duplicate chart durations. Missing historical steps are not reconstructed.
+
+Unrestricted local panel discovery skips `/meta`; local writes no longer parse or attach identity fences. No permission checks, retries or alternate delivery paths are added.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.46 (2026-10-29)
+
+- Record live hook connection progress and explicit timeout, cancellation and failure stages for the performance view, preserving exclusive timing and omitting content and credentials.
+- Remove remaining identity preflights and fences from unrestricted local panel discovery and writes, without adding permission checks, retries or alternate delivery paths.
+
 ## 0.13.42 (2026-10-28)
 
 - Record hook connection discovery, pre/post-request identity checks, API requests and reported server substeps for the performance view, without copying prompts, tool arguments, replies or credentials.
