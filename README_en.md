@@ -320,3 +320,7 @@ With native Agent Hooks enabled, the plugin provides `rabiAgentHooks.requireBind
 Bound sessions discover and verify the current Rabi Manager on each request without a manual reconnect. A stopped Host returns `host_stopped` before dispatch. `rabiAgentHooks.statusOf(sessionId)` exposes the active Hook or last failure code until unlink or unload; it contains no persona body and does not start Rabi.
 
 On rc.2, text uses the public conversation.user.text Factory; earlier Hosts retain their original text projection.
+
+## 0.13.43
+
+Set localAgentUnrestricted to true for local Agents to use the Host-published loopback endpoint without pre/post HTTP identity checks. Remote endpoints retain their checks; uncertain writes are never replayed.

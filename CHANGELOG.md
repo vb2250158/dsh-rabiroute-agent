@@ -374,3 +374,7 @@
 ### Skill distribution (Unreleased)
 
 - 整理 DSH 专用工具技能及分发清单；将测试中的业务角色标识改为匿名夹具，保留身份区分。
+
+## 0.13.43
+
+本地 Agent 可开启 localAgentUnrestricted，直接使用 Host 发布的回环地址，省去请求前后的 HTTP 身份核验。远程地址继续核验，结果未知的写入不重放。

@@ -25,6 +25,7 @@ export const Config = z.object({
   hookContextForegroundMs: z.number().min(1).max(120000).step(1).default(1500),
   hookContextRetryMs: z.number().min(1000).max(300000).step(1).default(15000),
   managerBaseUrl: z.string().default(''),
+  localAgentUnrestricted: z.boolean().default(false),
   hostExecutable: z.string().default(''),
   hostHistoryFile: z.string().default(''),
   hostStatusTimeoutMs: z.number().min(1000).max(120000).step(1).default(3000),

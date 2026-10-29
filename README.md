@@ -322,3 +322,7 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 已绑定会话在每次请求时自动发现并核对当前 Rabi Manager，无需重复手动连接。Host 明确停止时返回 `host_stopped` 且不发送业务请求。`rabiAgentHooks.statusOf(sessionId)` 只读发布正在执行的 Hook 或最后失败代码，解除绑定或卸载后清除；不返回人格正文，也不启动 Rabi。
 
 rc.2 文本通过公开 conversation.user.text Factory 渲染；旧宿主继续使用原文本投影。
+
+## 0.13.43
+
+本地 Agent 可开启 localAgentUnrestricted，直接使用 Host 发布的回环地址，省去请求前后的 HTTP 身份核验。远程地址继续核验，结果未知的写入不重放。

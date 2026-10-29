@@ -372,3 +372,7 @@ Multiple bound plans display a selectable directory, retain role routes and Rabi
 ### Skill distribution (Unreleased)
 
 - Add the DSH-only tool skill and distribution catalog; anonymize business-role fixtures while preserving distinct identities.
+
+## 0.13.43
+
+Set localAgentUnrestricted to true for local Agents to use the Host-published loopback endpoint without pre/post HTTP identity checks. Remote endpoints retain their checks; uncertain writes are never replayed.
