@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.13.43",
+  "version": "0.13.44",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -49,8 +49,7 @@
     "@deepseek-ai/dsh-client-ui-session": ">=0.2.1-alpha.1 <0.3.0",
     "@deepseek-ai/dsh-session": ">=0.2.1-alpha.1 <0.3.0",
     "@deepseek-ai/dsh-llm": ">=0.2.1-alpha.1 <0.3.0",
-    "@deepseek-ai/dsh-session-projection": ">=0.2.1-alpha.1 <0.3.0",
-    "@deepseek-ai/dsh-tool-executor-native": ">=0.2.1-rc.3 <0.3.0"
+    "@deepseek-ai/dsh-session-projection": ">=0.2.1-alpha.1 <0.3.0"
   },
   "license": "MIT",
   "repository": {

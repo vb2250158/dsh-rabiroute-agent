@@ -326,3 +326,7 @@ rc.2 文本通过公开 conversation.user.text Factory 渲染；旧宿主继续�
 ## 0.13.43
 
 本地 Agent 可开启 localAgentUnrestricted，直接使用 Host 发布的回环地址，省去请求前后的 HTTP 身份核验。远程地址继续核验，结果未知的写入不重放。
+
+## 0.13.44
+
+移除未使用且阻断固定版本安装的 peer 依赖。

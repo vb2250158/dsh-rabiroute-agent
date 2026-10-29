@@ -376,3 +376,7 @@ Multiple bound plans display a selectable directory, retain role routes and Rabi
 ## 0.13.43
 
 Set localAgentUnrestricted to true for local Agents to use the Host-published loopback endpoint without pre/post HTTP identity checks. Remote endpoints retain their checks; uncertain writes are never replayed.
+
+## 0.13.44
+
+Remove an unused peer dependency that prevented fixed GitHub installation.

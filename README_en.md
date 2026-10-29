@@ -324,3 +324,7 @@ On rc.2, text uses the public conversation.user.text Factory; earlier Hosts reta
 ## 0.13.43
 
 Set localAgentUnrestricted to true for local Agents to use the Host-published loopback endpoint without pre/post HTTP identity checks. Remote endpoints retain their checks; uncertain writes are never replayed.
+
+## 0.13.44
+
+Remove an unused peer dependency that prevented fixed GitHub installation.
