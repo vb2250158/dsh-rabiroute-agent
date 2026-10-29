@@ -161,6 +161,7 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
     const rejectionCause = typeof result.parsed?.message === 'string' ? result.parsed.message.trim().slice(0, 1000) : ''
     delete result.parsed
     result.identity = before
+    if (localDirect) result.localUnrestricted = true
     result.uncertain = write && result.statusCode >= 500 && !rejectedBeforeStart
     if (!result.ok) result.error = { kind: result.uncertain ? 'write_outcome_uncertain' : 'manager_rejected', ...(rejectionCode ? { code: rejectionCode } : {}), message: 'Manager HTTP ' + result.statusCode + (rejectionCause ? ': ' + rejectionCause : '; inspect the original response body.') + ' No automatic replay was performed.' }
     if (write && !localDirect) {

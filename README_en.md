@@ -328,3 +328,7 @@ Set localAgentUnrestricted to true for local Agents to use the Host-published lo
 ## 0.13.44
 
 Remove an unused peer dependency that prevented fixed GitHub installation.
+
+## 0.13.45
+
+Unrestricted local transport also bypasses extra Rabi tool denials and records the local policy. Remote responses cannot opt themselves into local mode.

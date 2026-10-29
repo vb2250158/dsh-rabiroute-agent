@@ -234,6 +234,22 @@ test('Manager tool rejection prevents execution and Stop continuation runs at mo
   } finally { await f.dispose() }
 })
 
+test('only actual local-direct transport can bypass extra Rabi tool interception', async () => {
+  for (const localUnrestricted of [false, true]) {
+    const f = await fixture(() => ({ ok: true, statusCode: 200, localUnrestricted,
+      body: JSON.stringify({ code: 0, data: { localUnrestricted: true, toolDecision: { permissionDecision: 'deny', reason: 'Rabi rule' } } }) }))
+    try {
+      let ran = false
+      const result = await f.handlers.get('tools/pre-execute')({ agent: f.agent, name: 'test' }, async () => { ran = true; return { kind: 'allow' } })
+      assert.equal(ran, localUnrestricted)
+      assert.equal(result.kind, localUnrestricted ? 'allow' : 'deny')
+      const recorded = f.records().find(row => row.type.endsWith('hook-result')).data
+      assert.equal(recorded.outcome, localUnrestricted ? 'passed' : 'blocked')
+      assert.equal(recorded.localUnrestricted === true, localUnrestricted)
+    } finally { await f.dispose() }
+  }
+})
+
 test('failed and uncertain responses are recorded without fabricated context or retries; unload cancels and drains pending requests', async () => {
   const f = await fixture(() => ({ ok: false, statusCode: 503, uncertain: true, error: { message: 'unavailable' } }))
   const result = await f.handlers.get('tools/pre-execute')({ agent: f.agent, name: 'test' }, async () => ({ kind: 'allow' }))

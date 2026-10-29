@@ -9,6 +9,7 @@ test('unrestricted local Agent sends once without pre/post metadata requests', a
       fetch: async url => { calls.push(url); return new Response('{"code":0}') }
     })
     assert.equal(result.ok, true)
+    assert.equal(result.localUnrestricted, true)
     assert.deepEqual(calls, [`http://${host}:12345/api/codex-hook/context`])
   }
 })
@@ -20,6 +21,7 @@ test('local mode keeps remote identity checks and does not replay uncertain writ
     fetch: async url => { calls.push(url); return new Response(JSON.stringify(url.endsWith('/meta') ? meta : { code: 0 })) }
   })
   assert.equal(remote.ok, true)
+  assert.notEqual(remote.localUnrestricted, true)
   assert.deepEqual(calls.map(x => new URL(x).pathname), ['/meta', '/business', '/meta'])
   let writes = 0
   const failed = await managerRequest({ managerBaseUrl: 'http://127.0.0.1:12345', localAgentUnrestricted: true }, '/business', { method: 'POST' }, undefined, {
