@@ -1,3 +1,7 @@
+## Local connection receipts (0.13.47)
+
+Local direct receipts omit identities that were not queried. Tool output schemas include the direct marker, Hook diagnostics and Manager rejection codes, allowing DS Bot to read Rabi personas. Failures and timeouts retain their actual outcomes without extra identity probes or replay. Update the adapter and restart DSH to apply this fix.
+
 ## DSH rc.3 tool executor (0.13.41)
 
 The assistant and message-processing presets explicitly mount `@deepseek-ai/dsh-tool-executor-native` and require DSH 0.2.1-rc.3 or a compatible host. Catalog restrictions and final execution guards remain active. Custom compositions of `assistant-mode` or `message-mode` must also mount that executor in the same preset scope.

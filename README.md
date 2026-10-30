@@ -1,3 +1,7 @@
+## 本机连接回执（0.13.47）
+
+本机直连回执不包含未查询的身份字段，工具输出声明覆盖直连标记、钩子诊断及 Manager 拒绝码。DS Bot 可正常读取 Rabi 人格；失败和超时保留真实结果，不增加身份探测或重放。更新适配器并重启 DSH 后生效。
+
 ## DSH rc.3 工具执行器（0.13.41）
 
 Rabi助手和消息处理 preset 显式加载 `@deepseek-ai/dsh-tool-executor-native`，要求 DSH 0.2.1-rc.3 或兼容宿主。原工具目录限制和最终执行 guard 均保留；直接组合 `assistant-mode` 或 `message-mode` 时也须在同一 preset scope 加载该执行器。

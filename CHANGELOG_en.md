@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.47 (2026-10-30)
+
+- Fix undefined identity fields in local direct receipts that made DSH reject tool output and prevented DS Bot from connecting to Rabi.
+- Declare local direct markers, Hook diagnostics and Manager rejection codes in tool output schemas. Preserve success, failure and timeout outcomes without extra requests or replay.
+
 ## 0.13.46 (2026-10-29)
 
 - Record live hook connection progress and explicit timeout, cancellation and failure stages for the performance view, preserving exclusive timing and omitting content and credentials.

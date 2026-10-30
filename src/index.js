@@ -112,10 +112,11 @@ function requestHeaders(value) {
 }
 const output = {
   schema: { type: 'object', properties: {
-    statusCode: { type: 'number' }, ok: { type: 'boolean' }, body: { type: 'string' }, etag: { type: 'string' }, uncertain: { type: 'boolean' },
+    statusCode: { type: 'number' }, ok: { type: 'boolean' }, body: { type: 'string' }, etag: { type: 'string' }, uncertain: { type: 'boolean' }, localUnrestricted: { type: 'boolean' },
     headers: { type: 'object', additionalProperties: true },
     identity: { type: 'object', properties: { applicationGenerationId: { type: 'string' }, managerInstanceId: { type: 'string' } }, required: ['applicationGenerationId', 'managerInstanceId'], additionalProperties: false },
-    error: { type: 'object', properties: { kind: { type: 'string' }, message: { type: 'string' } }, required: ['kind', 'message'], additionalProperties: false },
+    error: { type: 'object', properties: { kind: { type: 'string' }, message: { type: 'string' }, code: { type: 'string' } }, required: ['kind', 'message'], additionalProperties: false },
+    diagnostic: { type: 'object', properties: { timeoutMs: { type: 'number' }, reason: { type: 'string' }, stage: { type: 'array', items: { type: 'string' } }, requestId: { type: 'string' } }, required: ['timeoutMs', 'reason', 'stage'], additionalProperties: false },
   }, required: ['statusCode', 'ok', 'body'], additionalProperties: false },
   render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
 }

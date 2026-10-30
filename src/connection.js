@@ -179,7 +179,7 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
         }
       }
     } catch (error) {
-      return { statusCode: 0, ok: false, body: '{}', headers: {}, etag: '', identity: before, uncertain: write, ...diagnostics(failureReason()), error: { kind: write ? 'write_outcome_uncertain' : 'request_failed', message: error.message + (write ? ' Keep the original request and idempotency key; read back before retrying.' : '') } }
+      return { statusCode: 0, ok: false, body: '{}', headers: {}, etag: '', ...(before ? { identity: before } : {}), uncertain: write, ...diagnostics(failureReason()), error: { kind: write ? 'write_outcome_uncertain' : 'request_failed', message: error.message + (write ? ' Keep the original request and idempotency key; read back before retrying.' : '') } }
     }
     const rejectedBeforeStart = method === 'POST' && pathname === '/api/codex-hook/context'
       && result.statusCode === 503 && result.parsed?.error === 'PLAN_STORAGE_STARTUP_UNAVAILABLE'
@@ -187,7 +187,7 @@ export async function managerRequest(config, pathname, init = {}, callerSignal, 
     const rejectionCode = typeof result.parsed?.error === 'string' ? result.parsed.error : undefined
     const rejectionCause = typeof result.parsed?.message === 'string' ? result.parsed.message.trim().slice(0, 1000) : ''
     delete result.parsed
-    result.identity = before
+    if (before) result.identity = before
     if (localDirect) result.localUnrestricted = true
     result.uncertain = write && result.statusCode >= 500 && !rejectedBeforeStart
     if (!result.ok) result.error = { kind: result.uncertain ? 'write_outcome_uncertain' : 'manager_rejected', ...(rejectionCode ? { code: rejectionCode } : {}), message: 'Manager HTTP ' + result.statusCode + (rejectionCause ? ': ' + rejectionCause : '; inspect the original response body.') + ' No automatic replay was performed.' }
