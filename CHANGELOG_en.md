@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.48 (2026-11-10)
+
+- Reuse the host copy action for Rabi messages, removing duplicate buttons and per-message dates while retaining original messages and timestamps.
+- Update English and Chinese message-card copy and regression assertions with the display change.
+
 ## 0.13.47 (2026-10-30)
 
 - Fix undefined identity fields in local direct receipts that made DSH reject tool output and prevented DS Bot from connecting to Rabi.

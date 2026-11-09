@@ -1,3 +1,7 @@
+## Message display (0.13.48)
+
+Rabi message cards use the host copy action. Original message timestamps remain in the message data.
+
 ## Local connection receipts (0.13.47)
 
 Local direct receipts omit identities that were not queried. Tool output schemas include the direct marker, Hook diagnostics and Manager rejection codes, allowing DS Bot to read Rabi personas. Failures and timeouts retain their actual outcomes without extra identity probes or replay. Update the adapter and restart DSH to apply this fix.
