@@ -4,7 +4,7 @@ import { applyRabiPlanStatus } from './client-plan-status.js'
 import * as React from 'react'
 import { RabiSpeechAction, rabiSpeechLocales } from './client-speech.js'
 import { registerRabiQuestionComposer } from './client-question.js'
-import { Button, Menu, Modal, JsonBlock, projectUserText, fileSizeText, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Menu, Modal, JsonBlock, projectUserText, fileSizeText } from '@deepseek-ai/dsh-client-ui-primitives'
 import { parseRabiMessageEnvelope } from './message-envelope.js'
 import { rabiClientLocales } from './client-locales.js'
 import { RABI_PLAN_NS, rabiPlanLocales } from './client-plan-locales.js'
@@ -131,20 +131,9 @@ export function RabiMessageNodeView({ node, renderMessageImages, loadImage, rend
     catch (error) { if (rabiActive.current) setNotice({ error: true, text: t('navigationFailed', { error: error instanceof Error ? error.message : String(error) }) }) }
     finally { if (rabiActive.current) setBusy(false); if (rabiLocateAbort.current === controller) rabiLocateAbort.current = null }
   }
-  const copy = async () => {
-    try {
-      const ok = await writeClipboard(text)
-      if (rabiActive.current) setNotice({ error: !ok, text: t(ok ? 'copied' : 'copyFailed') })
-    } catch {
-      // Clipboard failures remain local UI errors; no alternate write channel is attempted.
-      if (rabiActive.current) setNotice({ error: true, text: t('copyFailed') })
-    }
-  }
   const referenceLabels = node.data.referenceLabels ?? []
   const skillNames = node.data.skillNames ?? []
   const displayedText = envelope ? envelope.body : text
-  const timestampCandidate = typeof node.data.time === 'number' && Number.isFinite(node.data.time) ? new Date(node.data.time) : null
-  const timestamp = timestampCandidate !== null && Number.isFinite(timestampCandidate.getTime()) ? timestampCandidate : null
   const sourceKind = envelope ? envelope.sourceType : 'ordinary'
   const menuItems = header?.locate
     ? [{ id: 'raw', label: t('raw') }, { id: 'locate', label: t('locate'), disabled: busy }]
@@ -186,10 +175,8 @@ export function RabiMessageNodeView({ node, renderMessageImages, loadImage, rend
             React.createElement('span', null, attachment.file.name),
             React.createElement('span', { style: rabiClientStyles.muted }, [attachment.file.mediaType, fileSizeText(attachment.file.bytes)].filter(Boolean).join(' · '))))),
       bodyVisible && body()),
-    React.createElement('div', { style: rabiClientStyles.actions },
-      timestamp && React.createElement('time', { dateTime: timestamp.toISOString(), title: timestamp.toLocaleString(), style: rabiClientStyles.muted }, timestamp.toLocaleString()),
-      folds && React.createElement(Button, { size: 'sm', variant: 'ghost', onClick: () => setExpanded(value => !value) }, t(expanded ? 'collapse' : 'expand')),
-      React.createElement(Button, { size: 'sm', variant: 'ghost', onClick: copy }, t('copy'))),
+    envelope && React.createElement('div', { style: rabiClientStyles.actions },
+      folds && React.createElement(Button, { size: 'sm', variant: 'ghost', onClick: () => setExpanded(value => !value) }, t(expanded ? 'collapse' : 'expand'))),
     notice && React.createElement('div', { role: notice.error ? 'alert' : 'status', style: rabiClientStyles.muted }, notice.text),
     envelope && React.createElement(Modal, { open: rawOpen, title: t('raw'), closeLabel: t('close'), onClose: () => setRawOpen(false) },
       React.createElement('pre', { style: rabiClientStyles.raw }, envelope.raw)))

@@ -95,7 +95,7 @@ test('ordinary rows delegate optional answer presentation while source envelopes
   assert.equal(calls, 1)
 })
 
-test('ordinary user and steering preserve text, refs, skills, attachments, unknown JSON, clock and copy', async () => {
+test('ordinary user and steering preserve text, refs, skills, attachments and unknown JSON', () => {
   for (const kind of ['user', 'steering']) {
     const h = harness()
     const content = [{ type: 'text', text: '  @reference' }, { type: 'text', text: ' /skill\n' }, { type: 'image', attachment: { attachmentId: 'image-id' } }, { type: 'file', attachment: { name: 'test.pdf', bytes: 23, mediaType: 'application/pdf' } }, { type: 'future', value: 1 }, null]
@@ -105,11 +105,9 @@ test('ordinary user and steering preserve text, refs, skills, attachments, unkno
     assert.equal(h.images[0].images[0].attachment.attachmentId, 'image-id')
     assert.equal(h.images[0].compact, true)
     assert.equal(nodes(tree, 'JsonBlock').length, 2)
-    assert.equal(nodes(tree, 'time')[0].props.dateTime, '1970-01-01T00:00:00.000Z')
     assert.ok(JSON.stringify(tree).includes('application/pdf · 23 B'))
-    await nodes(tree, 'Button')[0].props.onClick()
-    assert.equal(h.copied[0], '  @reference /skill\n')
-    assert.equal(nodes(h.render(content), 'div').some(node => node.props.role === 'status'), true)
+    assert.equal(nodes(tree, 'time').length, 0)
+    assert.equal(nodes(tree, 'Button').length, 0)
     assert.equal(nodes(tree, 'Modal').length, 0)
   }
 })
@@ -136,8 +134,6 @@ test('render-time envelope projection shows body only; menu opens exact raw moda
   nodes(tree, 'Menu')[0].props.onSelect('locate')
   await Promise.resolve(); await Promise.resolve()
   assert.equal(h.opened.at(-1), 'exact-id')
-  await nodes(tree, 'Button').at(-1).props.onClick()
-  assert.equal(h.copied[0], raw)
 })
 
 test('a parsed envelope folds by default and toggles its body without a menu', () => {
@@ -147,21 +143,21 @@ test('a parsed envelope folds by default and toggles its body without a menu', (
     assert.equal(folded.props['data-rabi-message'], kind)
     // Folded: the body is not projected, so nothing model-facing is on screen,
     // and no locate control is offered because neither kind names an openable
-    // session. Only the folded header labels plus copy remain.
+    // session. Only the folded header label plus the toggle remain.
     assert.equal(h.projections.length, 0)
     assert.deepEqual(Array.from(nodes(folded, 'Menu')[0].props.items, item => item.label), ['查看原始消息内容'])
     const headerButton = nodes(folded, 'header')[0].children[0]
     assert.equal(headerButton.children[0], label)
     assert.equal(headerButton.props['aria-expanded'], false)
     // `nodes` walks children only, and the overflow control rides the Menu's
-    // anchor prop, so the ordered buttons here are header, toggle and copy.
-    assert.deepEqual(nodes(folded, 'Button').map(button => button.children[0]), [label, '展开内容', '复制消息'])
+    // anchor prop, so the ordered buttons here are header and toggle.
+    assert.deepEqual(nodes(folded, 'Button').map(button => button.children[0]), [label, '展开内容'])
 
     headerButton.props.onClick()
     const expanded = h.render(content)
     assert.equal(nodes(expanded, 'header')[0].children[0].props['aria-expanded'], true)
     assert.equal(h.projections.at(-1)[0], 'MARKER_BODY_TEXT')
-    assert.deepEqual(nodes(expanded, 'Button').map(button => button.children[0]), [label, '收起内容', '复制消息'])
+    assert.deepEqual(nodes(expanded, 'Button').map(button => button.children[0]), [label, '收起内容'])
     // Collapsing again must return to the folded projection, so the toggle is
     // reversible rather than a one-way reveal. `projections` accumulates across
     // renders, so the count is what proves the second fold projected nothing.
