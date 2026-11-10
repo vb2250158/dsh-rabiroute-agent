@@ -1,3 +1,7 @@
+## User bubble width and tone (0.13.51)
+
+The user row is now bounded by the chat column, so a long message no longer slides under the detail panel on the right, and its bubbles use a brighter surface so they read apart from the Bot's. Plain DSH Sessions are unaffected.
+
 ## User message byline (0.13.50)
 
 Ordinary user messages drawn here take their byline from DS Bot: the signed-in account's picture and name, or DSH's own mark under "User" when nobody is signed in. DS Bot answers only for its own conversations, so plain DSH Sessions look exactly as before.

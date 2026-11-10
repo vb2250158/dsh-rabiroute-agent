@@ -1,3 +1,8 @@
+## 0.13.51 (2026-11-10)
+
+- Ordinary user messages: the row is bounded by the chat column (`maxWidth: 100%`, `box-sizing: border-box`) and bubbles cap at `maxWidth: 100%`, so long text no longer runs under the detail panel.
+- Bubbles move from `bg-layer-2` to `bg-layer-3`, keeping them distinct from the Bot's.
+
 ## 0.13.50 (2026-11-10)
 
 - Ordinary user messages take their byline from DS Bot: the signed-in account's picture and name, falling back to DSH's mark and "User" when signed out. Plain DSH Sessions are untouched.
