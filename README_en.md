@@ -1,3 +1,7 @@
+## Runtime version (0.13.55)
+
+Runtime status and package versions agree. Installation verification still checks the fixed Git source and loaded files; lightweight discovery and plan-read backoff are unchanged.
+
 ## Lightweight tool discovery (0.13.54)
 
 The main Agent and Rabi assistant list categories, search by keyword with a cursor, and inspect one operation input before calling it. They read result and full schemas on demand, and consult legacy help only after an explicit discovery-endpoint 404. The existing three generic tools retain all public paths and business headers; this guidance adds no scheduler or permission change.

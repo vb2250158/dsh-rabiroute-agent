@@ -1,3 +1,7 @@
+## 0.13.55 (2026-11-10)
+
+- Align the runtime status version with the package version while retaining lightweight discovery, plan-read backoff and the existing UI from 0.13.54. Installed-source checks remain separate from the displayed version.
+
 ## 0.13.54 (2026-11-10)
 
 - Main and assistant Agents share lightweight tool discovery: list categories, search a page of at most 10 operations, then read one input schema; retrieve result and full contracts on demand. Read legacy help only after an explicit discovery-endpoint 404.

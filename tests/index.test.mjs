@@ -169,3 +169,7 @@ test('generic HTTP tool forwards staged discovery paths and leaves legacy fallba
   assert.equal((await tool.execute({ method: 'GET', path: '/api/agent/help' }, exec())).ok, true)
   assert.equal(called.at(-1), '/api/agent/help')
 })
+test('runtime status identifies the packaged release version', async () => {
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.equal(createRabiRouteAgentRuntimeStatus().version, pkg.version)
+})
