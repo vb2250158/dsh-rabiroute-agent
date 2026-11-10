@@ -141,7 +141,7 @@ export function RabiMessageNodeView({ node, sessionId, renderMessageImages, load
   // Built lazily: a folded row must not run the model-facing projection, which
   // is the expensive part and whose output is not on screen anyway.
   const body = () => React.createElement(React.Fragment, null,
-    (displayedText !== '' || rest.length > 0) && React.createElement('div', { style: rabiClientStyles.bubble },
+    (displayedText !== '' || rest.length > 0) && React.createElement('div', { style: bubbleStyle },
       typeof projectUserText === 'function'
         ? projectUserText(displayedText, referenceLabels, skillNames)
         : renderFactorySlot('conversation.user.text', { text: displayedText, facts: { sessionLabels: referenceLabels, skillNames }, interactive: true }),
@@ -157,6 +157,9 @@ export function RabiMessageNodeView({ node, sessionId, renderMessageImages, load
   // publishes the head for exactly its own conversations and answers null elsewhere, so
   // a plain DSH Session keeps the row it has always had.
   const userHead = envelope === null && typeof globalThis.__dshBotUserHead === 'function' ? globalThis.__dshBotUserHead(sessionId) : null
+  // The head is DS Bot's answer alone; its absence means this is a plain DSH Session,
+  // which keeps the bubble tone the shell has always shown.
+  const bubbleStyle = userHead === null ? rabiClientStyles.bubble : rabiClientStyles.bubbleOnBotSurface
   const fallback = React.createElement('section', { style: rabiClientStyles.row, 'data-rabi-message': sourceKind },
     userHead,
     React.createElement('div', { style: rabiClientStyles.stack },

@@ -1,3 +1,7 @@
+## 0.13.53 (2026-11-10)
+
+- The lifted user bubble applies only inside the DS Bot surface; a plain DSH Session keeps its original surface layer, and neither byline nor tone follows it there.
+
 ## 0.13.52 (2026-11-10)
 
 - User bubbles lift one more step (16% white through `color-mix`) so they read clearly against a dark page.

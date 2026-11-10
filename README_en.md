@@ -1,3 +1,7 @@
+## Plain Session isolation (0.13.53)
+
+The byline and the brighter bubble belong to the DS Bot surface alone. The same Session opened from the plain list looks exactly as it did before.
+
 ## User bubble contrast (0.13.52)
 
 Bubbles mix 16% white into `bg-layer-3`, so they stand clearly apart from the page in the dark theme.

@@ -34,10 +34,11 @@ function harness(storage = new Map(), legacyProjection = true) {
   vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
   const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
-  const render = (content, kind = 'user', extras = {}, renderFactorySlot = (_name, _props, options) => options.fallback) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, t, rabiSessions: sessions, renderFactorySlot, loadImage: async () => 'data:image/png;base64,fixture', renderMessageImages: legacyProjection ? args => { images.push(args); return { type: 'image', props: args, children: [] } } : undefined }) }
+  const render = (content, kind = 'user', extras = {}, renderFactorySlot = (_name, _props, options) => options.fallback, sessionId) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, sessionId, t, rabiSessions: sessions, renderFactorySlot, loadImage: async () => 'data:image/png;base64,fixture', renderMessageImages: legacyProjection ? args => { images.push(args); return { type: 'image', props: args, children: [] } } : undefined }) }
   const renderPlanBody = (sessionId = 'session-1') => { cursor = 0; return context.api.RabiPlanBody({ sessionId, t: planT }) }
   const renderPlanLauncher = (sessionId = 'session-1', openRabiPlanTab = () => {}, getRabiPanelView = () => ({ expanded: false, activeKind: undefined })) => { cursor = 0; return context.api.RabiPlanLauncher({ sessionId, t: planT, openRabiPlanTab, getRabiPanelView }) }
   return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, storage,
+    setBotUserHead: provider => { context.__dshBotUserHead = provider },
     remount: () => { for (const dispose of effects) dispose?.(); effects.length = 0; states = []; cursor = 0 },
     setPanelElement: element => { panelElement = element },
     emitPanelMutation: () => observers.forEach(observer => observer.callback()),
@@ -109,6 +110,41 @@ test('ordinary user and steering preserve text, refs, skills, attachments and un
     assert.equal(nodes(tree, 'time').length, 0)
     assert.equal(nodes(tree, 'Button').length, 0)
     assert.equal(nodes(tree, 'Modal').length, 0)
+  }
+})
+
+test('plain Sessions keep their original bubble when the Bot head provider is absent or returns null', () => {
+  for (const providerPresent of [false, true]) {
+    const h = harness(), calls = []
+    if (providerPresent) h.setBotUserHead(sessionId => { calls.push(sessionId); return null })
+    const tree = h.render([{ type: 'text', text: 'plain message' }], 'user', {}, undefined, 'plain-session')
+    const bubble = nodes(tree, 'div').find(node => node.children.some(child => child?.type === 'projected'))
+    assert.equal(bubble.props.style.background, 'var(--dsw-alias-bg-layer-2)')
+    assert.equal(nodes(tree, 'bot-user-head').length, 0)
+    assert.deepEqual(calls, providerPresent ? ['plain-session'] : [])
+  }
+})
+
+test('Bot user and steering rows use the exact Session head and the lifted bubble', () => {
+  for (const kind of ['user', 'steering']) {
+    const h = harness(), calls = []
+    const head = { type: 'bot-user-head', props: {}, children: ['Bot user'] }
+    h.setBotUserHead(sessionId => { calls.push(sessionId); return head })
+    const tree = h.render([{ type: 'text', text: 'Bot message' }], kind, {}, undefined, 'bot-session')
+    const bubble = nodes(tree, 'div').find(node => node.children.some(child => child?.type === 'projected'))
+    assert.equal(bubble.props.style.background, 'color-mix(in srgb, var(--dsw-alias-bg-layer-3) 84%, white)')
+    assert.equal(nodes(tree, 'bot-user-head')[0], head)
+    assert.deepEqual(calls, ['bot-session'])
+  }
+})
+
+test('Rabi source envelopes never ask the Bot surface for a user head', () => {
+  for (const text of [raw, systemRaw, planRaw]) {
+    const h = harness()
+    h.setBotUserHead(() => { assert.fail('Rabi envelopes must not use the Bot user head') })
+    const tree = h.render([{ type: 'text', text }], 'user', {}, undefined, 'source-session')
+    assert.equal(nodes(tree, 'bot-user-head').length, 0)
+    assert.equal(nodes(tree, 'div').some(node => node.props.style?.background?.startsWith('color-mix(')), false)
   }
 })
 
