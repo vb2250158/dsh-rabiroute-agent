@@ -218,3 +218,149 @@ test('choosing a plan does not bypass attribution of remaining multi-plan attach
   bound = [{ roleId: 'r', planId: 'b' }, { roleId: 'r', planId: 'c' }]
   assert.equal((await listeners.get('tools/pre-execute')(exec, () => 'allowed')).kind, 'deny')
 })
+
+async function queuedFixture(t, items, dependencies, attachments = {}, config = {}) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'rabi-resource-cooldown-'))
+  const file = path.join(directory, 'pending.json')
+  await writeFile(file, JSON.stringify({ version: 1, items }))
+  const service = createPlanResources({ planResourcesDirectory: directory, ...config }, {}, attachments, dependencies)
+  t.after(async () => { await service.dispose(); await rm(directory, { recursive: true, force: true }) })
+  return { service, file }
+}
+
+function queuedAttachment(id, extra = {}) {
+  return { id, kind: 'attachment', sessionId: 'session-test', type: 'image',
+    target: { roleId: 'r', planId: 'p' },
+    ref: { attachmentId: id, name: `${id}.png`, bytes: 5 }, ...extra }
+}
+
+const imageDigest = createHash('sha256').update('image').digest('hex')
+const boundPlan = (extra = {}) => ({ id: 'p', taskBinding: { sessionId: 'session-test', agentAdapter: 'dsh' }, attachments: [], steps: [{ id: 's' }], ...extra })
+
+test('background plan read failures share one retry interval across 1000 resources and isolate roles', async t => {
+  for (const failure of [404, 500, 'transport']) {
+    await t.test(String(failure), async t => {
+      let now = 1000, failedReads = 0, contentReads = 0
+      const transaction = { key: 'original-key', etag: '"original"', body: 'original-body' }
+      const items = Array.from({ length: 1000 }, (_, index) => queuedAttachment(`failed-${index}`, index === 0 ? { uncertain: true, transaction } : {}))
+      items.splice(500, 0, queuedAttachment('healthy', { target: { roleId: 'healthy-role', planId: 'p' } }))
+      const f = await queuedFixture(t, items, { now: () => now, request: async (url, init) => {
+        assert.equal(init.method, 'GET')
+        if (url.includes('/roles/r/')) {
+          failedReads++
+          if (failure === 'transport') throw new Error('Transport unavailable')
+          return { ok: false, statusCode: failure }
+        }
+        return { ok: true, etag: '"healthy"', body: JSON.stringify({ data: boundPlan({ attachments: [{ id: 'healthy', sha256: imageDigest }] }) }) }
+      } }, { async readImage() { contentReads++; return { data: Buffer.from('image') } } }, { planResourceRetryMs: 100 })
+      await f.service.flush()
+      assert.equal(failedReads, 1)
+      assert.equal(contentReads, 1)
+      assert.equal(f.service.status('session-test').pending.length, 1000)
+      const checkpoint = await readFile(f.file, 'utf8')
+      const saved = JSON.parse(checkpoint).items
+      assert.deepEqual(saved[0].transaction, transaction)
+      assert.equal(saved[0].uncertain, true)
+      assert.deepEqual(saved.map(item => item.id), items.filter(item => item.id !== 'healthy').map(item => item.id))
+      now = 1099
+      await f.service.flush()
+      assert.equal(failedReads, 1)
+      assert.equal(await readFile(f.file, 'utf8'), checkpoint)
+      now = 1100
+      await f.service.flush()
+      assert.equal(failedReads, 2)
+      assert.equal(contentReads, 1)
+      assert.equal(await readFile(f.file, 'utf8'), checkpoint)
+    })
+  }
+})
+
+test('expired read failures recover with fresh plan revisions for every write', async t => {
+  let now = 0, available = false, reads = 0, revision = 0
+  const plan = boundPlan()
+  const writes = []
+  const f = await queuedFixture(t, [queuedAttachment('one'), queuedAttachment('two')], { now: () => now, request: async (_url, init) => {
+    if (init.method === 'GET') {
+      reads++
+      if (!available) return { ok: false, statusCode: 404 }
+      return { ok: true, etag: `"revision-${revision}"`, body: JSON.stringify({ data: plan }) }
+    }
+    assert.equal(init.headers['if-match'], `"revision-${revision}"`)
+    writes.push(init)
+    plan.attachments = JSON.parse(init.body).attachments.map(item => item.contentBase64 ? { id: item.id, sha256: imageDigest } : plan.attachments.find(old => old.id === item.id))
+    revision++
+    return { ok: true }
+  } }, { async readImage() { return { data: Buffer.from('image') } } }, { planResourceRetryMs: 100 })
+  await f.service.flush()
+  available = true
+  now = 99
+  await f.service.flush()
+  assert.equal(reads, 1)
+  now = 100
+  await f.service.flush()
+  assert.equal(reads, 5)
+  assert.equal(writes.length, 2)
+  assert.equal(new Set(writes.map(write => write.headers['idempotency-key'])).size, 2)
+  assert.deepEqual(plan.attachments.map(item => item.id), ['one', 'two'])
+  assert.equal(f.service.status('session-test').pending.length, 0)
+})
+
+test('manual selection immediately rechecks a failed target and releases its background retry', async t => {
+  let available = false, reads = 0
+  const plan = boundPlan({ attachments: [{ id: 'existing', sha256: imageDigest }] })
+  const f = await queuedFixture(t, [queuedAttachment('existing')], { now: () => 0, request: async (_url, init) => {
+    assert.equal(init.method, 'GET')
+    reads++
+    return available ? { ok: true, etag: '"revision"', body: JSON.stringify({ data: plan }) } : { ok: false, statusCode: 404 }
+  } }, { async readImage() { return { data: Buffer.from('image') } } })
+  await f.service.flush()
+  available = true
+  await f.service.execute({ action: 'select', roleId: 'r', planId: 'p', stepId: 's' }, { agent: { session: { id: 'session-test' } }, signal: new AbortController().signal })
+  await f.service.flush()
+  assert.equal(reads, 3)
+  assert.equal(f.service.status('session-test').pending.length, 0)
+})
+
+test('session validation and attachment failures do not cool down a healthy target', async t => {
+  let reads = 0, contentReads = 0
+  const plan = boundPlan({ attachments: [{ id: 'valid', sha256: imageDigest }] })
+  const f = await queuedFixture(t, [queuedAttachment('foreign', { sessionId: 'foreign-session' }), queuedAttachment('broken-content'), queuedAttachment('valid')], { request: async (_url, init) => {
+    assert.equal(init.method, 'GET')
+    reads++
+    return { ok: true, etag: '"revision"', body: JSON.stringify({ data: plan }) }
+  } }, { async readImage(ref) {
+    contentReads++
+    if (ref.attachmentId === 'broken-content') throw new Error('Attachment unavailable')
+    return { data: Buffer.from('image') }
+  } })
+  await f.service.flush()
+  assert.equal(reads, 3)
+  assert.equal(contentReads, 2)
+  assert.match(f.service.status('foreign-session').pending[0].error, /not bound/)
+  assert.match(f.service.status('session-test').pending[0].error, /Attachment unavailable/)
+  assert.equal(f.service.status('session-test').pending.length, 1)
+})
+test('an older failed background read cannot overwrite a newer successful manual read', async t => {
+  let release, started, reads = 0
+  const gate = new Promise(resolve => { release = resolve })
+  const seen = new Promise(resolve => { started = resolve })
+  const plan = boundPlan({ attachments: [{ id: 'existing', sha256: imageDigest }] })
+  const f = await queuedFixture(t, [queuedAttachment('existing')], { now: () => 0, request: async (_url, init) => {
+    assert.equal(init.method, 'GET')
+    reads++
+    if (reads === 1) {
+      started()
+      await gate
+      return { ok: false, statusCode: 404 }
+    }
+    return { ok: true, etag: '"revision"', body: JSON.stringify({ data: plan }) }
+  } }, { async readImage() { return { data: Buffer.from('image') } } })
+  const background = f.service.flush()
+  await seen
+  try {
+    await f.service.execute({ action: 'select', roleId: 'r', planId: 'p', stepId: 's' }, { agent: { session: { id: 'session-test' } }, signal: new AbortController().signal })
+  } finally { release(); await background }
+  await f.service.flush()
+  assert.equal(reads, 3)
+  assert.equal(f.service.status('session-test').pending.length, 0)
+})

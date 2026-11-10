@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.49 (2026-11-10)
+
+- Share failed background plan-read retries by role and plan, and read attachment contents after the plan becomes available. Manual selection and change recording recheck immediately.
+- Cover 1000 failed resources for one target, independent targets, automatic and manual recovery, fresh ETags and item-level failure isolation.
+
 ## 0.13.48 (2026-11-10)
 
 - Reuse the host copy action for Rabi messages, removing duplicate buttons and per-message dates while retaining original messages and timestamps.

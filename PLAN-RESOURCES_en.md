@@ -10,6 +10,8 @@ Background writes use strong ETags, stable idempotency keys and authoritative re
 
 `planResourcesEnabled` defaults to true. `planResourcesDirectory` defaults to `storages/rabiroute-plan-resources` under the DSH data directory. Defaults for `planResourceRetryMs`, `planResourceTimeoutMs` and `planResourceMaxBytes` are 30000, 12000 and 10485760. Oversized files remain in DSH with an explicit pending error. An empty `pending` list confirms archival; do not manually delete the queue.
 
+Failed background plan reads for the same `roleId` and `planId` share a failure until `planResourceRetryMs` elapses. The next retry rechecks the plan. Manual `select` and `record_changes` read immediately and clear that target's cached failure. Other targets continue archiving. Attachment contents are read after the plan becomes available. Each write still reads the plan and ETag afresh and validates its binding to the current session.
+
 Changed failure descriptions are checkpointed together at the end of each retry pass; unchanged failures do not rewrite the queue. Uncertain transactions reconcile using their saved digest without rereading attachments. Each outgoing write still persists its transaction and idempotency key before sending.
 
 The Rabi server must support step resource records and batched attachment appends. If an older server rejects or drops the new fields, confirmation remains pending. Retained attachments are preserved; each upload batch remains limited to 8 new files, 10 MiB per file and 25 MiB of new content.

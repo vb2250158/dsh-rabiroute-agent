@@ -1,3 +1,7 @@
+## Background plan reads (0.13.49)
+
+Failed background reads share the configured retry interval per target. A thousand queued resources share one failed read. Manual actions recheck immediately, and queued resources and original transactions remain available.
+
 ## Message display (0.13.48)
 
 Rabi message cards use the host copy action. Original message timestamps remain in the message data.
