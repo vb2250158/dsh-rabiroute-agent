@@ -1,4 +1,4 @@
-/** 检查常驻标签需要的宿主源码和浏览器构建产物。 */
+/** 检查常驻标签和共享消息行需要的宿主源码及浏览器产物。 */
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -15,6 +15,13 @@ export async function checkRowSlots(root) {
   for (const [file, values] of Object.entries(requirements)) {
     const source = await readFile(resolve(base, file), 'utf8')
     for (const value of values) if (!source.includes(value)) throw new Error('会话行接口缺失：' + file + ' / ' + value)
+  }
+  const chat = resolve(root, 'packages/client/ui-chat')
+  for (const file of ['src/client/contract/slots.ts', 'lib/client.js']) {
+    const source = await readFile(resolve(chat, file), 'utf8')
+    for (const value of ['conversation.chat.user.row', 'conversation.chat.user.row.body']) {
+      if (!source.includes(value)) throw new Error('共享消息行接口缺失：' + file + ' / ' + value)
+    }
   }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

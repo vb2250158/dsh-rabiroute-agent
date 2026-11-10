@@ -97,12 +97,29 @@ export function rabiEnvelopeHeader(envelope, t) {
 }
 
 /**
- * Render source envelopes locally and delegate ordinary answers to the optional public Factory.
- * @param props - the message, owner image/file callbacks, Factory renderer, copy locale and session service.
- * @returns the source card, answer card or original ordinary message.
+ * Adapt a durable message to the same presentation used by submission echoes.
+ * @param props - the durable node and the shared row Factory renderer.
+ * @returns the shared user-message row.
  */
-export function RabiMessageNodeView({ node, sessionId, renderMessageImages, loadImage, renderFactorySlot, openFile, openSkill, t, rabiSessions }) {
+export function RabiMessageNodeView({ node, loadImage, renderFactorySlot }) {
   const { text, attachments, rest } = rabiContentParts(node.data.content)
+  return renderFactorySlot('conversation.chat.user.row', {
+    origin: { kind: 'durable', node },
+    content: { text, attachments, extraBlocks: rest, referenceLabels: node.data.referenceLabels ?? [] },
+    facts: { sessionLabels: node.data.referenceLabels ?? [], skillNames: node.data.skillNames ?? [] },
+    loadImage,
+    interactive: true,
+  })
+}
+
+/**
+ * Draw submission, pending and durable rows with one layout and attachment renderer.
+ * @param props - prepared content, the real occurrence identity and session-bound presentation seats.
+ * @returns the source card, optional answer card or ordinary user message.
+ */
+export function RabiUserRow({ origin, content, facts, interactive = false, ellipsis, sessionId, loadImage, renderFactorySlot, t, rabiSessions }) {
+  const { text, attachments, extraBlocks: rest } = content
+  const node = origin.kind === 'durable' ? origin.node : undefined
   const envelope = parseRabiMessageEnvelope(text)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [rawOpen, setRawOpen] = React.useState(false)
@@ -131,8 +148,8 @@ export function RabiMessageNodeView({ node, sessionId, renderMessageImages, load
     catch (error) { if (rabiActive.current) setNotice({ error: true, text: t('navigationFailed', { error: error instanceof Error ? error.message : String(error) }) }) }
     finally { if (rabiActive.current) setBusy(false); if (rabiLocateAbort.current === controller) rabiLocateAbort.current = null }
   }
-  const referenceLabels = node.data.referenceLabels ?? []
-  const skillNames = node.data.skillNames ?? []
+  const referenceLabels = content.referenceLabels ?? facts.sessionLabels ?? []
+  const skillNames = facts.skillNames ?? []
   const displayedText = envelope ? envelope.body : text
   const sourceKind = envelope ? envelope.sourceType : 'ordinary'
   const menuItems = header?.locate
@@ -144,7 +161,7 @@ export function RabiMessageNodeView({ node, sessionId, renderMessageImages, load
     (displayedText !== '' || rest.length > 0) && React.createElement('div', { style: bubbleStyle },
       typeof projectUserText === 'function'
         ? projectUserText(displayedText, referenceLabels, skillNames)
-        : renderFactorySlot('conversation.user.text', { text: displayedText, facts: { sessionLabels: referenceLabels, skillNames }, interactive: true }),
+        : renderFactorySlot('conversation.user.text', { text: displayedText, facts: { ...facts, sessionLabels: referenceLabels, skillNames }, interactive }),
       rest.map((block, index) => React.createElement(JsonBlock, { key: index, payload: block, label: t('extra'), truncatedLabel: total => t('truncated', { total }) }))),
     referenceLabels.length > 0 && React.createElement('div', { style: rabiClientStyles.muted }, t('references', { labels: referenceLabels.join(t('separator')) })))
   // An `agent` envelope keeps its body visible: that row's header is a locate
@@ -160,7 +177,14 @@ export function RabiMessageNodeView({ node, sessionId, renderMessageImages, load
   // The head is DS Bot's answer alone; its absence means this is a plain DSH Session,
   // which keeps the bubble tone the shell has always shown.
   const bubbleStyle = userHead === null ? rabiClientStyles.bubble : rabiClientStyles.bubbleOnBotSurface
-  const fallback = React.createElement('section', { style: rabiClientStyles.row, 'data-rabi-message': sourceKind },
+  const pending = origin.kind === 'pending-steering' || origin.kind === 'submission' && origin.submission.placement === 'steering'
+  const fallback = React.createElement('section', {
+    style: rabiClientStyles.row,
+    'data-rabi-message': sourceKind,
+    'data-submission-echo': origin.kind === 'submission' || undefined,
+    'data-pending-steering': pending || undefined,
+    'data-chat-steering-batch': node?.kind === 'steering' && node.data.batchStart === true ? 'start' : undefined,
+  },
     userHead,
     React.createElement('div', { style: rabiClientStyles.stack },
       envelope && React.createElement('header', { style: rabiClientStyles.header },
@@ -176,9 +200,7 @@ export function RabiMessageNodeView({ node, sessionId, renderMessageImages, load
         })),
       attachments.length > 0 && React.createElement('div', { style: rabiClientStyles.attachments, 'data-message-attachments': true },
         attachments.map((attachment, index) => attachment.type === 'image'
-          ? React.createElement(React.Fragment, { key: `image:${index}` }, typeof renderMessageImages === 'function'
-            ? renderMessageImages({ images: [attachment.image], align: 'end', compact: attachments.length > 1 })
-            : renderFactorySlot('conversation.images.content', { images: [attachment.image], loadImage, align: 'end', compact: attachments.length > 1 }))
+          ? React.createElement(React.Fragment, { key: `image:${index}` }, renderFactorySlot('conversation.images.content', { images: [attachment.image], loadImage, align: 'end', compact: attachments.length > 1 }))
           : React.createElement('span', { key: `file:${index}`, style: rabiClientStyles.file, title: attachment.file.name },
             React.createElement('span', null, attachment.file.name),
             React.createElement('span', { style: rabiClientStyles.muted }, [attachment.file.mediaType, fileSizeText(attachment.file.bytes)].filter(Boolean).join(' · '))))),
@@ -188,7 +210,9 @@ export function RabiMessageNodeView({ node, sessionId, renderMessageImages, load
     notice && React.createElement('div', { role: notice.error ? 'alert' : 'status', style: rabiClientStyles.muted }, notice.text),
     envelope && React.createElement(Modal, { open: rawOpen, title: t('raw'), closeLabel: t('close'), onClose: () => setRawOpen(false) },
       React.createElement('pre', { style: rabiClientStyles.raw }, envelope.raw)))
-  return envelope ? fallback : renderFactorySlot('proactive-answer.message', { node, renderMessageImages, loadImage, openFile, openSkill, fallback }, { fallback })
+  return envelope ? fallback : renderFactorySlot('proactive-answer.message', {
+    row: { origin, content, facts, interactive, ellipsis, loadImage }, fallback,
+  }, { fallback })
 }
 
 export const inject = ['slots', 'sessions', 'locale', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace']
@@ -203,10 +227,13 @@ export function apply(ctx) {
     name: 'conversation.chat.assistant-actions', id: 'rabiroute-speech', order: 30, locale: 'rabiroute-speech',
   }, props => React.createElement(RabiSpeechAction, { ...props, key: `${props.sessionId}:${props.messageId}` })))
   ctx.effect(() => ctx.locale.register('rabiroute-agent-messages', rabiClientLocales))
+  ctx.slots.inject('conversation.chat.user.row.body', () => ctx.slots.register({
+    name: 'conversation.chat.user.row.body', priority: -10, locale: 'rabiroute-agent-messages',
+    inject: () => ({ rabiSessions: ctx.sessions }),
+  }, RabiUserRow))
   for (const key of ['user', 'steering']) {
     ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
       name: 'conversation.chat.node', key, priority: -10, locale: 'rabiroute-agent-messages',
-      inject: () => ({ rabiSessions: ctx.sessions }),
     }, props => React.createElement(RabiMessageNodeView, { ...props, key: `${props.sessionId}:${props.node.id ?? props.node.key ?? key}` })))
   }
   // The plan panel: a page type whose body frames Rabi's own WebGUI page. The type

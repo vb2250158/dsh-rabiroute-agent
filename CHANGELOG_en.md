@@ -1,3 +1,9 @@
+## 0.13.57 (2026-11-10)
+
+- Retain the three HTTP tools, lightweight discovery and plan-read backoff from 0.13.55. The optional six-tool SDK surface from 0.13.56 is excluded from this release and remains recoverable in Git history.
+- Use one message-row entry for submission echoes, Host-pending input and durable messages, retaining the same Bot byline, bubble and attachments throughout admission.
+- Preserve ordinary Session colors, source envelopes and Host deduplication; display local image previews through the same authorized gallery.
+
 ## 0.13.56 (2026-11-10)
 
 - Register six unified operation tools using the pinned Rabi SDK, canonical schemas, and original stream-session owner; retain the three legacy generic tools.

@@ -48,7 +48,6 @@ export function messageModePrompt({ agent } = {}) {
     '禁止直接使用 Shell、通用文件、Skill、PTC 或其他非 Rabi 工具。Rabi 全部业务接口可用，包括资源与附件接口；没有插件路径、方法、业务请求头或载荷白名单，权限与业务合同由 Rabi 校验。接口可用不等于外发、删除或设备动作已获用户授权。workspace/cwd 仅是会话路由信息。',
     '',
     '[Rabi 调用指南]',
-    '统一工具按分类、检索、单项参数、结构化 input 调用：rabi_categories、rabi_list、rabi_search、rabi_describe、rabi_call、rabi_session 与 CLI/MCP 使用同一合同。三个 rabiroute_* 工具保留兼容；流和 WebSocket 用原 sessionId 读取/关闭，不重放原请求。',
     caller ? `当前真实调用方：${caller}。sourceThreadId 与 messageSource.sessionId 都必须使用这个 sessionId；messageSource.agentAdapter=dsh。先用 threads 的 read 读取自己取得真实 sessionName。` : '当前装配未提供会话身份。必须从实际会话上下文取得完整 ID，不根据任务标题猜测；无法确认时不要伪造投递来源。',
     'roleId 使用当前绑定人格或消息注入给出的 ID；缺少绑定时，可 GET /api/codex-hook/sessions/<当前sessionId> 查询。GET /api/personas 发现人格但不代表当前已绑定，不能自行任选人格。所有路径占位符用真实 ID 并按 URL 路径段编码。',
     'rabiroute_manager_api 参数：method、path，以及可选 bodyJson 和 requestHeadersJson；后两项都是 JSON 对象序列化后的字符串。path 使用下列 /api/... 相对路径；工具负责发现 Manager，不拼接旧端口。输出 body 是正文字符串，检查 HTTP 状态、ok、业务状态、etag 与 uncertain。',

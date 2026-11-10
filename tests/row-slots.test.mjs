@@ -17,6 +17,13 @@ test('upgrade check rejects a missing built row slot before installing', async (
     for (const [file, text] of Object.entries(contents)) { await mkdir(join(base, file, '..'), { recursive: true }); await writeFile(join(base, file), text) }
     await assert.rejects(checkRowSlots(root), /lib.client.js.*sidebar.session.row.title/)
     await writeFile(join(base, 'lib/client.js'), 'sidebar.session.row.badges sidebar.session.row.title')
+    const chat = join(root, 'packages/client/ui-chat')
+    await mkdir(join(chat, 'src/client/contract'), { recursive: true })
+    await mkdir(join(chat, 'lib'), { recursive: true })
+    await writeFile(join(chat, 'src/client/contract/slots.ts'), 'conversation.chat.user.row conversation.chat.user.row.body')
+    await writeFile(join(chat, 'lib/client.js'), 'conversation.chat.user.row')
+    await assert.rejects(checkRowSlots(root), /lib.client.js.*conversation.chat.user.row.body/)
+    await writeFile(join(chat, 'lib/client.js'), 'conversation.chat.user.row conversation.chat.user.row.body')
     await checkRowSlots(root)
   } finally { await rm(root, { recursive: true, force: true }) }
 })

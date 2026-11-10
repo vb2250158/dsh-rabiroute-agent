@@ -31,13 +31,26 @@ function harness(storage = new Map(), legacyProjection = true) {
   const context = { React, EventSource, MutationObserver, URL, URLSearchParams, document: { querySelector: () => panelElement, addEventListener() {}, removeEventListener() {} }, sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController, setTimeout, clearTimeout }
   if (!legacyProjection) context.projectUserText = undefined
   vm.createContext(context)
-  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
+  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, RabiUserRow, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
   const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
-  const render = (content, kind = 'user', extras = {}, renderFactorySlot = (_name, _props, options) => options.fallback, sessionId) => { cursor = 0; return context.api.RabiMessageNodeView({ node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } }, sessionId, t, rabiSessions: sessions, renderFactorySlot, loadImage: async () => 'data:image/png;base64,fixture', renderMessageImages: legacyProjection ? args => { images.push(args); return { type: 'image', props: args, children: [] } } : undefined }) }
+  const renderRow = (input, sessionId, factory = (_name, _props, options) => options?.fallback ?? null) => {
+    const renderFactorySlot = (name, props, options) => {
+      if (name === 'conversation.chat.user.row') return context.api.RabiUserRow({ ...props, sessionId, t, rabiSessions: sessions, renderFactorySlot })
+      if (name === 'conversation.images.content') images.push(props)
+      return factory(name, props, options)
+    }
+    cursor = 0
+    return renderFactorySlot('conversation.chat.user.row', input)
+  }
+  const render = (content, kind = 'user', extras = {}, factory, sessionId) => context.api.RabiMessageNodeView({
+    node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } },
+    loadImage: async () => 'data:image/png;base64,fixture',
+    renderFactorySlot: (_name, input) => renderRow(input, sessionId, factory),
+  })
   const renderPlanBody = (sessionId = 'session-1') => { cursor = 0; return context.api.RabiPlanBody({ sessionId, t: planT }) }
   const renderPlanLauncher = (sessionId = 'session-1', openRabiPlanTab = () => {}, getRabiPanelView = () => ({ expanded: false, activeKind: undefined })) => { cursor = 0; return context.api.RabiPlanLauncher({ sessionId, t: planT, openRabiPlanTab, getRabiPanelView }) }
-  return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, storage,
+  return { ...context.api, sessions, render, renderRow, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, storage,
     setBotUserHead: provider => { context.__dshBotUserHead = provider },
     remount: () => { for (const dispose of effects) dispose?.(); effects.length = 0; states = []; cursor = 0 },
     setPanelElement: element => { panelElement = element },
@@ -77,7 +90,7 @@ test('rc.2 image messages retain authorized loading without the legacy gallery c
   assert.equal(gallery.props.images[0].attachment.id, 'image-1')
   assert.equal(typeof gallery.props.loadImage, 'function')
   assert.equal(gallery.props.align, 'end')
-  assert.equal(typeof calls.find(call => call.name === 'proactive-answer.message').props.loadImage, 'function')
+  assert.equal(typeof calls.find(call => call.name === 'proactive-answer.message').props.row.loadImage, 'function')
 })
 
 test('ordinary rows delegate optional answer presentation while source envelopes retain their renderer', () => {
@@ -88,7 +101,7 @@ test('ordinary rows delegate optional answer presentation while source envelopes
     calls++
     assert.equal(name, 'proactive-answer.message')
     assert.equal(props.fallback, options.fallback)
-    assert.equal(props.node.data.content[0].text, 'answer envelope')
+    assert.equal(props.row.content.text, 'answer envelope')
     return answer
   }
   assert.equal(h.render([{ type: 'text', text: 'answer envelope' }], 'user', {}, factory), answer)
@@ -136,6 +149,51 @@ test('Bot user and steering rows use the exact Session head and the lifted bubbl
     assert.equal(nodes(tree, 'bot-user-head')[0], head)
     assert.deepEqual(calls, ['bot-session'])
   }
+})
+
+test('submission echoes, Host pending and durable rows share the same Bot head and content geometry', () => {
+  for (const bot of [false, true]) {
+    const h = harness()
+    const head = { type: 'bot-user-head', props: {}, children: ['Fixture user'] }
+    h.setBotUserHead(sessionId => bot && sessionId === 'fixture' ? head : null)
+    const text = 'A long message '.repeat(50)
+    const content = { text, attachments: [], extraBlocks: [], referenceLabels: [] }
+    const submission = { requestId: 'local-1', placement: 'transcript', time: 1000, text, attachments: [] }
+    const origins = [
+      { kind: 'submission', submission },
+      { kind: 'submission', submission: { ...submission, placement: 'steering' } },
+      { kind: 'pending-steering' },
+      { kind: 'durable', node: { kind: 'user', data: { content: [{ type: 'text', text }], time: 1000 } } },
+    ]
+    const rows = origins.map(origin => h.renderRow({ origin, content, facts: {}, loadImage: async () => 'fixture' }, 'fixture'))
+    for (const row of rows) {
+      assert.equal(nodes(row, 'bot-user-head').length, bot ? 1 : 0)
+      assert.equal(row.props['data-rabi-message'], 'ordinary')
+      assert.deepEqual(row.props.style, rows[0].props.style)
+      assert.deepEqual(row.children, rows[0].children)
+    }
+    assert.equal(rows[0].props['data-submission-echo'], true)
+    assert.equal(rows[1].props['data-pending-steering'], true)
+    assert.equal(rows[2].props['data-pending-steering'], true)
+    assert.equal(rows[3].props['data-submission-echo'], undefined)
+  }
+})
+
+test('shared local rows retain image previews, files and the authorized gallery loader', () => {
+  const h = harness()
+  const preview = { preview: { url: 'blob:local-image', name: 'image.png', width: 4, height: 3 } }
+  const file = { name: 'notes.txt', bytes: 42, mediaType: 'text/plain' }
+  const loadImage = async () => 'authorized'
+  const row = h.renderRow({
+    origin: { kind: 'submission', submission: { requestId: 'local-2', placement: 'transcript', time: 1000, text: 'with attachments', attachments: [] } },
+    content: { text: 'with attachments', attachments: [{ type: 'image', image: preview }, { type: 'file', file }], extraBlocks: [] },
+    facts: {}, loadImage,
+  }, 'fixture')
+  assert.equal(h.images[0].images[0], preview)
+  assert.equal(h.images[0].loadImage, loadImage)
+  assert.equal(h.images[0].compact, true)
+  assert.ok(JSON.stringify(row).includes('notes.txt'))
+  assert.ok(JSON.stringify(row).includes('text/plain · 42 B'))
 })
 
 test('Rabi source envelopes never ask the Bot surface for a user head', () => {
@@ -312,8 +370,12 @@ test('locale, tab type, body and launcher registrations dispose and remount with
     for (const row of messages) {
       assert.equal(row.spec.priority, -10)
       assert.equal(row.spec.locale, 'rabiroute-agent-messages')
-      assert.equal(row.spec.inject().rabiSessions, h.sessions)
+      assert.equal(row.spec.inject, undefined)
     }
+    const userRow = registrations.find(row => row.spec.name === 'conversation.chat.user.row.body')
+    assert.equal(userRow.view, h.RabiUserRow)
+    assert.equal(userRow.spec.priority, -10)
+    assert.equal(userRow.spec.inject().rabiSessions, h.sessions)
     // The plan panel is this plugin's own page type; it takes no other type's kind over.
     assert.deepEqual(definitions.map(definition => [definition.id, definition.kind]), [[h.RABI_PLAN_TAB_ID, h.RABI_PLAN_KIND]])
     const body = registrations.find(row => row.spec.key === h.RABI_PLAN_TAB_ID)
