@@ -1,3 +1,7 @@
+## 0.13.52 (2026-11-10)
+
+- User bubbles lift one more step (16% white through `color-mix`) so they read clearly against a dark page.
+
 ## 0.13.51 (2026-11-10)
 
 - Ordinary user messages: the row is bounded by the chat column (`maxWidth: 100%`, `box-sizing: border-box`) and bubbles cap at `maxWidth: 100%`, so long text no longer runs under the detail panel.

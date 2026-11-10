@@ -1,3 +1,7 @@
+## User bubble contrast (0.13.52)
+
+Bubbles mix 16% white into `bg-layer-3`, so they stand clearly apart from the page in the dark theme.
+
 ## User bubble width and tone (0.13.51)
 
 The user row is now bounded by the chat column, so a long message no longer slides under the detail panel on the right, and its bubbles use a brighter surface so they read apart from the Bot's. Plain DSH Sessions are unaffected.
