@@ -1,3 +1,7 @@
+## Lightweight tool discovery (0.13.54)
+
+The main Agent and Rabi assistant list categories, search by keyword with a cursor, and inspect one operation input before calling it. They read result and full schemas on demand, and consult legacy help only after an explicit discovery-endpoint 404. The existing three generic tools retain all public paths and business headers; this guidance adds no scheduler or permission change.
+
 ## Plain Session isolation (0.13.53)
 
 The byline and the brighter bubble belong to the DS Bot surface alone. The same Session opened from the plain list looks exactly as it did before.

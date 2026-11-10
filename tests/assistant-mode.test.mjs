@@ -47,3 +47,15 @@ test('assistant preserves web search and fetch while denying unrelated tools', (
   assert.match(assistantModePrompt(), /不能猜测身份/)
   assert.throws(() => apply({ tools: {} }), /请先更新宿主/)
 })
+
+test('assistant mode shares staged discovery instructions with the host prompt and packaged source', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const { internals, RABIROUTE_API_DISCOVERY_PROMPT } = await import('../lib/index.js')
+  assert.equal(typeof RABIROUTE_API_DISCOVERY_PROMPT, 'string')
+  assert.ok(assistantModePrompt().includes(RABIROUTE_API_DISCOVERY_PROMPT))
+  assert.ok(internals.promptText({}).includes(RABIROUTE_API_DISCOVERY_PROMPT))
+  assert.doesNotMatch(assistantModePrompt(), /接口合同先通过 GET \/api\/agent\/help/)
+  for (const name of ['index.js', 'assistant-mode.js']) {
+    assert.equal(await readFile(new URL('../src/' + name, import.meta.url), 'utf8'), await readFile(new URL('../lib/' + name, import.meta.url), 'utf8'))
+  }
+})

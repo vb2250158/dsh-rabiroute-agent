@@ -1,3 +1,8 @@
+## 0.13.54 (2026-11-10)
+
+- Main and assistant Agents share lightweight tool discovery: list categories, search a page of at most 10 operations, then read one input schema; retrieve result and full contracts on demand. Read legacy help only after an explicit discovery-endpoint 404.
+- Preserve public paths, headers and request bodies, per-plan background-read backoff, and the current conversation UI.
+
 ## 0.13.53 (2026-11-10)
 
 - The lifted user bubble applies only inside the DS Bot surface; a plain DSH Session keeps its original surface layer, and neither byline nor tone follows it there.

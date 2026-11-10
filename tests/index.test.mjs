@@ -115,3 +115,57 @@ test('already cancelled requests never dispatch business', async () => {
   const result = await managerRequest(config, '/api/roles/x/plans', { method: 'POST' }, controller.signal, { fetch: async (_url, init) => { calls++; init.signal.throwIfAborted(); return response(meta()) } })
   assert.equal(result.ok, false); assert.equal(result.uncertain, false); assert.equal(calls, 1)
 })
+
+test('Manager tool and system prompt use shared staged discovery with precise legacy fallback', async () => {
+  const { RABIROUTE_API_DISCOVERY_PROMPT } = await import('../lib/index.js')
+  const prompt = internals.promptText({})
+  assert.equal(typeof RABIROUTE_API_DISCOVERY_PROMPT, 'string')
+  assert.ok(prompt.includes(RABIROUTE_API_DISCOVERY_PROMPT))
+  const stages = ['/api/agent/categories', '/api/agent/operations?category=', '/api/agent/operations/<', '/api/agent/help']
+  const positions = stages.map(stage => RABIROUTE_API_DISCOVERY_PROMPT.indexOf(stage))
+  assert.ok(positions.every((position, index) => position >= 0 && (!index || position > positions[index - 1])))
+  assert.match(RABIROUTE_API_DISCOVERY_PROMPT, /query=.*limit=10&cursor=/)
+  assert.match(RABIROUTE_API_DISCOVERY_PROMPT, /view=input/)
+  assert.match(RABIROUTE_API_DISCOVERY_PROMPT, /view=result.*view=full/)
+  assert.match(RABIROUTE_API_DISCOVERY_PROMPT, /仅当.*发现端点.*HTTP 404.*按需 GET \/api\/agent\/help/)
+  assert.match(prompt, /桌宠移动.*motion.*关键词.*单项/)
+  assert.match(prompt, /家庭设备先.*关键词.*单项输入合同/)
+  assert.doesNotMatch(prompt, /先读 \/api\/agent\/help/)
+  const description = general({}).description
+  assert.match(description, /GET \/api\/agent\/categories/)
+  assert.match(description, /limit=10&cursor=/)
+  assert.match(description, /view=input/)
+  assert.match(description, /only.*HTTP 404/)
+  assert.deepEqual(tools({}).map(tool => tool.name), ['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
+})
+
+test('generic HTTP tool forwards staged discovery paths and leaves legacy fallback explicit', async () => {
+  const paths = [
+    '/api/agent/categories',
+    '/api/agent/operations?category=devices&query=motion%20move&limit=10&cursor=page%2F2',
+    '/api/agent/operations/device.motion?view=input',
+    '/api/agent/operations/device.motion?view=result',
+    '/api/agent/operations/device.motion?view=full',
+  ]
+  const called = []
+  let discoveryMissing = false
+  const tool = general({ fetch: async (url, init) => {
+    if (url.endsWith('/meta')) return response(meta())
+    const path = url.slice(origin.length)
+    called.push(path)
+    assert.equal(init.method, 'GET')
+    return response({ code: discoveryMissing && path === paths[0] ? -1 : 0, data: { path } }, discoveryMissing && path === paths[0] ? 404 : 200)
+  } })
+  for (const path of paths) {
+    const result = await tool.execute({ method: 'GET', path }, exec())
+    assert.equal(result.ok, true)
+    assert.equal(JSON.parse(result.body).data.path, path)
+  }
+  assert.deepEqual(called, paths)
+  discoveryMissing = true
+  assert.equal((await tool.execute({ method: 'GET', path: paths[0] }, exec())).statusCode, 404)
+  assert.equal(called.at(-1), paths[0])
+  assert.equal(called.includes('/api/agent/help'), false)
+  assert.equal((await tool.execute({ method: 'GET', path: '/api/agent/help' }, exec())).ok, true)
+  assert.equal(called.at(-1), '/api/agent/help')
+})

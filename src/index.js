@@ -56,6 +56,7 @@ export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
 export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.49'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
+export const RABIROUTE_API_DISCOVERY_PROMPT = '接口合同默认逐层轻量发现。先 GET /api/agent/categories 查看分类，再 GET /api/agent/operations?category=<分类>&query=<URL编码关键词>&limit=10&cursor=<游标> 查询相关短页，并按响应游标继续。定位 operationId 后，GET /api/agent/operations/<编码operationId>?view=input 读取单项输入合同。需要结果说明或完整合同时，再按需使用 view=result 或 view=full。仅当旧 Manager 的发现端点明确返回 HTTP 404 时，按需 GET /api/agent/help 读取兼容合同。'
 const THREADS_PATH = '/api/agent/threads'
 const SEND_PATH = '/api/agent/send'
 const SHELL_TOOLS = new Set(['bash', 'pwsh', 'powershell', 'terminal'])
@@ -129,7 +130,7 @@ function toolDefinitions(config, dependencies = {}) {
     { name: 'rabiroute_agent_send', description: 'Send a message through a configured RabiRoute message adapter. A successful Manager and channel receipt is the only proof that the message was sent.',
       parameters: { type: 'object', properties: { requestJson: { type: 'string', description: 'Complete /api/agent/send JSON request.' } }, required: ['requestJson'], additionalProperties: false },
       async execute(args, exec) { return managerRequest(config, SEND_PATH, { method: 'POST', body: JSON.stringify(parseJsonObject(args.requestJson, 'requestJson')) }, exec.signal, dependencies) } },
-    { name: 'rabiroute_manager_api', description: 'Call any RabiRoute Manager API with no plugin endpoint allowlist. Discover current contracts with GET /api/agent/help. Rabi owns authorization, methods, parameters and write preconditions. Inspect full receipts and uncertainty before retrying.',
+    { name: 'rabiroute_manager_api', description: 'Call any RabiRoute Manager API with no plugin endpoint allowlist. Start with GET /api/agent/categories, then search GET /api/agent/operations?category=<category>&query=<encoded-keywords>&limit=10&cursor=<cursor>. Read GET /api/agent/operations/<encoded-operationId>?view=input for the selected operation. Request view=result or view=full when needed. Use GET /api/agent/help for legacy Managers only after a discovery endpoint returns HTTP 404. Rabi owns authorization, methods, parameters and write preconditions. Inspect full receipts and uncertainty before retrying.',
       parameters: { type: 'object', properties: {
         method: { type: 'string', description: 'HTTP method from the current Rabi API contract, including GET, HEAD, OPTIONS, POST, PUT, PATCH and DELETE.' }, path: { type: 'string', description: 'Any same-origin Manager relative path and encoded query; no endpoint allowlist.' },
         bodyJson: { type: 'string', description: 'Optional serialized JSON value.' },
@@ -172,9 +173,10 @@ function promptText(config) {
     'Agent 间投递必须填写完整来源会话 ID、来源 Agent 类型、responsePolicy；要求回复时填写 responseInstruction，正式回复时填写 inReplyToRequestId、result 和 nextAction。',
     '插件只向 Manager 发送 messageSource；来源会话必须与 sourceThreadId 相同。',
     '向 QQ、语音、飞书、RabiLink 等消息端发送内容时使用 rabiroute_agent_send，并取得 Manager 与渠道回执。最终文本不算已发送。',
-    '计划、消息处理、回复请求、记忆和桌宠移动使用 rabiroute_manager_api。桌宠移动先读 /api/agent/help 对应 motion 合同，提交后按原 requestId 查询实际抵达回执。secretaryBinding 只记录秘书，taskBinding 只记录独立业务任务。',
-    'rabiroute_manager_api 可调用 Rabi 的全部接口，没有插件路径、方法或业务请求头白名单；接口方法、参数、鉴权、幂等与版本条件由 Rabi 校验。先读 /api/agent/help 当前合同，新增接口无需更新本插件。调用能力不扩大当前用户授权，外发、设备动作、删除与付费遵守 Rabi Action Gate。',
-    '家庭设备先读 /api/agent/xiaomi-home/devices?q=<URL编码关键词>&limit=5 或 /resources?kind=climate&limit=5 等摘要小页，默认不带完整属性。q 支持名称、描述、型号、房间与属性信息，多词空格分隔；kind 筛实体类型，available=1 筛在线项。结果为 data.items、total、nextOffset，nextOffset 非空时带同样筛选和 offset 继续；不要把第一页当全部清单，也不要默认批量 includeActions=1。',
+    '计划、消息处理、回复请求、记忆和桌宠移动使用 rabiroute_manager_api。桌宠移动按 motion 关键词发现单项输入合同，提交后按原 requestId 查询实际抵达回执。secretaryBinding 只记录秘书，taskBinding 只记录独立业务任务。',
+    'rabiroute_manager_api 可调用 Rabi 的全部接口，没有插件路径、方法或业务请求头白名单；接口方法、参数、鉴权、幂等与版本条件由 Rabi 校验。按当前合同调用，新增接口无需更新本插件。调用能力不扩大当前用户授权，外发、设备动作、删除与付费遵守 Rabi Action Gate。',
+    RABIROUTE_API_DISCOVERY_PROMPT,
+    '家庭设备先按 xiaomi-home、设备或资源关键词发现单项输入合同，再读 /api/agent/xiaomi-home/devices?q=<URL编码关键词>&limit=5 或 /resources?kind=climate&limit=5 等摘要小页，默认不带完整属性。q 支持名称、描述、型号、房间与属性信息，多词空格分隔；kind 筛实体类型，available=1 筛在线项。结果为 data.items、total、nextOffset，nextOffset 非空时带同样筛选和 offset 继续；不要把第一页当全部清单，也不要默认批量 includeActions=1。',
     '设备摘要给出 deviceId 和 resourcesPath；按 /resources?deviceId=<编码deviceId>&limit=5 继续筛选实体，无归属实体使用 deviceId=unassigned。需要更多目录字段可显式 view=detail，仍按页读；单项 /devices/<编码deviceId> 读完整登记信息。定位 resourceId 后只读 /resources/<编码resourceId> 的实时状态，再按 /entity-actions?resourceId=<编码resourceId> 获取该实体动作和参数。列表摘要不是完整状态，输出截断时缩小 limit 或关键词，不使用网页或本地缓存补读。requestHeadersJson 传稳定 Idempotency-Key；插件自动附加本次核验的代际头。按原键查询 /action-requests?idempotencyKey=<原键>，accepted 不等于设备结果已确认。',
     'DSH 投递失败时报告失败，不改投 Codex，也不创建另一套任务。',
     config.localAgentUnrestricted ? 'Rabi 本地回环请求直接使用配置或 Host 发布的地址，不做请求前后的 HTTP 身份核验，也不执行额外的工具通信拦截；远程地址仍逐次核对身份。' : config.managerBaseUrl ? 'Rabi Manager 使用插件显式配置的完整地址并逐次核对身份。' : 'Rabi Manager 每项操作从 Host 动态发现并核对 /meta，不使用历史端口。',
