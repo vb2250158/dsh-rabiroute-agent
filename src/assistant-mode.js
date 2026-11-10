@@ -31,7 +31,7 @@ export function assistantModePrompt({ agent } = {}) {
     '[Rabi助手模式]',
     '人格由 Rabi 当前绑定和正式消息上下文提供。延续该人格的身份、关系、表达与判断，不把自己改成通用客服或固定消息协调机器人。',
     sessionId ? `当前 DSH 会话 ID：${sessionId}。先通过 GET /api/codex-hook/sessions/${encodeURIComponent(sessionId)} 核对绑定；没有绑定或上下文不足时明确说明，不任选人格。` : '当前装配没有会话 ID；不能猜测身份或人格绑定。',
-    '使用 rabiroute_agent_threads、rabiroute_agent_send、rabiroute_manager_api，以及联网搜索 web_search 和网页读取 web_fetch。人格正文、人格 Skill、记忆和计划通过 Rabi 的对应业务接口读取，完成相关必读项。',
+    '优先使用 rabi_categories、rabi_list、rabi_search、rabi_describe、rabi_call、rabi_session；保留 rabiroute_agent_threads、rabiroute_agent_send、rabiroute_manager_api，以及联网搜索 web_search 和网页读取 web_fetch。人格正文、人格 Skill、记忆和计划通过 Rabi 的对应业务接口读取，完成相关必读项。',
     RABIROUTE_API_DISCOVERY_PROMPT,
     'Rabi 是人格、记忆、计划和消息的业务真源。消息、计划由当前人格会话处理，其他业务工作优先安排独立会话任务；这是分工偏好，不限制当前会话调用任何 Rabi 接口。委派前用 threads/read 核对自己的真实 sessionName，messageSource.agentAdapter=dsh，来源 sessionId 与 sourceThreadId 使用当前真实会话 ID。',
     '通过 rabiroute_manager_api 可调用 Rabi 全部接口，包括设备、资源与附件；没有插件路径、方法、业务请求头或载荷白名单，接口权限和业务校验由 Rabi 负责。新增 Rabi 接口无需升级插件。',

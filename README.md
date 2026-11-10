@@ -1,3 +1,11 @@
+## 统一操作工具（0.13.56）
+
+新增 `rabi_categories`、`rabi_list`、`rabi_search`、`rabi_describe`、`rabi_call`、`rabi_session` 六个实际工具，与 Rabi CLI/MCP 直接使用同一 SDK、工具定义和结构化输入；三个 `rabiroute_*` 工具继续兼容。助手和消息模式沿同一工具名集合开放这些入口。
+
+调用使用 `operation` 和结构化 `input`，保留原 `requestId`/`idempotencyKey`、`expectedRevision`、合同与不确定回执。HTTP/SSE 使用现有 Manager 连接的显式文本、字节或流消费；WebSocket 复用权威通道实现。流返回原 `sessionId`，通过 `rabi_session` 读取或关闭，卸载会取消并关闭原会话，不重放业务请求。原生外部监听器另需相应 native connector；缺少该连接器时返回明确错误而不假报已执行。
+
+共享源码固定于 [RabiRoute 0fbd3284](https://github.com/vb2250158/RabiRoute/tree/0fbd32847f7bcffdfe0eb4f4bf0f9d8f27d0b3cb)。`vendor/rabi-operation-sdk` 保存逐输入来源、MIT 与第三方许可，`lib/operation-sdk.js` 是可核验的 Node ESM 构建产物；运行不依赖另一份 Rabi checkout、机器绝对路径或命令行子进程。正常构建校验已提交产物；重建使用清单固定的源码、依赖和 esbuild 0.28.1。
+
 ## 运行版本（0.13.55）
 
 运行状态与包版本保持一致；安装验收仍核对固定 Git 来源与实际加载文件。轻量发现与计划读取退避行为不变。

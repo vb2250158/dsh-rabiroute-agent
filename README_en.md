@@ -1,3 +1,11 @@
+## Unified operation tools (0.13.56)
+
+Six registered tools—`rabi_categories`, `rabi_list`, `rabi_search`, `rabi_describe`, `rabi_call`, and `rabi_session`—use the same SDK, tool definitions, and structured inputs as Rabi CLI/MCP. The three `rabiroute_*` tools remain available. Assistant and message modes inherit the same tool-name set.
+
+Calls retain `operation`, structured `input`, the original request/idempotency key, expected revision, contract, and uncertainty. HTTP/SSE use explicit text, byte, or streaming consumption on the existing Manager connection; WebSockets reuse the upstream channel implementation. Streams return their original session ID for reading or closing, and plugin disposal cancels and closes those sessions without replay. External native listeners require their corresponding connector; an absent connector returns an explicit error rather than execution success.
+
+The shared source is pinned to [RabiRoute 0fbd3284](https://github.com/vb2250158/RabiRoute/tree/0fbd32847f7bcffdfe0eb4f4bf0f9d8f27d0b3cb). `vendor/rabi-operation-sdk` records input provenance and all licenses; `lib/operation-sdk.js` is a verifiable Node ESM artifact. Runtime does not depend on another checkout, machine paths, or CLI subprocesses. Normal builds verify the committed artifact; rebuilding requires the recorded source, dependencies, and esbuild 0.28.1.
+
 ## Runtime version (0.13.55)
 
 Runtime status and package versions agree. Installation verification still checks the fixed Git source and loaded files; lightweight discovery and plan-read backoff are unchanged.

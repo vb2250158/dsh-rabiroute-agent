@@ -1,6 +1,6 @@
 {
   "name": "dsh-rabiroute-agent",
-  "version": "0.13.55",
+  "version": "0.13.56",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -35,7 +35,9 @@
     "icon.svg",
     "ICON_LICENSE.txt",
     "patches",
-    "scripts/check-row-slots.mjs"
+    "scripts/check-row-slots.mjs",
+    "vendor/rabi-operation-sdk",
+    "scripts/build-operation-sdk.mjs"
   ],
   "dependencies": {},
   "peerDependencies": {
@@ -88,7 +90,7 @@
   },
   "devDependencies": {
     "jsdom": "^29.1.1",
-    "esbuild": "0.25.12"
+    "esbuild": "0.28.1"
   },
   "icon": "./icon.svg"
 }

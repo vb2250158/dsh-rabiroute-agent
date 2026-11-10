@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { apply, assistantModePrompt, RABI_ASSISTANT_TOOL_NAMES } from '../lib/assistant-mode.js'
+import { apply, assistantModePrompt, assistantModeGuard, RABI_ASSISTANT_TOOL_NAMES } from '../lib/assistant-mode.js'
 import { apply as hostApply, RABIROUTE_AGENT_TOOL_NAMES } from '../lib/index.js'
 import { rabiAssistantPreset } from '../lib/assistant-preset.js'
 
@@ -57,5 +57,11 @@ test('assistant mode shares staged discovery instructions with the host prompt a
   assert.doesNotMatch(assistantModePrompt(), /接口合同先通过 GET \/api\/agent\/help/)
   for (const name of ['index.js', 'assistant-mode.js']) {
     assert.equal(await readFile(new URL('../src/' + name, import.meta.url), 'utf8'), await readFile(new URL('../lib/' + name, import.meta.url), 'utf8'))
+  }
+})
+test('canonical Rabi tools remain available in assistant mode', () => {
+  for (const name of ['rabi_categories', 'rabi_list', 'rabi_search', 'rabi_describe', 'rabi_call', 'rabi_session']) {
+    assert.equal(assistantModeGuard({ name, arguments: {} }), undefined)
+    assert.ok(RABI_ASSISTANT_TOOL_NAMES.includes(name))
   }
 })

@@ -1,0 +1,1184 @@
+{
+  "upstream": "https://github.com/vb2250158/RabiRoute",
+  "commit": "0fbd32847f7bcffdfe0eb4f4bf0f9d8f27d0b3cb",
+  "license": "MIT",
+  "esbuildVersion": "0.28.1",
+  "node": "v22.17.1",
+  "entry": "export { createOperationSdk, OperationSdkError, operationResult } from './apps/rabi-agent/lib/operation-sdk.mjs';\nexport { OPERATION_TOOL_DEFINITIONS, operationIsReadOnly } from './apps/rabi-agent/lib/operation-tool-definitions.mjs';\nexport { createOperationTools } from './apps/rabi-mcp/lib/operation-tools.mjs';\nexport { openApiWebSocket } from './apps/rabi-agent/lib/api-websocket-client.mjs';\n",
+  "files": [
+    {
+      "path": "apps/rabi-agent/lib/api-catalog-client.mjs",
+      "sha256": "d44262bde38114fa5b61e5f61ca351fdeddd85e415d9ebee25e2245333e268ea",
+      "bytes": 14363,
+      "virtual": false,
+      "gitSha256": "44f6018c52f0c51d98d7e401d3b40928c9c3bffaeb16e5daa739180a8ebb877a",
+      "gitBytes": 14157,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/api-path-template.mjs",
+      "sha256": "256fa66162201b38ee8453b6b18c044a326b3eeab1d1d500d6dfd4025b2ceff4",
+      "bytes": 8168,
+      "virtual": false,
+      "gitSha256": "1b0b827b57f9c32d84a1dac83a9ea3e70228eb1e83a97c3adc861de1eda16a9f",
+      "gitBytes": 8058,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/api-websocket-client.mjs",
+      "sha256": "5c9124ccfe0e870282a427b5c11ba8e672d61d1b0d8574e9781cbc8e40c12fc8",
+      "bytes": 11735,
+      "virtual": false,
+      "gitSha256": "ab1425144b70df7f2ba98e9d6ae9d84ccea805be831f5879a5f35dc115bea40d",
+      "gitBytes": 11552,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/delivery-control.mjs",
+      "sha256": "f5fbb7bff5340ceeec20da740e98b9e63d8326d436996bd8d2700d44280f8a72",
+      "bytes": 8813,
+      "virtual": false,
+      "gitSha256": "4b83982c52fc928a6da15dd10f1b36007a405c130ac52f1c803a356d5ab8af54",
+      "gitBytes": 8691,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/endpoint-session.mjs",
+      "sha256": "3fc74337ab35135b9ac95f4896c355c5f579ec591f296feb3ce019f8ee0a2c7d",
+      "bytes": 10867,
+      "virtual": false,
+      "gitSha256": "183166e190fc1a59b73d22a1d2231f258fdeec02d196de5acc3239478fdca925",
+      "gitBytes": 10726,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/manager-client.mjs",
+      "sha256": "a248621d984669b4e30f834609ea9344df353bd97affe3cd704577c901973d1c",
+      "bytes": 50187,
+      "virtual": false,
+      "gitSha256": "7a46745bd4a75a0f3d59099f4370cd0c1597a8f98c79c63f3eb0ff8084b9cd62",
+      "gitBytes": 49497,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/manager-discovery.mjs",
+      "sha256": "afc411896b13bf250b18d7cff85aa8d6f38c38555b76e7ad407505e009aca48c",
+      "bytes": 5718,
+      "virtual": false,
+      "gitSha256": "ed2c7004728a4541500ebf69ab8ec5b4d92267d912734e5b3de00c2498b16c36",
+      "gitBytes": 5644,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/operation-result.mjs",
+      "sha256": "396272ffc5183bcb824a0da2843e70884a647391be8f6325069877b729efd5c1",
+      "bytes": 952,
+      "virtual": false,
+      "gitSha256": "25406e42e654b198e6fb176e57ce74982f166219c197e8598e81fb1266a4016b",
+      "gitBytes": 940,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/operation-sdk.mjs",
+      "sha256": "953694ca5b6b2f65e72e88a6a161aa0f71bb8ea809157b865665797693a753eb",
+      "bytes": 10761,
+      "virtual": false,
+      "gitSha256": "a12e070e9956788eadf9f7a0063cceee546b4cdefd1908be9c3f70d5b3c1865f",
+      "gitBytes": 10548,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/operation-tool-definitions.mjs",
+      "sha256": "611e69231f95c8fc7bdc2e6b88531b6d6f893c2fed5b900768ea6fffe12b4514",
+      "bytes": 2651,
+      "virtual": false,
+      "gitSha256": "08443ef2899b3b520354ecb267eee397f402b7bed8816db5c5f8932754a84157",
+      "gitBytes": 2630,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-agent/lib/timeout-settings.mjs",
+      "sha256": "62788a0e66d210ca52c459e42103020b863b1687f6f4f6a24f35b69202148d75",
+      "bytes": 1092,
+      "virtual": false,
+      "gitSha256": "68d7c9d696ce2d056f682ed554bd6eac24c64741135a250b29850672e6938576",
+      "gitBytes": 1064,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-mcp/lib/api-tools.mjs",
+      "sha256": "b297e474a9891b5f6c30729daf2ef1b9f809e7ff63eaa0a4feec6d2ebd1112b3",
+      "bytes": 21091,
+      "virtual": false,
+      "gitSha256": "e57799c461de301d03085f74157166cbb3ed9ef7de54633971ab9b3b85c5029c",
+      "gitBytes": 20863,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-mcp/lib/knowledge-tools.mjs",
+      "sha256": "f0928b4a6241edcf64b9c1514b4037e607f96fc9cf6a9d7acd136ff46dfbbd28",
+      "bytes": 229,
+      "virtual": false,
+      "gitSha256": "ba2f8a843cf006b0bae6e48f616cafec21ca2ff76250361053b46b9c8478d35f",
+      "gitBytes": 227,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-mcp/lib/manager-client.mjs",
+      "sha256": "8f46e2cd7798e8072bf9c4bbf39ad81f921a203d7deecccc9ad3fa227b62f251",
+      "bytes": 258,
+      "virtual": false,
+      "gitSha256": "d1ddfa064a09634fce5078a13b2cb0c7ae8aca30ffde2ec2f25de65543367761",
+      "gitBytes": 254,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "apps/rabi-mcp/lib/operation-tools.mjs",
+      "sha256": "fab7535e18eb6058135b8e24a14c70ef9ac9c4be72fd223a9b9bb39e98e8cdec",
+      "bytes": 4516,
+      "virtual": false,
+      "gitSha256": "8e3bc33b94973bfc54d63a896a6e2051b70467f81a861ce33737dc6ce68f5af0",
+      "gitBytes": 4453,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "node_modules/@leichtgewicht/ip-codec/index.cjs",
+      "sha256": "3f1857adf781b6d951efc5d43a623259c09f842f222d83cc1639d08d65340e81",
+      "bytes": 7160,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv-formats/dist/formats.js",
+      "sha256": "b61693a26869970a92cc1fe832c931ccd3afe8b6d66802b19c48306349e84880",
+      "bytes": 12263,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv-formats/dist/index.js",
+      "sha256": "3f3014150293846086d11058bb8bf43e669e354a98b37adcf10281454d5e753b",
+      "bytes": 1508,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv-formats/dist/limit.js",
+      "sha256": "ffc374031a55c3f6e39dc3fe69e663f8251b9d9d7ddb8f513a6807c985c18bb8",
+      "bytes": 2900,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/2020.js",
+      "sha256": "908e9670b478b2ba126802a221b7e47006f50cf467e2c5dd7935d3dbef10a20a",
+      "bytes": 2894,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/ajv.js",
+      "sha256": "edaed56fc546f5551b0d6dc2ff2a9cc25c2d6c83318a086eaa8c3ad0b2479297",
+      "bytes": 2841,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/codegen/code.js",
+      "sha256": "1287153722f1fc3c5342647de7ae1d7b6fb68bdb3378a0776a937d273fc97e0d",
+      "bytes": 4676,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/codegen/index.js",
+      "sha256": "f03b2b72597ef86878d1d4030580c2d0964046efad4867f3d05aa91065ba034c",
+      "bytes": 23127,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/codegen/scope.js",
+      "sha256": "d2a0a97af2faa2cad88702314fe421e235ab17f11e0d62883d58d8d4dc734286",
+      "bytes": 5198,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/errors.js",
+      "sha256": "53990f8f2cc05922bba410ae68231d3f869de4f8343277ede5b4834fa564c6c2",
+      "bytes": 5771,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/index.js",
+      "sha256": "05b34da22814f3787bfa3ac68dad59c9047f56e55a607e0a20719ebf5afe69ac",
+      "bytes": 10046,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/names.js",
+      "sha256": "3cab37a2240b996b9bed92fe7a041d91689cfe3ad2e9ae4c0ab99e4146408493",
+      "bytes": 1440,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/ref_error.js",
+      "sha256": "81c98fdf34c3037c91bfcc02277ec32156c71e34048f36cfe4e084416e916cb7",
+      "bytes": 543,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/resolve.js",
+      "sha256": "df75af0e0cf03fa1c6452e8dc61019f5aec645a8a5f6f494dc4e13cb5502d2d9",
+      "bytes": 5006,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/rules.js",
+      "sha256": "ec1d86500f497aa8e20f9f0c1695951159d9a909669d00a261ce1bb22b3cf0a9",
+      "bytes": 918,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/util.js",
+      "sha256": "fa911f5631f29d4d6420adfe086cb693b94b08de2719475c78c54bcb82f831a5",
+      "bytes": 7103,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/validate/applicability.js",
+      "sha256": "50c5cba5894a7fb9874b3432355b46ec71b73c9368dafb1323ded8567cca8fc0",
+      "bytes": 853,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/validate/boolSchema.js",
+      "sha256": "c08abdbdbd3d8b1dcc0552a20fbc7d837ed44f4ca6abb2e464985590ac94377f",
+      "bytes": 1531,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/validate/dataType.js",
+      "sha256": "697bd7005361ec7066a23c18830a10b0ef28aec1a33138b4e3098bf78c4fae52",
+      "bytes": 8409,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/validate/defaults.js",
+      "sha256": "05721971df94faa57b09c8cfd60c2eef81b6d14910a7dea5f539d693a029c428",
+      "bytes": 1448,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/validate/index.js",
+      "sha256": "cb2103e5f890e04592c10d24b45857dad91155bae9f9460138a2459bdaaea2cd",
+      "bytes": 20552,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/validate/keyword.js",
+      "sha256": "ab8f070c75c25eee9be5c837f364748909b58f5db66149a2beccbd2f66afeb76",
+      "bytes": 5695,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/compile/validate/subschema.js",
+      "sha256": "ca783d6052af91e65ebb59a5b48b47fb459a2241d37ca6a042f767d4ce451bdc",
+      "bytes": 3858,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/core.js",
+      "sha256": "51be29c7ed7288622f755c0f1bebd3da4a9907d77aa2c33b0f2a0a5b6b339603",
+      "bytes": 25202,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/data.json",
+      "sha256": "d24ab8a97c18b3f5afdde7d7024a0e0ac1df0614a16a41cb88f81379edcc2db3",
+      "bytes": 409,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/index.js",
+      "sha256": "2e39089b0aaa14efa7901ecf5384622ec3d5897b206e1d589d2420f17b9fa6e1",
+      "bytes": 1026,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/meta/applicator.json",
+      "sha256": "f1e465ff0c0cc86bee5c0cc4b51d2734c532e6ea12c75b60a2ac093a4577b2d4",
+      "bytes": 1441,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/meta/content.json",
+      "sha256": "7ede86f2c48d646202bf1332aefaf46db268c943d59752727db7247dc2920516",
+      "bytes": 479,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/meta/core.json",
+      "sha256": "c3a5947992d4fe67c95cda7910911207376bbae41c0a124ec9e7e699172e7a49",
+      "bytes": 1344,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/meta/format-annotation.json",
+      "sha256": "1e31131b1ed21f98c007f04deb501343b8c4dd77f1c5a8494a9c2085f68d769d",
+      "bytes": 420,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/meta/meta-data.json",
+      "sha256": "eb008c756b29bdaa237c1f06d32ea4a21f6ef22148b03c6372cea5e4c0782273",
+      "bytes": 758,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/meta/unevaluated.json",
+      "sha256": "8f7f75f4274745faa32e4abdba12de99f49b21df225f52f723b5c62043b0edca",
+      "bytes": 472,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/meta/validation.json",
+      "sha256": "3cae7069843679429e4ada7df261bb8961fa34cac15be89296026e69af312092",
+      "bytes": 2264,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-2020-12/schema.json",
+      "sha256": "5333c7df76bceee098e865881d0808238dea836126c6c60b49299ec85c6c7a56",
+      "bytes": 2166,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/refs/json-schema-draft-07.json",
+      "sha256": "f7e8b13cad4fecff9771f3626fef33e20e59027b90938a28fd9d2f6c17cd0773",
+      "bytes": 3811,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/runtime/equal.js",
+      "sha256": "c94467da09ee94e5d194483a7ab821b9bb3bf1c04397270f2ab53dea9de59274",
+      "bytes": 286,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/runtime/ucs2length.js",
+      "sha256": "1df012dd3d23fced07255a7204798004509687cb1f431ae0ab976db436bbd890",
+      "bytes": 808,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/runtime/uri.js",
+      "sha256": "d1d61baf97ed87d7310df847a78ed73d19c8cc003207bf5aaec977500bdb1578",
+      "bytes": 218,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/runtime/validation_error.js",
+      "sha256": "11bf5b4affc8114e5e7cdf65b93006c2d997ab60ada1152c22e136f9b828b815",
+      "bytes": 337,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/additionalItems.js",
+      "sha256": "7beb0fbda5e349907067c8398bb8cc3260a6267b6e5dff9793a5ab2171934099",
+      "bytes": 1931,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js",
+      "sha256": "e237cb180cd2e3f2e676feb714d7dcc6a42116640f9db2ad830cd20d9dfc540a",
+      "bytes": 4309,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/allOf.js",
+      "sha256": "98f46a6434ebe5f851b406480e18b776dd7f1bcc275e28c16a13bfef3cc067c7",
+      "bytes": 756,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/anyOf.js",
+      "sha256": "8d7368d4aebad0514b713191b934993b4f0bf570e1bab93b07dc69712db2cec5",
+      "bytes": 343,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/contains.js",
+      "sha256": "56165dc93cd8b0b4611db50a97f1e7d7f9af6c5ffe95a7a5b054d6eeaa7f6a8c",
+      "bytes": 3680,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/dependencies.js",
+      "sha256": "c1a83bf484b6fde4d268935f079ddba5e74a2f589dfc6d15ca2e20ba4d06ee5b",
+      "bytes": 3198,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/dependentSchemas.js",
+      "sha256": "d17d23755b0cf8699c180dd98b8b7270b688d2e4fe5a4c4fcc53ffdcc18ee58e",
+      "bytes": 354,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/if.js",
+      "sha256": "42374ee5dc681433579cc689b0c4ae5343f5bf78d4d6a561722b9277c5335ec4",
+      "bytes": 2438,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/index.js",
+      "sha256": "5a61978f6d81bbabfa8b9ccb71d7de816ed6dd1fd7de5c72657439a76c2a7cb3",
+      "bytes": 1529,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/items.js",
+      "sha256": "fa87f74adc3aac1f1b5e3e7dddf73294e6850e1dd49ed131fca4352e9645c54e",
+      "bytes": 1993,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/items2020.js",
+      "sha256": "c449ef64aec16263c7935293ed450cfc2da3ba66f6df5f99c3198c05f169838f",
+      "bytes": 1037,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/not.js",
+      "sha256": "ab2f2758d4ea97ac8763fe5540dd0f4d877859676fe5d6c750a18deca387f718",
+      "bytes": 773,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/oneOf.js",
+      "sha256": "e2aeb6c22d49fd5f348bedcf7f5c4d7b31f5a05dd7ff1a0c531374c6968792a2",
+      "bytes": 2257,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/patternProperties.js",
+      "sha256": "0d43da49a82452c439ba990de7372ad5cedb663717918a5f6dae07025abff655",
+      "bytes": 3236,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/prefixItems.js",
+      "sha256": "16264f7b3233a6dcb98b48700643efbd3ebc4d11e27b3eacffc83ccb5f44fb23",
+      "bytes": 354,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/properties.js",
+      "sha256": "c896873ae7251093a2c8880545b69b6e8cb55c44817a53ec830a49818d74104f",
+      "bytes": 2153,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/propertyNames.js",
+      "sha256": "b3411cfeaff8efd5e6de12971bb5dc339e64b61fbe62d3b950794c077315c2e7",
+      "bytes": 1221,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/applicator/thenElse.js",
+      "sha256": "9bc42eb8699d57188a7ec2a710d3f38052f92bd78c5d4d0442cf98cf2ebbe22d",
+      "bytes": 446,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/code.js",
+      "sha256": "9212ddf8bd0a4c3b1c4b44cdadd141183b2b36f561b91d13df53c83911e3bf63",
+      "bytes": 6216,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/core/id.js",
+      "sha256": "49c8eff694ce4371450c1f9986e934fcbf4bd143311caef5332113f29175bc11",
+      "bytes": 267,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/core/index.js",
+      "sha256": "f420e1011b95e27b54c58323a7ed4ffbd0a88cdb4496f771bb6782c2aa22d23e",
+      "bytes": 357,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/core/ref.js",
+      "sha256": "1422c1454b3621d890066042048f37746fe1cf213088307099816199889bbfd1",
+      "bytes": 5234,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/discriminator/index.js",
+      "sha256": "b58b58025d2dbe5a6967376faec9295b860a338664c47037e9a1035c1e8fb88e",
+      "bytes": 4845,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/discriminator/types.js",
+      "sha256": "2365341d1f30dc72cece7703e908e47aacb8f904b9f66ec4019fe889ae1e57fa",
+      "bytes": 308,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/draft2020.js",
+      "sha256": "2d0dc3a14abd48a45ad1407a97f23a0f943fa5244923037f86e95a7de04a7445",
+      "bytes": 762,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/draft7.js",
+      "sha256": "8c62022c6c3aa302c3ea6f6709a697fc9eb6385d243fa7c2156dbe9f02228170",
+      "bytes": 557,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/dynamic/dynamicAnchor.js",
+      "sha256": "78222a5b42bab186253d880f9af4b012394ae5988bfab78e79f2510caed0ccf7",
+      "bytes": 1261,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/dynamic/dynamicRef.js",
+      "sha256": "acc2913c91d11ff57150dde1751cdd5d9f486a0cb156037870ede203273af917",
+      "bytes": 1985,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/dynamic/index.js",
+      "sha256": "8c05d09948653957427f351d9c6172965b932a5663f7dcb63014a491a533cc0b",
+      "bytes": 457,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/dynamic/recursiveAnchor.js",
+      "sha256": "9f6cb7e509f9deada1b884010f08c52876f8eace32dcf0e7da28f6d0d91f3f76",
+      "bytes": 522,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/dynamic/recursiveRef.js",
+      "sha256": "7b0c651e2c5b5218639cd3ad7e5162f1e226fc9814107a85f4c3e47f5138670d",
+      "bytes": 325,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/format/format.js",
+      "sha256": "6fae0d5124fd821b1a9959492f7d6d7b528bee8830d49a7a4759fc9a9ab81d5f",
+      "bytes": 4317,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/format/index.js",
+      "sha256": "d5dad5f95c9c5f48f8ca956cdbb927aafc7b56baabfca8c0b0403d92c5ebeb67",
+      "bytes": 209,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/metadata.js",
+      "sha256": "45c178744a7ec57e20c85ceeaea8d9f36b5663636ab7e495ea2c3c1bf4a58609",
+      "bytes": 427,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/next.js",
+      "sha256": "491c4d9738e50a6c22b3090cb1df49911b4bb7c3b7dcafc2f2dd4c074c4d82e7",
+      "bytes": 433,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/unevaluated/index.js",
+      "sha256": "4e7936d1a55051e70e2ebbbfc8de94fbe7f1e7b055252df5a984481ea7c156a4",
+      "bytes": 350,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/unevaluated/unevaluatedItems.js",
+      "sha256": "4d7010c39f1b7af4a2fe1a62e5b65c8f763d4e58ac3d710099d367659f5e4fda",
+      "bytes": 1588,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/unevaluated/unevaluatedProperties.js",
+      "sha256": "665029a99612ec32e9bef99c9c4b09a4dc0be6c71d7b920594d414d404806ebe",
+      "bytes": 2608,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/const.js",
+      "sha256": "ace994e9ab97a70899a9484794794f4be5ee03bfb3cf32242d3f091d77f0329a",
+      "bytes": 852,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/dependentRequired.js",
+      "sha256": "cd69a90089328b24d2232c12edae57858c14f66aaa56923c12929eb3d673e8fa",
+      "bytes": 403,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/enum.js",
+      "sha256": "61062b318a40eb52fc5a8283e7f4781db98349841744961ef4fe04a4722ebf22",
+      "bytes": 1901,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/index.js",
+      "sha256": "4a1839832de5f10ff423c1c0c6cb232b5b6e1b34980a28862cf56b2763136de4",
+      "bytes": 1036,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/limitContains.js",
+      "sha256": "0ea6f2e43359add298e1ed9306fe5020c62e086392f2915f10226b01394b200d",
+      "bytes": 495,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/limitItems.js",
+      "sha256": "49f0427d29b38aef2fa8aead26e68bda12deb9a2da22f7a7804ba0fed44e1fec",
+      "bytes": 852,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/limitLength.js",
+      "sha256": "379c28317faaf7784680b6049c3562692d3df6d65cce33f48e6c6c723beeeec2",
+      "bytes": 1130,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/limitNumber.js",
+      "sha256": "3dd4bd41dbfc76c522078ff54b6479683485c4e97faa04cfcfaf2d8cb0fb8e65",
+      "bytes": 1036,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/limitProperties.js",
+      "sha256": "8523a3f7b36c34882ca32b0ec71a2157d7930907cb86b778a97c1514fa6258ac",
+      "bytes": 896,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/multipleOf.js",
+      "sha256": "df128c2a6ca74ae57c65fbfe3aea8a101447a3ae8c41fd53cfc5693fa23cc8bd",
+      "bytes": 1023,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/pattern.js",
+      "sha256": "86e84206bfc6a66ef18bf1fe43fbc56ebe7f7f4d57841197b6d044c529e0c195",
+      "bytes": 1323,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/required.js",
+      "sha256": "b953bc18d94274bd73374dd5b4282d7a21159cec8c0e7a357e1eaf3f326b9054",
+      "bytes": 3188,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ajv/dist/vocabularies/validation/uniqueItems.js",
+      "sha256": "666d1a2aa25c0dfe3cf41312d0f9d40e9f99eb2c19be7469134ad89005aadd52",
+      "bytes": 3037,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/index.js",
+      "sha256": "41af55c5474724d2216fa94d11bf9cd8f5316098d70fbe59dce14da719a3fecc",
+      "bytes": 2174,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/bonjour.js",
+      "sha256": "4d1d1c6e22b097bacf6ebfe38fe650f0e235286053365a6b2e297515d1e56938",
+      "bytes": 1735,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/browser.js",
+      "sha256": "adea7f34d935acd40bf67f44a8148605637387916779c24603b536464aeba897",
+      "bytes": 8372,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/dns-txt.js",
+      "sha256": "15bd5717ec7f6af0a985da21e3d5a011f9e71146bd889cd04807a69da03082cb",
+      "bytes": 1145,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/mdns-server.js",
+      "sha256": "a25a258e31d19353960f2ead973f5685cba68d6b7f1427e1b568adea2f3bee21",
+      "bytes": 4220,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/registry.js",
+      "sha256": "556824be0d67155fa2ef650b931ddbf6155183cc7cd408778bc76cd8094b7356",
+      "bytes": 5146,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/service-types.js",
+      "sha256": "e2010aa45669e84e93a143e9326591f2906e68105a5c90c1245dd8b35b09c91b",
+      "bytes": 1406,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/service.js",
+      "sha256": "95493e27c2c7440355e78298a9fdeac350002ab05bf65e4e1a748bff80c9ee34",
+      "bytes": 4127,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/utils/dns-equal.js",
+      "sha256": "c236f15ef5071a59bf7fc7980a0d0b46818ab7938a8d5ead4a86fef07f6b645f",
+      "bytes": 443,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/utils/equal-txt.js",
+      "sha256": "a9937df5a373ca9675a75f30b46a9616991c72c8b2658a6ef6a390fe82948a04",
+      "bytes": 468,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/utils/filter-service.js",
+      "sha256": "732801e976b0b8b63c49a40a08c7161a8cfeadba0c4d8b1b1d2b61904ebd278e",
+      "bytes": 638,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/bonjour-service/dist/lib/utils/filter-txt.js",
+      "sha256": "311c59c686ba9f17ae1e4d1c2cc979dbffb308e5f1bd8075acc93fcf6087ce44",
+      "bytes": 292,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/dns-packet/classes.js",
+      "sha256": "adc3ba96a6d030294f9356f03cc215e2c53de13ed6dee94fda54ee0d4f5f00ef",
+      "bytes": 437,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/dns-packet/index.js",
+      "sha256": "dd9d08eac52a0dc5f8214ab188b661bb66b20acaa02e1e812e0400d588aaefd3",
+      "bytes": 44599,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/dns-packet/opcodes.js",
+      "sha256": "2c5ae21809c131194a7f8ee69c96eeb5b347b655b85c833313801e2d1674b8eb",
+      "bytes": 1315,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/dns-packet/optioncodes.js",
+      "sha256": "de965a8eaa8492718a41748a3c993806ca7cadede27185815f080451662071c8",
+      "bytes": 1398,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/dns-packet/rcodes.js",
+      "sha256": "73d019a7d2cd5d8f2c8300182ebd454675f856f816fefd0295d65f89a2deb5b4",
+      "bytes": 1284,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/dns-packet/types.js",
+      "sha256": "389d908703cf3de1a94d8e3f08982b350a809a93abec6ac345d55389d24a5dca",
+      "bytes": 2672,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/fast-deep-equal/es6/index.js",
+      "sha256": "d7f027497048c75e17268dbc66b670579d4f70f2dc0e019cdc9edf5078c247d6",
+      "bytes": 1935,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/fast-deep-equal/index.js",
+      "sha256": "eb469e206280321a3878f2335ec98aa2104a155079d8ed83a23029098dccd215",
+      "bytes": 1177,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/fast-uri/index.js",
+      "sha256": "528ad63bf9d97d888d716ea0c7fff01b5d7054980bb671f0353065b7a7e093f4",
+      "bytes": 25881,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/fast-uri/lib/schemes.js",
+      "sha256": "c2c61d3fd0bc63a587100928a399e75be8c420d210c439d75f7346da4aa4f3c3",
+      "bytes": 7367,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/fast-uri/lib/utils.js",
+      "sha256": "f97791a6c193027083b654d7428e0101aa2aaf5c2ab07a813cb8c1bf71d4ceb6",
+      "bytes": 22505,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/json-schema-traverse/index.js",
+      "sha256": "024191b747afac01b28ff11d744e9f82720bbad5f716163ba5c962eb62aa2350",
+      "bytes": 2428,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/multicast-dns/index.js",
+      "sha256": "165f89b9aedb95459f04124a62aaf8908f53096fc90571781037d05dde800b96",
+      "bytes": 5529,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/thunky/index.js",
+      "sha256": "53bb4241793f909588dfe40caeaa8bb7b478c10ab45b8f1c726f140557488529",
+      "bytes": 1057,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/buffer-util.js",
+      "sha256": "8b0a45739132f82e25ea13163780abf547ccfe989267f3eb7abb475beec92da3",
+      "bytes": 3056,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/constants.js",
+      "sha256": "391e823142b8b370e55a2fd32b022deaf03b8415c56000009674ebc86a0b4f86",
+      "bytes": 503,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/event-target.js",
+      "sha256": "c45d3c6e12d170c860c0c3f1a050aa0f864d9806632b609a1e607d675aba128c",
+      "bytes": 7321,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/extension.js",
+      "sha256": "852564f0f6b460287043803eae732666fb5610f676874354fc89f06aa4e986ed",
+      "bytes": 6183,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/limiter.js",
+      "sha256": "e0469d4b83f6ba764b15f80e1766b75c136fbff68f048f4c050f0b1c7f065f69",
+      "bytes": 1034,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/permessage-deflate.js",
+      "sha256": "02c31796f0132a335d4efe7b7adcebadbb69543a1ce65ae04aaccc3530e27ab9",
+      "bytes": 14532,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/receiver.js",
+      "sha256": "4879edbf8e48d04d09783cf9c04b5e25f5a448247bb01279438ded2899747220",
+      "bytes": 17802,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/sender.js",
+      "sha256": "d0791d30c3defd44dcabbddb879a901c757993fea2c00a7ffea01d53b23b4b77",
+      "bytes": 16886,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/stream.js",
+      "sha256": "a56fcb6e2b152097ee820b6f5410b1f71e59819b45d08d9f8bda588fe39070ec",
+      "bytes": 4204,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/subprotocol.js",
+      "sha256": "be3f6323d6f549568577dcba9004c1479d95c65a7abb0fe0c582875b9fac0b7c",
+      "bytes": 1498,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/validation.js",
+      "sha256": "41ce8e83d0d434132e1704895fedb91f6703a701b42d91c80954ab29b2845593",
+      "bytes": 3903,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/websocket-server.js",
+      "sha256": "29029a4d346800c792300df153df2007e9805d9d7b67b0883f9730b64f25b1c8",
+      "bytes": 17026,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/lib/websocket.js",
+      "sha256": "48fdb0f54c1f8ce580d3cfa2908fe7d96fe18f06f9d82306950441cb09b5db26",
+      "bytes": 37371,
+      "virtual": false
+    },
+    {
+      "path": "node_modules/ws/wrapper.mjs",
+      "sha256": "fe154662301fd558f935f9c217fccbe7a7dac02ff39e648a000589403ff27c7f",
+      "bytes": 554,
+      "virtual": false
+    },
+    {
+      "path": "packages/rabi-knowledge-contract/receipt.mjs",
+      "sha256": "c54d34d3b2c22ce7aad1a49c88d7e8599e1e1291aff19ca4551b26a577eff9bc",
+      "bytes": 2761,
+      "virtual": false,
+      "gitSha256": "ecd4fda496ef8e4ea5afdf39a154a02b020add546de72337d58377b7d47003c1",
+      "gitBytes": 2730,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "packages/rabi-knowledge-contract/schema.mjs",
+      "sha256": "31dd4682d090893130d4230d2a46e80312a11252ddc9d802d9c52bd3eeb4ce3e",
+      "bytes": 4216,
+      "virtual": false,
+      "gitSha256": "e910424c5a58cd66c0fa2c276a711a1f4a112754f7b2ed2686deb2d7f94b0bd9",
+      "gitBytes": 4173,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "packages/rabi-knowledge-contract/tools.mjs",
+      "sha256": "dd6cbab44b289cbd4e5bd27268c18103a1b330ef6912c4e393fa021e3a9bbe03",
+      "bytes": 6956,
+      "virtual": false,
+      "gitSha256": "7b4a05e84f520d990102b79c7293c57908ec3de2e87c958573f05f9c9cb96688",
+      "gitBytes": 6864,
+      "gitMatch": "CRLF-to-LF"
+    },
+    {
+      "path": "rabi-operation-sdk-entry.mjs",
+      "sha256": "c34b606616027de6d7106d9fd9dbba8e54e9ed492e1bff54b50d77870bd80cfd",
+      "bytes": 397,
+      "virtual": true
+    }
+  ],
+  "licenses": [
+    {
+      "package": "@leichtgewicht/ip-codec",
+      "version": "2.0.5",
+      "license": "MIT",
+      "file": "third-party-notices/@leichtgewicht__ip-codec-LICENSE",
+      "sha256": "09fd9784b65e00b09b6366845098a2cb6d6f559e84d292528f1e462c9e4acb62"
+    },
+    {
+      "package": "ajv-formats",
+      "version": "3.0.1",
+      "license": "MIT",
+      "file": "third-party-notices/ajv-formats-LICENSE",
+      "sha256": "9df3bb69929a3b650ed73b3bfa1756725aaff0ac296461605753547004eafeaf"
+    },
+    {
+      "package": "ajv",
+      "version": "8.20.0",
+      "license": "MIT",
+      "file": "third-party-notices/ajv-LICENSE",
+      "sha256": "9b6a90e9be78799534e4030d71b6817271fb99aa10e261f9f9f6dec1cff4177a",
+      "upstreamRawSha256": "a05350a88e318e4f5f2c2a1ff1e2e88daa4dd38e6e78b71cccae422bdc762cc3",
+      "normalization": "CRLF to LF and exactly one final newline; license text unchanged"
+    },
+    {
+      "package": "bonjour-service",
+      "version": "1.4.4",
+      "license": "MIT",
+      "file": "third-party-notices/bonjour-service-LICENSE",
+      "sha256": "82a4526b2777826043d2ca0e282f7428c2bd1762b13ef70b4fb4a57a48303d73"
+    },
+    {
+      "package": "dns-packet",
+      "version": "5.6.1",
+      "license": "MIT",
+      "file": "third-party-notices/dns-packet-LICENSE",
+      "sha256": "6a134e51aa31496c15a741592fc5d782b2dbf8d8b6b8524e15c8520ae0cd6374"
+    },
+    {
+      "package": "fast-deep-equal",
+      "version": "3.1.3",
+      "license": "MIT",
+      "file": "third-party-notices/fast-deep-equal-LICENSE",
+      "sha256": "7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a"
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.9",
+      "license": "BSD-3-Clause",
+      "file": "third-party-notices/fast-uri-LICENSE",
+      "sha256": "b010b0dfdfdb23d7396e03b82cd4621fc9bb8f95d6b0aea70b9c24e12074c786"
+    },
+    {
+      "package": "json-schema-traverse",
+      "version": "1.0.0",
+      "license": "MIT",
+      "file": "third-party-notices/json-schema-traverse-LICENSE",
+      "sha256": "7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a"
+    },
+    {
+      "package": "multicast-dns",
+      "version": "7.2.5",
+      "license": "MIT",
+      "file": "third-party-notices/multicast-dns-LICENSE",
+      "sha256": "0aa9add6a9158efad3e6649e3affd607c7e2629f6677af19f9988c8fbb0757b0"
+    },
+    {
+      "package": "thunky",
+      "version": "1.1.0",
+      "license": "MIT",
+      "file": "third-party-notices/thunky-LICENSE",
+      "sha256": "2281f2db407bdbb54f069eec38128b2dee2c0c952f52b786ef1faecb81767b3c"
+    },
+    {
+      "package": "ws",
+      "version": "8.21.0",
+      "license": "MIT",
+      "file": "third-party-notices/ws-LICENSE",
+      "sha256": "2b29dcfe0d6471f7e8c92c5fb38c9f93edee10330937055440192f1832b1ecef"
+    }
+  ],
+  "artifact": {
+    "path": "lib/operation-sdk.js",
+    "sha256": "2e145330dd5a7a55173df08b9a984f9d867e3dcef5ae41a1ec79b9c0b7f6110d",
+    "bytes": 511807
+  },
+  "externalImports": [
+    {
+      "path": "bufferutil",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "zlib",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "buffer",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "utf-8-validate",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "stream",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "stream",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "crypto",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "util",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "events",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "https",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "http",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "net",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "tls",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "crypto",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "stream",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "url",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "stream",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "events",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "http",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "stream",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "crypto",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:crypto",
+      "kind": "import-statement",
+      "external": true
+    }
+  ],
+  "tools": [
+    "rabi_categories",
+    "rabi_list",
+    "rabi_search",
+    "rabi_describe",
+    "rabi_call",
+    "rabi_session"
+  ],
+  "exports": [
+    "OPERATION_TOOL_DEFINITIONS",
+    "OperationSdkError",
+    "createOperationSdk",
+    "createOperationTools",
+    "openApiWebSocket",
+    "operationIsReadOnly",
+    "operationResult"
+  ],
+  "productSourceChanged": false,
+  "productionRequests": 0,
+  "licenseFile": {
+    "path": "RabiRoute-LICENSE.txt",
+    "sha256": "cd68b85efdfd9a9ed305c282198491fcdfb0a039ee8b2aacfd6a3aa6c4582636",
+    "upstreamRawSha256": "16c16d2a15615c8940b87579f22b39c9dd462662e2008d762cf46996fae6fd2e",
+    "normalization": "CRLF to LF and exactly one final newline; license text unchanged"
+  },
+  "rebuild": "node scripts/build-operation-sdk.mjs --source-root <reviewed-rabi-checkout>",
+  "verify": "node scripts/build-operation-sdk.mjs --check",
+  "sourceInputs": "Exact selected Git source and dependency hashes; no business configuration or source-root paths are embedded."
+}

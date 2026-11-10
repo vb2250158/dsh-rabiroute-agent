@@ -1,3 +1,4 @@
+import { OPERATION_TOOL_DEFINITIONS } from '../lib/operation-sdk.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
@@ -23,7 +24,8 @@ test('registers all tools and same-origin routes without contacting Host at regi
   const webServer = { register: route => { routes.push(route); return () => {} } }
   const ctx = { provide() {}, tools: { register: t => list.push(t) }, systemPrompt: { section: s => sections.push(s) }, webServer, effect: fn => fn(), inject: (names, fn) => { if (names.every(name => name in ctx)) return fn(ctx) }, on() {} }
   assert.equal(apply(ctx, { planContextEnabled: false }).active, true)
-  assert.equal(list.length, 3)
+  assert.deepEqual(list.map(tool => tool.name), ['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api', ...OPERATION_TOOL_DEFINITIONS.map(tool => tool.name)])
+  for (const definition of OPERATION_TOOL_DEFINITIONS) assert.deepEqual(list.find(tool => tool.name === definition.name).parameters, definition.inputSchema)
   // Both routes exist for the same reason: the browser cannot reach Rabi itself. One
   // answers which plan a session is bound to, the other asks Rabi to raise another
   // client's window. They are registered the way any feature plugin claims a route.

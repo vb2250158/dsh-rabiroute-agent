@@ -1,3 +1,9 @@
+## 0.13.56 (2026-11-10)
+
+- Register six unified operation tools using the pinned Rabi SDK, canonical schemas, and original stream-session owner; retain the three legacy generic tools.
+- Adapt explicit raw text, byte and SSE consumption plus the upstream WebSocket channel, retaining identity checks, cancellation and uncertain-write non-replay; assistant and message modes expose the same nine-tool set.
+- Ship a traceable ESM artifact and all licenses without another checkout or credential dependency.
+
 ## 0.13.55 (2026-11-10)
 
 - Align the runtime status version with the package version while retaining lightweight discovery, plan-read backoff and the existing UI from 0.13.54. Installed-source checks remain separate from the displayed version.
