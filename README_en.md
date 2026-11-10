@@ -1,3 +1,7 @@
+## User message byline (0.13.50)
+
+Ordinary user messages drawn here take their byline from DS Bot: the signed-in account's picture and name, or DSH's own mark under "User" when nobody is signed in. DS Bot answers only for its own conversations, so plain DSH Sessions look exactly as before.
+
 ## Background plan reads (0.13.49)
 
 Failed background reads share the configured retry interval per target. A thousand queued resources share one failed read. Manual actions recheck immediately, and queued resources and original transactions remain available.

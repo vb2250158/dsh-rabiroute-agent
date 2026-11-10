@@ -101,7 +101,7 @@ export function rabiEnvelopeHeader(envelope, t) {
  * @param props - the message, owner image/file callbacks, Factory renderer, copy locale and session service.
  * @returns the source card, answer card or original ordinary message.
  */
-export function RabiMessageNodeView({ node, renderMessageImages, loadImage, renderFactorySlot, openFile, openSkill, t, rabiSessions }) {
+export function RabiMessageNodeView({ node, sessionId, renderMessageImages, loadImage, renderFactorySlot, openFile, openSkill, t, rabiSessions }) {
   const { text, attachments, rest } = rabiContentParts(node.data.content)
   const envelope = parseRabiMessageEnvelope(text)
   const [menuOpen, setMenuOpen] = React.useState(false)
@@ -153,7 +153,12 @@ export function RabiMessageNodeView({ node, renderMessageImages, loadImage, rend
   // folds — which is the whole point of parsing them.
   const folds = envelope !== null && envelope.sourceType !== 'agent'
   const bodyVisible = !folds || expanded
+  // Who wrote an ordinary message belongs to DS Bot's surface, not to this renderer: it
+  // publishes the head for exactly its own conversations and answers null elsewhere, so
+  // a plain DSH Session keeps the row it has always had.
+  const userHead = envelope === null && typeof globalThis.__dshBotUserHead === 'function' ? globalThis.__dshBotUserHead(sessionId) : null
   const fallback = React.createElement('section', { style: rabiClientStyles.row, 'data-rabi-message': sourceKind },
+    userHead,
     React.createElement('div', { style: rabiClientStyles.stack },
       envelope && React.createElement('header', { style: rabiClientStyles.header },
         header.locate

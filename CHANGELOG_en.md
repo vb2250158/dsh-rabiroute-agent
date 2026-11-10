@@ -1,3 +1,8 @@
+## 0.13.50 (2026-11-10)
+
+- Ordinary user messages take their byline from DS Bot: the signed-in account's picture and name, falling back to DSH's mark and "User" when signed out. Plain DSH Sessions are untouched.
+- Cover picture present, loading, failed load, signed-out and blank-name cases.
+
 # Changelog
 
 ## 0.13.49 (2026-11-10)
