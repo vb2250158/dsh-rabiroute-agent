@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parseRabiMessageEnvelope as parse } from '../src/message-envelope.js'
+import { parseRabiMessageEnvelope as parse, parseRabiMessageParts, rabiMessageMetadataRule } from '../src/message-envelope.js'
 
 const current = ['类型：Agent｜处理端：dsh', '角色：example-role', '会话：example-session', '会话 ID：example-session-id', '工作目录：/synthetic/workspace', '投递时间：2000-01-02 03:04:05']
 const legacy = ['消息源类型：Agent', 'Agent 端：codex', '会话名称：example-session', '会话 ID：example-session-id', '消息包发送时间：2000-01-02 03:04:05']
@@ -19,6 +19,51 @@ test('current envelope projects sender, exact raw, body and inert reply JSON', (
   assert.equal(result.sentAt, '2000-01-02 03:04:05')
   assert.deepEqual(result.replyParameters, reply)
   assert.deepEqual(Object.keys(result).sort(), ['body', 'raw', 'replyParameters', 'sender', 'sentAt', 'sourceType'])
+})
+
+test('metadata ranges leave the exact original body to the official text owner', () => {
+  const headers = [current,
+    ['消息源类型：计划', '计划名称：test', '计划 ID：plan-1', '消息包发送时间：2000-01-02'],
+    ['消息源类型：系统', '事件类型：test', '事件名称：test', '事件 ID：event-1', '消息包发送时间：2000-01-02']]
+  for (const header of headers) for (const eol of ['\n', '\r\n']) for (const body of ['', ' \t\n', '😀 @example-session /skill\n[消息源]\n重复标题\n\n\n']) {
+    for (const footer of ['', suffix(reply, eol)]) {
+      const raw = envelope(body + footer, header, eol), parsed = parseRabiMessageParts(raw)
+      assert.equal(raw.slice(parsed.prefixEnd, parsed.bodyEnd), body)
+      const source = rabiMessageMetadataRule.match(raw, 0)
+      assert.deepEqual([source.start, source.end], [0, parsed.prefixEnd])
+      assert.equal(source.data.part, 'source')
+      assert.equal(source.data.envelope.raw, raw)
+      const tail = rabiMessageMetadataRule.match(raw, parsed.prefixEnd)
+      if (footer) {
+        assert.deepEqual([tail.start, tail.end], [parsed.bodyEnd, raw.length])
+        assert.equal(tail.data.part, 'reply')
+        assert.equal(raw.slice(source.start, source.end) + body + raw.slice(tail.start, tail.end), raw)
+      } else assert.equal(tail, undefined)
+      assert.equal(rabiMessageMetadataRule.match(raw, raw.length), undefined)
+    }
+  }
+})
+
+test('metadata matcher remains forward-only after native whitespace enters a reply separator', () => {
+  for (const eol of ['\n', '\r\n']) {
+    const raw = envelope('body' + eol.repeat(3) + suffix(reply, eol), current, eol)
+    const parsed = parseRabiMessageParts(raw)
+    for (const from of [parsed.bodyEnd, parsed.bodyEnd + 1, raw.indexOf('[回传参数]'), raw.indexOf('[回传参数]') + 3]) {
+      const node = rabiMessageMetadataRule.match(raw, from)
+      assert.equal(node.start, from)
+      assert.equal(node.end, raw.length)
+      assert.equal(node.data.part, 'reply')
+      assert.ok(node.start >= parsed.bodyEnd)
+    }
+  }
+})
+
+test('unrecognized or ambiguous deliveries never suppress ordinary native text', () => {
+  for (const raw of ['ordinary @reference /skill', 'before\n' + envelope(), envelope('body\n\n[回传参数]\n{bad}'), envelope('body', [...current, current[1]])]) {
+    assert.equal(parseRabiMessageParts(raw), null)
+    assert.equal(rabiMessageMetadataRule.match(raw, 0), undefined)
+    assert.equal(rabiMessageMetadataRule.match(raw, 4), undefined)
+  }
 })
 
 test('legacy aliases, ASCII delimiters and CRLF preserve exact body', () => {

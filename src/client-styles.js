@@ -1,19 +1,9 @@
 /** Local geometry uses the active theme's semantic color tokens. */
 export const rabiClientStyles = {
-  // Width is bounded here, not on the bubbles: a long message used to widen the row
-  // past the chat column, so the right edge slid under the detail panel.
-  row: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' },
-  stack: { display: 'grid', gap: '8px', justifyItems: 'end', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' },
+  source: { display: 'inline-block', maxWidth: '100%', minWidth: 0, verticalAlign: 'top', marginBottom: '4px', whiteSpace: 'normal' },
   header: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', minWidth: 0 },
   sender: { maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'start', height: 'auto', minHeight: '28px' },
-  bubble: { padding: '10px 14px', borderRadius: '16px', background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--dsw-alias-label-primary)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' },
-  // Only the Bot surface lifts the user bubble: a plain DSH Session keeps the surface
-  // layer it has always used, so the two chats cannot be confused.
-  bubbleOnBotSurface: { padding: '10px 14px', borderRadius: '16px', background: 'color-mix(in srgb, var(--dsw-alias-bg-layer-3) 84%, white)', color: 'var(--dsw-alias-label-primary)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' },
-  attachments: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '8px', minWidth: 0 },
-  file: { display: 'grid', gap: '4px', padding: '8px 12px', border: '1px solid var(--dsw-alias-line-primary)', borderRadius: '10px', maxWidth: '100%', overflowWrap: 'anywhere' },
   muted: { color: 'var(--dsw-alias-label-secondary)', fontSize: '12px', overflowWrap: 'anywhere' },
-  actions: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' },
   raw: { margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: '65vh', overflow: 'auto', color: 'var(--dsw-alias-label-primary)' },
   planDirectory: { flex: '0 0 auto', maxHeight: '35%', overflowY: 'auto', padding: '8px', borderBottom: '1px solid var(--dsw-alias-border-l4)' },
   planDirectoryItem: { display: 'flex', width: '100%', justifyContent: 'space-between', gap: '8px', height: 'auto', textAlign: 'left', padding: '8px' },

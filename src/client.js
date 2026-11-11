@@ -1,27 +1,15 @@
 import { applyWorkspacePlans } from './client-workspace-plans.js'
 import { applyRabiPlanStatus } from './client-plan-status.js'
-/** Public user/steering renderer replacement; durable content is never rewritten. */
+/** Rabi metadata decorates official user text; DSH retains the complete message row. */
 import * as React from 'react'
 import { RabiSpeechAction, rabiSpeechLocales } from './client-speech.js'
 import { registerRabiQuestionComposer } from './client-question.js'
-import { Button, Menu, Modal, JsonBlock, projectUserText, fileSizeText } from '@deepseek-ai/dsh-client-ui-primitives'
-import { parseRabiMessageEnvelope } from './message-envelope.js'
+import { Button, Menu, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { rabiMessageMetadataRule } from './message-envelope.js'
 import { rabiClientLocales } from './client-locales.js'
 import { RABI_PLAN_NS, rabiPlanLocales } from './client-plan-locales.js'
 import { RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition } from './client-plan.js'
 import { rabiClientStyles } from './client-styles.js'
-
-/** Split the public content array without losing unknown blocks or text whitespace. */
-export function rabiContentParts(content) {
-  const texts = [], attachments = [], rest = []
-  for (const block of content) {
-    if (block?.type === 'text' && typeof block.text === 'string') texts.push(block.text)
-    else if (block?.type === 'image' && block.attachment != null) attachments.push({ type: 'image', image: { attachment: block.attachment } })
-    else if (block?.type === 'file' && block.attachment != null) attachments.push({ type: 'file', file: block.attachment })
-    else rest.push(block)
-  }
-  return { text: texts.join(''), attachments, rest }
-}
 
 /** The Host route that asks Rabi to bring another client's session forward. */
 export const RABI_LOCATE_AGENT_PATH = '/rabiroute/locate-agent'
@@ -74,7 +62,7 @@ export async function openRabiSender(sessions, sender, t, isActive = () => true,
 }
 
 /**
- * The folded row's own header label for one envelope.
+ * The source metadata label for one envelope.
  *
  * An `agent` envelope names a locatable session, so the row offers navigation.
  * A `plan` or `system` envelope names no session at all — those rows state what
@@ -82,7 +70,7 @@ export async function openRabiSender(sessions, sender, t, isActive = () => true,
  * there is nothing to locate and a dead control would read as a broken link.
  * @param {object} envelope - The parsed projection.
  * @param {Function} t - The locale seat.
- * @returns {{label: string, locate: boolean}} Folded-row label and whether navigation applies.
+ * @returns {{label: string, locate: boolean}} Source label and whether navigation applies.
  */
 export function rabiEnvelopeHeader(envelope, t) {
   if (envelope.sourceType === 'agent') {
@@ -97,127 +85,61 @@ export function rabiEnvelopeHeader(envelope, t) {
 }
 
 /**
- * Adapt a durable message to the same presentation used by submission echoes.
- * @param props - the durable node and the shared row Factory renderer.
- * @returns the shared user-message row.
+ * Decorate source metadata inside the official text, bubble and message row.
+ * The body, attachments, clock and copy action stay with their official owners.
+ * @param props - Metadata node and session-bound navigation and locale seats.
+ * @returns an inline source decoration, or no visible reply metadata.
  */
-export function RabiMessageNodeView({ node, loadImage, renderFactorySlot }) {
-  const { text, attachments, rest } = rabiContentParts(node.data.content)
-  return renderFactorySlot('conversation.chat.user.row', {
-    origin: { kind: 'durable', node },
-    content: { text, attachments, extraBlocks: rest, referenceLabels: node.data.referenceLabels ?? [] },
-    facts: { sessionLabels: node.data.referenceLabels ?? [], skillNames: node.data.skillNames ?? [] },
-    loadImage,
-    interactive: true,
-  })
+export function RabiMessageMetadata({ node, interactive = false, t, rabiSessions }) {
+  if (node.data.part !== 'source') return null
+  return React.createElement(RabiSourceHeader, { envelope: node.data.envelope, interactive, t, rabiSessions })
 }
 
-/**
- * Draw submission, pending and durable rows with one layout and attachment renderer.
- * @param props - prepared content, the real occurrence identity and session-bound presentation seats.
- * @returns the source card, optional answer card or ordinary user message.
- */
-export function RabiUserRow({ origin, content, facts, interactive = false, ellipsis, sessionId, loadImage, renderFactorySlot, t, rabiSessions }) {
-  const { text, attachments, extraBlocks: rest } = content
-  const node = origin.kind === 'durable' ? origin.node : undefined
-  const envelope = parseRabiMessageEnvelope(text)
+/** Source controls never replace or collapse the message body. */
+export function RabiSourceHeader({ envelope, interactive, t, rabiSessions }) {
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [rawOpen, setRawOpen] = React.useState(false)
-  // A parsed envelope folds by default: the body is model-facing text, not
-  // something the reader asked to see. Unparsed text has no folded form, so it
-  // stays expanded rather than hiding content behind a header that says nothing.
-  const [expanded, setExpanded] = React.useState(false)
   const [notice, setNotice] = React.useState(null)
   const [busy, setBusy] = React.useState(false)
-  const rabiActive = React.useRef(true)
-  const rabiLocateAbort = React.useRef(null)
-  React.useEffect(() => () => {
-    rabiActive.current = false
-    // A locate that outlives its row would raise another client's window for a message
-    // the reader has already navigated away from.
-    rabiLocateAbort.current?.abort()
+  const active = React.useRef(true)
+  const locateAbort = React.useRef(null)
+  React.useEffect(() => {
+    active.current = true
+    return () => { active.current = false; locateAbort.current?.abort() }
   }, [])
-  const header = envelope && rabiEnvelopeHeader(envelope, t)
+  const header = rabiEnvelopeHeader(envelope, t)
   const locate = async () => {
-    if (busy || !envelope || !header?.locate) return
+    if (!interactive || busy || !header.locate) return
     setBusy(true)
     setNotice(null)
     const controller = new AbortController()
-    rabiLocateAbort.current = controller
-    try { await openRabiSender(rabiSessions, envelope.sender, t, () => rabiActive.current, controller.signal) }
-    catch (error) { if (rabiActive.current) setNotice({ error: true, text: t('navigationFailed', { error: error instanceof Error ? error.message : String(error) }) }) }
-    finally { if (rabiActive.current) setBusy(false); if (rabiLocateAbort.current === controller) rabiLocateAbort.current = null }
+    locateAbort.current = controller
+    try { await openRabiSender(rabiSessions, envelope.sender, t, () => active.current, controller.signal) }
+    catch (error) { if (active.current) setNotice(t('navigationFailed', { error: error instanceof Error ? error.message : String(error) })) }
+    finally { if (active.current) setBusy(false); if (locateAbort.current === controller) locateAbort.current = null }
   }
-  const referenceLabels = content.referenceLabels ?? facts.sessionLabels ?? []
-  const skillNames = facts.skillNames ?? []
-  const displayedText = envelope ? envelope.body : text
-  const sourceKind = envelope ? envelope.sourceType : 'ordinary'
-  const menuItems = header?.locate
+  const items = header.locate
     ? [{ id: 'raw', label: t('raw') }, { id: 'locate', label: t('locate'), disabled: busy }]
     : [{ id: 'raw', label: t('raw') }]
-  // Built lazily: a folded row must not run the model-facing projection, which
-  // is the expensive part and whose output is not on screen anyway.
-  const body = () => React.createElement(React.Fragment, null,
-    (displayedText !== '' || rest.length > 0) && React.createElement('div', { style: bubbleStyle },
-      typeof projectUserText === 'function'
-        ? projectUserText(displayedText, referenceLabels, skillNames)
-        : renderFactorySlot('conversation.user.text', { text: displayedText, facts: { ...facts, sessionLabels: referenceLabels, skillNames }, interactive }),
-      rest.map((block, index) => React.createElement(JsonBlock, { key: index, payload: block, label: t('extra'), truncatedLabel: total => t('truncated', { total }) }))),
-    referenceLabels.length > 0 && React.createElement('div', { style: rabiClientStyles.muted }, t('references', { labels: referenceLabels.join(t('separator')) })))
-  // An `agent` envelope keeps its body visible: that row's header is a locate
-  // control, not a disclosure, and folding it would hide content this renderer
-  // has always shown. A `plan` or `system` envelope has no such control, so it
-  // folds — which is the whole point of parsing them.
-  const folds = envelope !== null && envelope.sourceType !== 'agent'
-  const bodyVisible = !folds || expanded
-  // Who wrote an ordinary message belongs to DS Bot's surface, not to this renderer: it
-  // publishes the head for exactly its own conversations and answers null elsewhere, so
-  // a plain DSH Session keeps the row it has always had.
-  const userHead = envelope === null && typeof globalThis.__dshBotUserHead === 'function' ? globalThis.__dshBotUserHead(sessionId) : null
-  // The head is DS Bot's answer alone; its absence means this is a plain DSH Session,
-  // which keeps the bubble tone the shell has always shown.
-  const bubbleStyle = userHead === null ? rabiClientStyles.bubble : rabiClientStyles.bubbleOnBotSurface
-  const pending = origin.kind === 'pending-steering' || origin.kind === 'submission' && origin.submission.placement === 'steering'
-  const fallback = React.createElement('section', {
-    style: rabiClientStyles.row,
-    'data-rabi-message': sourceKind,
-    'data-submission-echo': origin.kind === 'submission' || undefined,
-    'data-pending-steering': pending || undefined,
-    'data-chat-steering-batch': node?.kind === 'steering' && node.data.batchStart === true ? 'start' : undefined,
-  },
-    userHead,
-    React.createElement('div', { style: rabiClientStyles.stack },
-      envelope && React.createElement('header', { style: rabiClientStyles.header },
-        header.locate
-          ? React.createElement(Button, { size: 'sm', variant: 'ghost', style: rabiClientStyles.sender, title: t('senderHint'), disabled: busy, onClick: locate }, header.label)
-          : React.createElement(Button, { size: 'sm', variant: 'ghost', style: rabiClientStyles.sender, 'aria-expanded': expanded, onClick: () => setExpanded(value => !value) }, header.label),
-        React.createElement(Menu, {
-          open: menuOpen, portal: true, align: 'end',
-          anchor: React.createElement(Button, { size: 'sm', variant: 'ghost', 'aria-label': t('more'), 'aria-haspopup': 'menu', 'aria-expanded': menuOpen, onClick: () => setMenuOpen(value => !value) }, '…'),
-          items: menuItems,
-          onClose: () => setMenuOpen(false),
-          onSelect: id => { setMenuOpen(false); if (id === 'raw') setRawOpen(true); else if (id === 'locate') void locate() },
-        })),
-      attachments.length > 0 && React.createElement('div', { style: rabiClientStyles.attachments, 'data-message-attachments': true },
-        attachments.map((attachment, index) => attachment.type === 'image'
-          ? React.createElement(React.Fragment, { key: `image:${index}` }, renderFactorySlot('conversation.images.content', { images: [attachment.image], loadImage, align: 'end', compact: attachments.length > 1 }))
-          : React.createElement('span', { key: `file:${index}`, style: rabiClientStyles.file, title: attachment.file.name },
-            React.createElement('span', null, attachment.file.name),
-            React.createElement('span', { style: rabiClientStyles.muted }, [attachment.file.mediaType, fileSizeText(attachment.file.bytes)].filter(Boolean).join(' · '))))),
-      bodyVisible && body()),
-    envelope && React.createElement('div', { style: rabiClientStyles.actions },
-      folds && React.createElement(Button, { size: 'sm', variant: 'ghost', onClick: () => setExpanded(value => !value) }, t(expanded ? 'collapse' : 'expand'))),
-    notice && React.createElement('div', { role: notice.error ? 'alert' : 'status', style: rabiClientStyles.muted }, notice.text),
-    envelope && React.createElement(Modal, { open: rawOpen, title: t('raw'), closeLabel: t('close'), onClose: () => setRawOpen(false) },
+  return React.createElement('span', { style: rabiClientStyles.source, 'data-rabi-source': envelope.sourceType },
+    React.createElement('span', { style: rabiClientStyles.header },
+      interactive && header.locate
+        ? React.createElement(Button, { size: 'sm', variant: 'ghost', style: rabiClientStyles.sender, title: t('senderHint'), disabled: busy, onClick: locate }, header.label)
+        : React.createElement('span', { style: rabiClientStyles.muted }, header.label),
+      interactive && React.createElement(Menu, {
+        open: menuOpen, portal: true, align: 'end',
+        anchor: React.createElement(Button, { size: 'sm', variant: 'ghost', 'aria-label': t('more'), 'aria-haspopup': 'menu', 'aria-expanded': menuOpen, onClick: () => setMenuOpen(value => !value) }, '…'),
+        items, onClose: () => setMenuOpen(false),
+        onSelect: id => { setMenuOpen(false); if (id === 'raw') setRawOpen(true); else if (id === 'locate') void locate() },
+      })),
+    notice && React.createElement('span', { role: 'alert', style: rabiClientStyles.muted }, notice),
+    interactive && React.createElement(Modal, { open: rawOpen, title: t('raw'), closeLabel: t('close'), onClose: () => setRawOpen(false) },
       React.createElement('pre', { style: rabiClientStyles.raw }, envelope.raw)))
-  return envelope ? fallback : renderFactorySlot('proactive-answer.message', {
-    row: { origin, content, facts, interactive, ellipsis, loadImage }, fallback,
-  }, { fallback })
 }
 
-export const inject = ['slots', 'sessions', 'locale', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace']
+export const inject = ['slots', 'sessions', 'locale', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace', 'uiConversation']
 
-/** Register reversible, explicitly ranked replacements; nonmatching rows do not delegate. */
+/** Register effect-owned source nodes without replacing official message renderers. */
 export function apply(ctx) {
   applyRabiPlanStatus(ctx)
   applyWorkspacePlans(ctx)
@@ -227,15 +149,11 @@ export function apply(ctx) {
     name: 'conversation.chat.assistant-actions', id: 'rabiroute-speech', order: 30, locale: 'rabiroute-speech',
   }, props => React.createElement(RabiSpeechAction, { ...props, key: `${props.sessionId}:${props.messageId}` })))
   ctx.effect(() => ctx.locale.register('rabiroute-agent-messages', rabiClientLocales))
-  ctx.slots.inject('conversation.chat.user.row.body', () => ctx.slots.register({
-    name: 'conversation.chat.user.row.body', priority: -10, locale: 'rabiroute-agent-messages',
+  ctx.effect(() => ctx.uiConversation.userText.register(rabiMessageMetadataRule), 'dsh-rabiroute-agent: source metadata')
+  ctx.slots.inject('conversation.user.text.node', () => ctx.slots.register({
+    name: 'conversation.user.text.node', key: rabiMessageMetadataRule.id, locale: 'rabiroute-agent-messages',
     inject: () => ({ rabiSessions: ctx.sessions }),
-  }, RabiUserRow))
-  for (const key of ['user', 'steering']) {
-    ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
-      name: 'conversation.chat.node', key, priority: -10, locale: 'rabiroute-agent-messages',
-    }, props => React.createElement(RabiMessageNodeView, { ...props, key: `${props.sessionId}:${props.node.id ?? props.node.key ?? key}` })))
-  }
+  }, RabiMessageMetadata))
   // The plan panel: a page type whose body frames Rabi's own WebGUI page. The type
   // is this plugin's own id in the tab system, so it composes with every other
   // type instead of taking one over.

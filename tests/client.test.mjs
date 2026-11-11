@@ -31,26 +31,18 @@ function harness(storage = new Map(), legacyProjection = true) {
   const context = { React, EventSource, MutationObserver, URL, URLSearchParams, document: { querySelector: () => panelElement, addEventListener() {}, removeEventListener() {} }, sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }, Button: 'Button', Menu: 'Menu', Modal: 'Modal', JsonBlock: 'JsonBlock', projectUserText: (...args) => { projections.push(args); return { type: 'projected', children: [args[0]], props: {} } }, fileSizeText: bytes => `${bytes} B`, writeClipboard: async text => { copied.push(text); return true }, fetch: async (url, init) => { panelCalls.push({ url, init }); return panelResponse(url, init) }, window: { open() {} }, AbortController, setTimeout, clearTimeout }
   if (!legacyProjection) context.projectUserText = undefined
   vm.createContext(context)
-  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageNodeView, RabiUserRow, rabiContentParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
+  vm.runInContext(`${code}\nthis.api = { apply, inject, RabiMessageMetadata, RabiSourceHeader, rabiMessageMetadataRule, parseRabiMessageParts, openRabiSender, rabiClientLocales, RabiPlanBody, RabiPlanLauncher, rabiPlanTabDefinition, rabiPlanLocales, RABI_PLAN_KIND, RABI_PLAN_TAB_ID, RABI_PLAN_PANEL_PATH, RABI_PLAN_ICON_DATA_URI, registerRabiQuestionComposer, RabiQuestionComposer }`, context)
   const t = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiClientLocales.zh[key])
   const planT = (key, values = {}) => Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), context.api.rabiPlanLocales.zh[key])
-  const renderRow = (input, sessionId, factory = (_name, _props, options) => options?.fallback ?? null) => {
-    const renderFactorySlot = (name, props, options) => {
-      if (name === 'conversation.chat.user.row') return context.api.RabiUserRow({ ...props, sessionId, t, rabiSessions: sessions, renderFactorySlot })
-      if (name === 'conversation.images.content') images.push(props)
-      return factory(name, props, options)
-    }
+  const render = (content, _kind = 'user', _extras = {}, _factory, _sessionId, interactive = true) => {
+    const raw = content.filter(block => block?.type === 'text').map(block => block.text).join('')
+    const parsed = context.api.parseRabiMessageParts(raw)
     cursor = 0
-    return renderFactorySlot('conversation.chat.user.row', input)
+    return parsed ? context.api.RabiSourceHeader({ envelope: parsed.envelope, interactive, t, rabiSessions: sessions }) : null
   }
-  const render = (content, kind = 'user', extras = {}, factory, sessionId) => context.api.RabiMessageNodeView({
-    node: { kind, data: { content, time: 0, referenceLabels: ['reference'], skillNames: ['skill'], ...extras } },
-    loadImage: async () => 'data:image/png;base64,fixture',
-    renderFactorySlot: (_name, input) => renderRow(input, sessionId, factory),
-  })
   const renderPlanBody = (sessionId = 'session-1') => { cursor = 0; return context.api.RabiPlanBody({ sessionId, t: planT }) }
   const renderPlanLauncher = (sessionId = 'session-1', openRabiPlanTab = () => {}, getRabiPanelView = () => ({ expanded: false, activeKind: undefined })) => { cursor = 0; return context.api.RabiPlanLauncher({ sessionId, t: planT, openRabiPlanTab, getRabiPanelView }) }
-  return { ...context.api, sessions, render, renderRow, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, storage,
+  return { ...context.api, sessions, render, renderPlanBody, renderPlanLauncher, t, planT, effects, projections, images, copied, opened, panelCalls, storage,
     setBotUserHead: provider => { context.__dshBotUserHead = provider },
     remount: () => { for (const dispose of effects) dispose?.(); effects.length = 0; states = []; cursor = 0 },
     setPanelElement: element => { panelElement = element },
@@ -66,222 +58,78 @@ function nodes(tree, type) {
 /** Let the panel's fetch-then-setState chain settle before asserting on the next render. */
 const flush = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)) }
 
-test('rc.2 messages use the user-text factory when the legacy export is absent', () => {
-  const h = harness(new Map(), false), calls = []
-  const tree = h.render([{ type: 'text', text: 'hello @reference /skill' }], 'user', {}, (name, props, options) => {
-    calls.push({ name, props })
-    return name === 'conversation.user.text' ? { type: 'projected', props: {}, children: [props.text] } : options.fallback
-  })
-  const text = calls.find(call => call.name === 'conversation.user.text')
-  assert.equal(text.props.text, 'hello @reference /skill')
-  assert.deepEqual(JSON.parse(JSON.stringify(text.props.facts)), { sessionLabels: ['reference'], skillNames: ['skill'] })
-  assert.equal(text.props.interactive, true)
-  assert.equal(nodes(tree, 'projected').length, 1)
-  assert.equal(Object.hasOwn(calls.find(call => call.name === 'proactive-answer.message').props, 'renderFactorySlot'), false)
-})
-
-test('rc.2 image messages retain authorized loading without the legacy gallery callback', () => {
-  const h = harness(new Map(), false), calls = []
-  h.render([{ type: 'image', attachment: { id: 'image-1' } }], 'user', {}, (name, props, options) => {
-    calls.push({ name, props })
-    return name === 'proactive-answer.message' ? options.fallback : null
-  })
-  const gallery = calls.find(call => call.name === 'conversation.images.content')
-  assert.equal(gallery.props.images[0].attachment.id, 'image-1')
-  assert.equal(typeof gallery.props.loadImage, 'function')
-  assert.equal(gallery.props.align, 'end')
-  assert.equal(typeof calls.find(call => call.name === 'proactive-answer.message').props.row.loadImage, 'function')
-})
-
-test('ordinary rows delegate optional answer presentation while source envelopes retain their renderer', () => {
+test('ordinary text and malformed envelopes contribute no Rabi metadata', () => {
   const h = harness()
-  const answer = { type: 'answer-card', props: {}, children: [] }
-  let calls = 0
-  const factory = (name, props, options) => {
-    calls++
-    assert.equal(name, 'proactive-answer.message')
-    assert.equal(props.fallback, options.fallback)
-    assert.equal(props.row.content.text, 'answer envelope')
-    return answer
-  }
-  assert.equal(h.render([{ type: 'text', text: 'answer envelope' }], 'user', {}, factory), answer)
-  h.render([{ type: 'text', text: raw }], 'user', {}, factory)
-  assert.equal(calls, 1)
-})
-
-test('ordinary user and steering preserve text, refs, skills, attachments and unknown JSON', () => {
-  for (const kind of ['user', 'steering']) {
-    const h = harness()
-    const content = [{ type: 'text', text: '  @reference' }, { type: 'text', text: ' /skill\n' }, { type: 'image', attachment: { attachmentId: 'image-id' } }, { type: 'file', attachment: { name: 'test.pdf', bytes: 23, mediaType: 'application/pdf' } }, { type: 'future', value: 1 }, null]
-    const tree = h.render(content, kind)
-    assert.equal(tree.props['data-rabi-message'], 'ordinary')
-    assert.deepEqual(Array.from(h.projections[0]), ['  @reference /skill\n', ['reference'], ['skill']])
-    assert.equal(h.images[0].images[0].attachment.attachmentId, 'image-id')
-    assert.equal(h.images[0].compact, true)
-    assert.equal(nodes(tree, 'JsonBlock').length, 2)
-    assert.ok(JSON.stringify(tree).includes('application/pdf · 23 B'))
-    assert.equal(nodes(tree, 'time').length, 0)
-    assert.equal(nodes(tree, 'Button').length, 0)
-    assert.equal(nodes(tree, 'Modal').length, 0)
+  for (const text of ['ordinary @reference /skill', 'prefix\n' + raw, raw.replace('会话 ID：exact-id', '会话 ID：'), 'long history '.repeat(3000)]) {
+    assert.equal(h.rabiMessageMetadataRule.match(text, 0), undefined)
+    assert.equal(h.render([{ type: 'text', text }]), null)
   }
 })
 
-test('plain Sessions keep their original bubble when the Bot head provider is absent or returns null', () => {
-  for (const providerPresent of [false, true]) {
-    const h = harness(), calls = []
-    if (providerPresent) h.setBotUserHead(sessionId => { calls.push(sessionId); return null })
-    const tree = h.render([{ type: 'text', text: 'plain message' }], 'user', {}, undefined, 'plain-session')
-    const bubble = nodes(tree, 'div').find(node => node.children.some(child => child?.type === 'projected'))
-    assert.equal(bubble.props.style.background, 'var(--dsw-alias-bg-layer-2)')
-    assert.equal(nodes(tree, 'bot-user-head').length, 0)
-    assert.deepEqual(calls, providerPresent ? ['plain-session'] : [])
-  }
-})
-
-test('Bot user and steering rows use the exact Session head and the lifted bubble', () => {
-  for (const kind of ['user', 'steering']) {
-    const h = harness(), calls = []
-    const head = { type: 'bot-user-head', props: {}, children: ['Bot user'] }
-    h.setBotUserHead(sessionId => { calls.push(sessionId); return head })
-    const tree = h.render([{ type: 'text', text: 'Bot message' }], kind, {}, undefined, 'bot-session')
-    const bubble = nodes(tree, 'div').find(node => node.children.some(child => child?.type === 'projected'))
-    assert.equal(bubble.props.style.background, 'color-mix(in srgb, var(--dsw-alias-bg-layer-3) 84%, white)')
-    assert.equal(nodes(tree, 'bot-user-head')[0], head)
-    assert.deepEqual(calls, ['bot-session'])
-  }
-})
-
-test('submission echoes, Host pending and durable rows share the same Bot head and content geometry', () => {
-  for (const bot of [false, true]) {
-    const h = harness()
-    const head = { type: 'bot-user-head', props: {}, children: ['Fixture user'] }
-    h.setBotUserHead(sessionId => bot && sessionId === 'fixture' ? head : null)
-    const text = 'A long message '.repeat(50)
-    const content = { text, attachments: [], extraBlocks: [], referenceLabels: [] }
-    const submission = { requestId: 'local-1', placement: 'transcript', time: 1000, text, attachments: [] }
-    const origins = [
-      { kind: 'submission', submission },
-      { kind: 'submission', submission: { ...submission, placement: 'steering' } },
-      { kind: 'pending-steering' },
-      { kind: 'durable', node: { kind: 'user', data: { content: [{ type: 'text', text }], time: 1000 } } },
-    ]
-    const rows = origins.map(origin => h.renderRow({ origin, content, facts: {}, loadImage: async () => 'fixture' }, 'fixture'))
-    for (const row of rows) {
-      assert.equal(nodes(row, 'bot-user-head').length, bot ? 1 : 0)
-      assert.equal(row.props['data-rabi-message'], 'ordinary')
-      assert.deepEqual(row.props.style, rows[0].props.style)
-      assert.deepEqual(row.children, rows[0].children)
-    }
-    assert.equal(rows[0].props['data-submission-echo'], true)
-    assert.equal(rows[1].props['data-pending-steering'], true)
-    assert.equal(rows[2].props['data-pending-steering'], true)
-    assert.equal(rows[3].props['data-submission-echo'], undefined)
-  }
-})
-
-test('shared local rows retain image previews, files and the authorized gallery loader', () => {
+test('Rabi decorations do not project the body or own message rows, attachments and actions', () => {
   const h = harness()
-  const preview = { preview: { url: 'blob:local-image', name: 'image.png', width: 4, height: 3 } }
-  const file = { name: 'notes.txt', bytes: 42, mediaType: 'text/plain' }
-  const loadImage = async () => 'authorized'
-  const row = h.renderRow({
-    origin: { kind: 'submission', submission: { requestId: 'local-2', placement: 'transcript', time: 1000, text: 'with attachments', attachments: [] } },
-    content: { text: 'with attachments', attachments: [{ type: 'image', image: preview }, { type: 'file', file }], extraBlocks: [] },
-    facts: {}, loadImage,
-  }, 'fixture')
-  assert.equal(h.images[0].images[0], preview)
-  assert.equal(h.images[0].loadImage, loadImage)
-  assert.equal(h.images[0].compact, true)
-  assert.ok(JSON.stringify(row).includes('notes.txt'))
-  assert.ok(JSON.stringify(row).includes('text/plain · 42 B'))
-})
-
-test('Rabi source envelopes never ask the Bot surface for a user head', () => {
-  for (const text of [raw, systemRaw, planRaw]) {
-    const h = harness()
-    h.setBotUserHead(() => { assert.fail('Rabi envelopes must not use the Bot user head') })
-    const tree = h.render([{ type: 'text', text }], 'user', {}, undefined, 'source-session')
-    assert.equal(nodes(tree, 'bot-user-head').length, 0)
-    assert.equal(nodes(tree, 'div').some(node => node.props.style?.background?.startsWith('color-mix(')), false)
+  for (const text of [raw, planRaw, systemRaw]) {
+    const tree = h.render([{ type: 'text', text }])
+    assert.equal(tree.type, 'span')
+    assert.equal(nodes(tree, 'section').length, 0)
+    assert.equal(nodes(tree, 'header').length, 0)
+    assert.equal(h.projections.length, 0)
+    assert.equal(h.images.length, 0)
+    assert.equal(nodes(tree, 'JsonBlock').length, 0)
   }
 })
 
-test('render-time envelope projection shows body only; menu opens exact raw modal and navigation', async () => {
+test('source header retains exact original-message access and sender navigation', async () => {
   const h = harness(), content = [{ type: 'text', text: raw }]
   let tree = h.render(content)
-  assert.equal(tree.props['data-rabi-message'], 'agent')
-  assert.equal(h.projections[0][0], '  body @reference /skill')
-  let menu = nodes(tree, 'Menu')[0]
-  assert.deepEqual(Array.from(menu.props.items, item => item.label), ['查看原始消息内容', '定位到Agent'])
-  menu.props.anchor.props.onClick()
+  assert.equal(tree.props['data-rabi-source'], 'agent')
+  assert.deepEqual(Array.from(nodes(tree, 'Menu')[0].props.items, item => item.label), ['查看原始消息内容', '定位到Agent'])
+  nodes(tree, 'Menu')[0].props.anchor.props.onClick()
   tree = h.render(content)
   assert.equal(nodes(tree, 'Menu')[0].props.open, true)
   nodes(tree, 'Menu')[0].props.onSelect('raw')
   tree = h.render(content)
-  const modal = nodes(tree, 'Modal')[0]
-  assert.equal(modal.props.open, true)
-  assert.equal(nodes(modal, 'pre')[0].children[0], raw)
-  modal.props.onClose()
+  assert.equal(nodes(tree, 'Modal')[0].props.open, true)
+  assert.equal(nodes(tree, 'pre')[0].children[0], raw)
+  nodes(tree, 'Modal')[0].props.onClose()
   assert.equal(nodes(h.render(content), 'Modal')[0].props.open, false)
   await nodes(tree, 'Button')[0].props.onClick()
   assert.deepEqual(h.opened, ['exact-id'])
-  nodes(tree, 'Menu')[0].props.onSelect('locate')
-  await Promise.resolve(); await Promise.resolve()
-  assert.equal(h.opened.at(-1), 'exact-id')
 })
 
-test('a parsed envelope folds by default and toggles its body without a menu', () => {
+test('plan and system decorations leave their complete bodies to official text', () => {
   for (const [source, kind, label] of [[systemRaw, 'system', '系统 · Agent 回复提醒 · agent_request_reminder'], [planRaw, 'plan', '计划 · 示例计划（plan-abc）']]) {
-    const h = harness(), content = [{ type: 'text', text: source }]
-    const folded = h.render(content)
-    assert.equal(folded.props['data-rabi-message'], kind)
-    // Folded: the body is not projected, so nothing model-facing is on screen,
-    // and no locate control is offered because neither kind names an openable
-    // session. Only the folded header label plus the toggle remain.
+    const h = harness(), tree = h.render([{ type: 'text', text: source }])
+    assert.equal(tree.props['data-rabi-source'], kind)
+    assert.ok(nodes(tree, 'span').some(node => node.children.includes(label)))
+    assert.deepEqual(Array.from(nodes(tree, 'Menu')[0].props.items, item => item.label), ['查看原始消息内容'])
+    assert.equal(nodes(tree, 'Button').length, 0)
+    const parsed = h.parseRabiMessageParts(source)
+    assert.equal(source.slice(parsed.prefixEnd, parsed.bodyEnd), 'MARKER_BODY_TEXT')
     assert.equal(h.projections.length, 0)
-    assert.deepEqual(Array.from(nodes(folded, 'Menu')[0].props.items, item => item.label), ['查看原始消息内容'])
-    const headerButton = nodes(folded, 'header')[0].children[0]
-    assert.equal(headerButton.children[0], label)
-    assert.equal(headerButton.props['aria-expanded'], false)
-    // `nodes` walks children only, and the overflow control rides the Menu's
-    // anchor prop, so the ordered buttons here are header and toggle.
-    assert.deepEqual(nodes(folded, 'Button').map(button => button.children[0]), [label, '展开内容'])
-
-    headerButton.props.onClick()
-    const expanded = h.render(content)
-    assert.equal(nodes(expanded, 'header')[0].children[0].props['aria-expanded'], true)
-    assert.equal(h.projections.at(-1)[0], 'MARKER_BODY_TEXT')
-    assert.deepEqual(nodes(expanded, 'Button').map(button => button.children[0]), [label, '收起内容'])
-    // Collapsing again must return to the folded projection, so the toggle is
-    // reversible rather than a one-way reveal. `projections` accumulates across
-    // renders, so the count is what proves the second fold projected nothing.
-    const projected = h.projections.length
-    nodes(expanded, 'header')[0].children[0].props.onClick()
-    const refolded = h.render(content)
-    assert.equal(nodes(refolded, 'header')[0].children[0].props['aria-expanded'], false)
-    assert.equal(h.projections.length, projected)
-    // The overflow menu still reaches the exact raw text while folded, so the
-    // hidden body stays recoverable without expanding.
-    assert.equal(nodes(refolded, 'Menu')[0].props.items[0].id, 'raw')
   }
 })
 
-test('an unparsed envelope stays expanded rather than folding behind a nameless header', () => {
-  for (const text of ['prefix\n' + raw, raw.replace('类型：Agent', '类型：User'), systemRaw.replace('事件名称：Agent 回复提醒', '事件名称：Agent 回复提醒\r\n事件名称：other')]) {
-    const h = harness(), tree = h.render([{ type: 'text', text }])
-    assert.equal(tree.props['data-rabi-message'], 'ordinary')
-    assert.equal(nodes(tree, 'header').length, 0)
-    assert.equal(h.projections[0][0], text)
+test('noninteractive previews and pending text show only the source label', () => {
+  const h = harness()
+  for (const source of [raw, planRaw, systemRaw]) {
+    const tree = h.render([{ type: 'text', text: source }], 'user', {}, undefined, undefined, false)
+    assert.equal(nodes(tree, 'Button').length, 0)
+    assert.equal(nodes(tree, 'Menu').length, 0)
+    assert.equal(nodes(tree, 'Modal').length, 0)
   }
+  assert.deepEqual(h.opened, [])
 })
 
-test('malformed/non-leading envelopes and long history text remain verbatim', () => {
-  for (const text of ['prefix\n' + raw, raw.replace('类型：Agent', '类型：User'), raw.replace('会话 ID：exact-id', '会话 ID：exact-id\r\n会话 ID：other'), 'long '.repeat(10000)]) {
-    const h = harness(), tree = h.render([{ type: 'text', text }])
-    assert.equal(tree.props['data-rabi-message'], 'ordinary')
-    assert.equal(h.projections[0][0], text)
-  }
+test('reply metadata has no custom body and retains its raw suffix for the official fallback', () => {
+  const h = harness()
+  const prefix = h.rabiMessageMetadataRule.match(raw, 0)
+  const footer = h.rabiMessageMetadataRule.match(raw, prefix.end)
+  assert.equal(footer.data.part, 'reply')
+  assert.equal(h.RabiMessageMetadata({ node: footer }), null)
+  assert.equal(raw.slice(footer.start, footer.end).includes('[回传参数]'), true)
 })
+
 test('navigation rejects missing, incomplete and refreshed-away DSH IDs without opening', async () => {
   const h = harness()
   let refreshes = 0
@@ -319,11 +167,11 @@ test('a refused locate surfaces Rabi own reason rather than a generic one', asyn
   await assert.rejects(h.openRabiSender(h.sessions, { agentAdapter: 'codex', sessionId: 'task-abc' }, h.t), /HTTP 502/)
 })
 
-test('navigation and copy errors are visible; unmount cancels navigation after refresh', async () => {
+test('navigation errors remain visible; unmount cancels navigation after refresh', async () => {
   const h = harness(), content = [{ type: 'text', text: raw }]
   h.sessions.refresh = async () => { throw new Error('offline') }
   await nodes(h.render(content), 'Button')[0].props.onClick()
-  assert.match(nodes(h.render(content), 'div').find(node => node.props.role === 'alert').children[0], /offline/)
+  assert.match(nodes(h.render(content), 'span').find(node => node.props.role === 'alert').children[0], /offline/)
   let release
   h.sessions.refresh = () => new Promise(resolve => { release = resolve })
   const pending = nodes(h.render(content), 'Button')[0].props.onClick()
@@ -334,10 +182,11 @@ test('navigation and copy errors are visible; unmount cancels navigation after r
 })
 
 test('locale, tab type, body and launcher registrations dispose and remount without private registry access', () => {
-  const h = harness(), registrations = [], cleanups = [], definitions = [], openedTabs = []
+  const h = harness(), registrations = [], cleanups = [], definitions = [], openedTabs = [], textRules = []
   let locales = 0
   const ctx = {
     sessions: h.sessions,
+    uiConversation: { userText: { register: rule => { textRules.push(rule); return () => textRules.splice(textRules.indexOf(rule), 1) } } },
     inject: dependencies => { assert.deepEqual(Array.from(dependencies), ['remote', 'remote.speech']) },
     effect: fn => cleanups.push(fn()),
     locale: {
@@ -365,17 +214,14 @@ test('locale, tab type, body and launcher registrations dispose and remount with
     h.apply(ctx)
     assert.equal(locales, 6)
     assert.equal(registrations.filter(row => row.spec.name === 'conversation.chat.assistant-actions' && row.spec.id === 'rabiroute-speech').length, 1)
-    const messages = registrations.filter(row => row.spec.name === 'conversation.chat.node')
-    assert.deepEqual(messages.map(row => row.spec.key), ['user', 'steering'])
-    for (const row of messages) {
-      assert.equal(row.spec.priority, -10)
-      assert.equal(row.spec.locale, 'rabiroute-agent-messages')
-      assert.equal(row.spec.inject, undefined)
-    }
-    const userRow = registrations.find(row => row.spec.name === 'conversation.chat.user.row.body')
-    assert.equal(userRow.view, h.RabiUserRow)
-    assert.equal(userRow.spec.priority, -10)
-    assert.equal(userRow.spec.inject().rabiSessions, h.sessions)
+    assert.equal(registrations.some(row => row.spec.name === 'conversation.chat.node'), false)
+    assert.equal(registrations.some(row => row.spec.name === 'conversation.chat.user.row.body'), false)
+    assert.equal(textRules.length, 1)
+    assert.equal(textRules[0], h.rabiMessageMetadataRule)
+    const metadata = registrations.find(row => row.spec.name === 'conversation.user.text.node')
+    assert.equal(metadata.spec.key, 'rabi-delivery-metadata')
+    assert.equal(metadata.view, h.RabiMessageMetadata)
+    assert.equal(metadata.spec.inject().rabiSessions, h.sessions)
     // The plan panel is this plugin's own page type; it takes no other type's kind over.
     assert.deepEqual(definitions.map(definition => [definition.id, definition.kind]), [[h.RABI_PLAN_TAB_ID, h.RABI_PLAN_KIND]])
     const body = registrations.find(row => row.spec.key === h.RABI_PLAN_TAB_ID)
@@ -393,6 +239,7 @@ test('locale, tab type, body and launcher registrations dispose and remount with
     assert.equal(locales, 0)
     assert.equal(registrations.length, 0)
     assert.equal(definitions.length, 0)
+    assert.equal(textRules.length, 0)
   }
 })
 

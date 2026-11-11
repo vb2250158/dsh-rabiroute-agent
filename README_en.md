@@ -1,10 +1,10 @@
-## Shared message rows (0.13.57)
+## Rabi source metadata on official messages (0.13.58)
 
-Submission echoes, pending input and durable messages use one renderer through the Host's `conversation.chat.user.row` Factory. Bot avatars, names, bubbles and attachments use their final presentation from submission; ordinary Sessions retain their own colors. Local image previews and durable attachments share the authorized gallery. The Host retains message identity and deduplication.
+The plugin uses the official `uiConversation.userText` and `conversation.user.text.node` extension points only for validated source and reply metadata. It does not replace user-message nodes or rows. Ordinary text, Rabi bodies, images/files, timestamps and Copy remain official; Copy still receives the complete original text. Submission echoes, pending, durable and steering messages share the official presentation.
 
-The Host must provide the public `conversation.chat.user.row.body` entry. Answer receipts use a `proactive-answer.message` Factory accepting prepared `row` inputs. Rabi source envelopes retain folding, raw text and sender navigation.
+Agent sources retain locate/original-message controls. Plan and system metadata describes its own subject without folding or redrawing the body. Unrecognized envelopes retain the normal original-text path.
 
-## Runtime version (0.13.57)
+## Runtime version (0.13.58)
 
 Runtime status and package versions agree. Installation verification still checks the fixed Git source and loaded files; lightweight discovery and plan-read backoff are unchanged.
 
@@ -181,13 +181,13 @@ Each new requirement must identify why Rabi cannot perform it directly, DSH's mi
 
 The enhancement recognizes a leading `[消息源]` envelope when chat loads or historical messages render, shows a source row above the body, and offers a "View original message" menu item. Recognition is display-only: session logs, model input, source identity and reply parameters remain unchanged, and the original stays accessible. Source text is a message claim, not authenticated sender evidence; reply JSON must never execute automatically.
 
-Three source kinds are presented by their own identity fields. An **Agent** row shows the sending session above the body and offers "Locate Agent". **Plan** and **System** rows carry no session identity of their own, so their header states what they describe — the plan name and id, or the event name and type — and the body is folded by default, expandable from the header or an inline toggle. An unknown or misspelled source kind is not parsed and still renders as flat text.
+Each source kind adds only its metadata: Agent names its sender and offers locate; Plan and System name their own objects. Every body remains visible through official text, references and message actions. Unknown or ambiguous formats contribute no extension node.
 
 The parser source is `src/message-envelope.js`, bundled by the browser build; the Host tool entry does not load it. It accepts current/legacy field names and LF/CRLF, preserves the original string and body whitespace, and separates only a valid terminal reply JSON block. Duplicate fields, unknown header fields, fields mixed from another source kind, a half-written source identity, ambiguous reply JSON or conflicting delivery IDs return `null`; callers must display the original. `消息端` has no presentation yet and, like unknown context blocks, receives no business interpretation.
 
 Unsupported or ambiguous formats remain unchanged. Locate sessions by full ID, never by guessed names or by creating replacements. A **DSH** source is matched by full ID in the local catalog and selected in place; **any other adapter** (currently `codex`) is handed to RabiRoute's Agent-thread bridge (`action=open`) to raise that client's window — the local client does not hold the session, so deciding it here would only guess. Unknown targets and Rabi's own rejection reasons are reported as stated. Plan and system rows offer no locate entry point: they name no locatable session, and a control that cannot act reads as a broken link.
 
-Folding is display-only: a folded body is not rendered and the `projectUserText` projection does not run, while expanding or "View original message" still returns the complete content.
+Source and validated reply metadata are separate business text nodes. No Rabi node covers the body between them; official text rules retain it. Original-message access and official Copy both retain the complete delivery text.
 
 ### Locating an external adapter (0.3.0)
 
@@ -195,7 +195,7 @@ The browser calls the same-origin route `POST /rabiroute/locate-agent` with only
 
 A `dsh` source does not take this path; it is selected in place from the local session catalog. When `agentAdapter` is outside the adapters Rabi supports, the plugin refuses before sending anything rather than letting Rabi reject it with a vaguer reason. Rabi's own rejection reason travels back verbatim.
 
-The public `conversation.chat.node` slot can replace an entire node kind but cannot conditionally fall back to the official renderer. First evaluate a plugin-only replacement through this public API, accepting responsibility for ordinary messages, attachments, copying, timestamps and history loading. A missing local decoration slot alone does not require official-source changes. Do not capture private registries, import internal components or modify the DOM. Propose a minimal official extension point and request authorization only if public replacement cannot reliably meet the requirements. This section defines unreleased work, not evidence that chat presentation, navigation or menus are available.
+Use the public user-text registry for source metadata; do not take over ordinary message rows or duplicate their body, gallery, clock and action implementations. Registration and cleanup follow the owning Cordis effect.
 
 ## Rabi plan panel (0.2.0)
 

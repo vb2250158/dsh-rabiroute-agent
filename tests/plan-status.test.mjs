@@ -126,6 +126,7 @@ test('packaged row seats share hooks, select the actual row and expose stale/con
   const rows = [], cleanups = [], released = []
   const ctx = {
     sessions: {}, effect: fn => { cleanups.push(fn()) },
+    uiConversation: { userText: { register: rule => { assert.equal(rule.id, 'rabi-delivery-metadata'); return () => {} } } },
     inject: dependencies => { assert.deepEqual(Array.from(dependencies), ['remote', 'remote.speech']) },
     locale: { register: () => () => {}, bind: () => key => key },
     sidebarRightTabs: { register: () => () => {} }, sidebarRight: {},

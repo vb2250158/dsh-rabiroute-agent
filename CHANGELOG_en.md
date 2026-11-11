@@ -1,3 +1,9 @@
+## 0.13.58 (2026-11-11)
+
+- Remove complete user-message/node replacements; add Rabi source metadata through official text extension points.
+- Preserve official ordinary/Rabi bodies, attachments, timestamps, references and Copy, while retaining source menu and locate controls.
+- Keep reply metadata separate without redrawing or folding plan/system bodies. Durable logs and model inputs are unchanged.
+
 ## 0.13.57 (2026-11-10)
 
 - Retain the three HTTP tools, lightweight discovery and plan-read backoff from 0.13.55. The optional six-tool SDK surface from 0.13.56 is excluded from this release and remains recoverable in Git history.

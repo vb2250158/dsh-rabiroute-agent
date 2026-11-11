@@ -99,6 +99,15 @@ function parseReplySuffix(body) {
  * @returns {{raw: string, body: string, sourceType: string, plan?: object, event?: object, sender: object|null, sentAt: string, deliveryId?: string, replyParameters: object|null}|null} Display projection or conservative fallback.
  */
 export function parseRabiMessageEnvelope(raw) {
+  return parseRabiMessageParts(raw)?.envelope ?? null
+}
+
+/**
+ * Resolve the original metadata ranges without taking ownership of the body.
+ * @param {unknown} raw Original message text.
+ * @returns {{envelope: object, prefixEnd: number, bodyEnd: number}|null} Exact UTF-16 source ranges, or the normal raw-text path.
+ */
+export function parseRabiMessageParts(raw) {
   if (typeof raw !== 'string' || !/^\[消息源\]\r?\n/.test(raw)) return null
   const opening = /^\[消息源\]\r?\n/.exec(raw)[0]
   const headerEnd = /\r?\n\r?\n\[消息内容\](?:\r?\n|$)/.exec(raw.slice(opening.length))
@@ -135,7 +144,8 @@ export function parseRabiMessageEnvelope(raw) {
   // `agentType`/`workspace` stay independent optionals on every kind.
   const hasAnyIdentity = agentFields.some(key => values.has(key))
   if (hasAnyIdentity && !['agentAdapter', 'sessionName', 'sessionId'].every(key => values.has(key))) return null
-  const content = raw.slice(opening.length + headerEnd.index + headerEnd[0].length)
+  const prefixEnd = opening.length + headerEnd.index + headerEnd[0].length
+  const content = raw.slice(prefixEnd)
   const parsed = parseReplySuffix(content)
   if (!parsed) return null
   const deliveryId = values.get('deliveryId')
@@ -147,13 +157,41 @@ export function parseRabiMessageEnvelope(raw) {
     return agent
   }
   const shared = { raw, ...parsed, sourceType: declared.kind, sentAt, ...(deliveryId ? { deliveryId } : {}) }
-  if (declared.kind === 'agent') return { ...shared, sender: identity() }
+  let envelope
+  if (declared.kind === 'agent') envelope = { ...shared, sender: identity() }
   if (declared.kind === 'plan') {
     const plan = { planName: values.get('planName'), planId: values.get('planId') }
     if (hasAnyIdentity) plan.sourceAgent = identity()
-    return { ...shared, plan, sender: null }
+    envelope = { ...shared, plan, sender: null }
   }
-  const event = { eventType: values.get('eventType'), eventName: values.get('eventName'), eventId: values.get('eventId') }
-  for (const key of ['actorType', 'actorName', 'actorId', 'routeName', 'routeId']) if (values.has(key)) event[key] = values.get(key)
-  return { ...shared, event, sender: null }
+  if (declared.kind === 'system') {
+    const event = { eventType: values.get('eventType'), eventName: values.get('eventName'), eventId: values.get('eventId') }
+    for (const key of ['actorType', 'actorName', 'actorId', 'routeName', 'routeId']) if (values.has(key)) event[key] = values.get(key)
+    envelope = { ...shared, event, sender: null }
+  }
+  return { envelope, prefixEnd, bodyEnd: prefixEnd + parsed.body.length }
+}
+
+/** Only delivery metadata becomes a business node; the body keeps the official text rules. */
+export const rabiMessageMetadataRule = {
+  id: 'rabi-delivery-metadata',
+  order: 0,
+  match(text, from) {
+    const parsed = parseRabiMessageParts(text)
+    if (parsed === null) return undefined
+    if (from === 0) return {
+      id: 'rabi-delivery-metadata', start: 0, end: parsed.prefixEnd,
+      data: { part: 'source', envelope: parsed.envelope },
+    }
+    // A native whitespace rule may already consume part of the footer separator.
+    // Consume only the remaining validated metadata, never any body characters.
+    if (parsed.bodyEnd < text.length) {
+      const start = Math.max(from, parsed.bodyEnd)
+      if (start < text.length) return {
+        id: 'rabi-delivery-metadata', start, end: text.length,
+        data: { part: 'reply' },
+      }
+    }
+    return undefined
+  },
 }

@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checkRowSlots } from '../scripts/check-row-slots.mjs'
-test('upgrade check rejects a missing built row slot before installing', async () => {
+test('upgrade check rejects a missing built metadata text slot before installing', async () => {
   const root = await mkdtemp(join(tmpdir(), 'rabi-row-slots-'))
   const base = join(root, 'packages/client/ui-workspace')
   const contents = {
@@ -17,13 +17,13 @@ test('upgrade check rejects a missing built row slot before installing', async (
     for (const [file, text] of Object.entries(contents)) { await mkdir(join(base, file, '..'), { recursive: true }); await writeFile(join(base, file), text) }
     await assert.rejects(checkRowSlots(root), /lib.client.js.*sidebar.session.row.title/)
     await writeFile(join(base, 'lib/client.js'), 'sidebar.session.row.badges sidebar.session.row.title')
-    const chat = join(root, 'packages/client/ui-chat')
+    const chat = join(root, 'packages/client/ui-conversation')
     await mkdir(join(chat, 'src/client/contract'), { recursive: true })
     await mkdir(join(chat, 'lib'), { recursive: true })
-    await writeFile(join(chat, 'src/client/contract/slots.ts'), 'conversation.chat.user.row conversation.chat.user.row.body')
-    await writeFile(join(chat, 'lib/client.js'), 'conversation.chat.user.row')
-    await assert.rejects(checkRowSlots(root), /lib.client.js.*conversation.chat.user.row.body/)
-    await writeFile(join(chat, 'lib/client.js'), 'conversation.chat.user.row conversation.chat.user.row.body')
+    await writeFile(join(chat, 'src/client/contract/slots.ts'), 'conversation.user.text conversation.user.text.node')
+    await writeFile(join(chat, 'lib/client.js'), 'conversation.user.text')
+    await assert.rejects(checkRowSlots(root), /lib.client.js.*conversation.user.text.node/)
+    await writeFile(join(chat, 'lib/client.js'), 'conversation.user.text conversation.user.text.node')
     await checkRowSlots(root)
   } finally { await rm(root, { recursive: true, force: true }) }
 })
