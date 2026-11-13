@@ -363,7 +363,9 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 
 安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供。模式提供三个 Rabi 工具、官方 `web_search` 与 `web_fetch`、后台委派与交流动作，以及原生子 Agent 的发现、消息与中断工具。每个 Agent 创建或恢复后、首次上下文组装前筛选工具目录。支持正常人格对话，探索型搜索和连续工具操作提交后台工作包，已知对象的有界读取可直接执行。
 
-### 后台委派与交流（0.14.0）
+### 后台委派与交流（0.14.1）
+
+助手预置自行加载 `@deepseek-ai/dsh-tool-subagent-control`，与工具筛选处于同一预置作用域。Web 根工具目录无需提供子任务控制工具。
 
 `rabiroute_assistant_delegate` 接收 `description`、`prompt` 及可选 `name`、`cwd`，通过 `ctx.subagents.startActivation()` 提交工作，使用 `delivery: parent`。返回真实 `childId`、`name` 和可用的 `messageId` 后调用 `concludeTurn()`。工作由 DSH 运行时持有，完成后经父会话 Inbox 回流，主人格继续原任务。受理失败保留本轮处理，已到达的新输入沿原 Inbox 消费。`list_agents`、`send_message` 与 `interrupt_agent` 分别复用发现、范围修订和指定子任务中断入口。
 

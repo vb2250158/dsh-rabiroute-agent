@@ -55,7 +55,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.14.0'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.14.1'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 export const RABIROUTE_API_DISCOVERY_PROMPT = '接口合同默认逐层轻量发现。先 GET /api/agent/categories 查看分类，再 GET /api/agent/operations?category=<分类>&query=<URL编码关键词>&limit=10&cursor=<游标> 查询相关短页，并按响应游标继续。定位 operationId 后，GET /api/agent/operations/<编码operationId>?view=input 读取单项输入合同。需要结果说明或完整合同时，再按需使用 view=result 或 view=full。仅当旧 Manager 的发现端点明确返回 HTTP 404 时，按需 GET /api/agent/help 读取兼容合同。'
 const THREADS_PATH = '/api/agent/threads'

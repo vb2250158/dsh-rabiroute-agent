@@ -65,12 +65,12 @@ try {
   await ctx.plugin((await load('packages/preset/agent-preset-registry/lib/index.js')).default, { default: 'standard' })
   await ctx.plugin((await load('packages/subagent/subagent/lib/index.js')).default)
   await ctx.plugin(await load('packages/subagent/subagent-spawn-in-process/lib/index.js'), { providerName: 'spawn' })
-  await ctx.plugin(await load('packages/subagent/tool-subagent-control/lib/index.js'))
   ctx.llm.registerAdapter(['fixture'], new Adapter())
   for (const definition of internals.toolDefinitions({})) ctx.tools.register(definition)
   await ctx.agentPresets.register({ id: 'standard', plugins: [] })
   await ctx.agentPresets.register({ id: 'assistant-test', plugins: [
     { id: 'web', name: pathToFileURL(resolve(root, 'packages/web/tool-web/lib/index.js')).href, config: { search: true, fetch: true, searchTimeoutMs: 60000 } },
+    { id: 'subagent-control', name: pathToFileURL(resolve(root, 'packages/subagent/tool-subagent-control/lib/index.js')).href },
     { id: 'assistant-mode', name: modeUrl },
   ] })
   const setup = scope => ctx.agentPresets.mount(scope, 'assistant-test').then(() => undefined)

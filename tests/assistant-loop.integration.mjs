@@ -115,7 +115,6 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     await ctx.plugin((await load('packages/preset/agent-preset-registry/lib/index.js')).default, { default: 'standard' })
     await ctx.plugin((await load('packages/subagent/subagent/lib/index.js')).default)
     await ctx.plugin(await load('packages/subagent/subagent-spawn-in-process/lib/index.js'), { providerName: 'spawn' })
-    await ctx.plugin(await load('packages/subagent/tool-subagent-control/lib/index.js'))
     ctx.on('tools/post-execute', async (exec, _result, next) => {
       if (exec.name === 'rabiroute_assistant_delegate') {
         admissionReached.resolve()
@@ -128,6 +127,7 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     await ctx.agentPresets.register({ id: 'standard', plugins: [] })
     await ctx.agentPresets.register({ id: 'assistant-test', plugins: [
       { id: 'web', name: pathToFileURL(resolve(root, 'packages/web/tool-web/lib/index.js')).href, config: { search: true, fetch: true, searchTimeoutMs: 60000 } },
+      { id: 'subagent-control', name: pathToFileURL(resolve(root, 'packages/subagent/tool-subagent-control/lib/index.js')).href },
       { id: 'assistant-mode', name: modeUrl },
     ] })
     const handle = await ctx.agents.create({ sessionId: SessionId('rabi-loop-parent'),

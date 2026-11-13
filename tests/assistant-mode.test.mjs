@@ -17,7 +17,7 @@ test('installed plugin registers a portable Rabi assistant preset and owns its d
   assert.equal(rows[0].id, 'rabi-assistant')
   assert.equal(rows[0].name, 'Rabi助手模式')
   assert.match(rows[0].description, /全部 Rabi 接口/)
-  assert.deepEqual(rows[0].plugins.map(row => row.name), ['@deepseek-ai/dsh-tool-executor-native', '@deepseek-ai/dsh-persona', '@deepseek-ai/dsh-tool-web', 'cordis:group', 'dsh-rabiroute-agent/assistant-mode'])
+  assert.deepEqual(rows[0].plugins.map(row => row.name), ['@deepseek-ai/dsh-tool-executor-native', '@deepseek-ai/dsh-persona', '@deepseek-ai/dsh-tool-web', '@deepseek-ai/dsh-tool-subagent-control', 'cordis:group', 'dsh-rabiroute-agent/assistant-mode'])
   assert.deepEqual(rows[0].plugins[2].config, { search: true, fetch: true, searchTimeoutMs: 60000 })
   for (const effect of effects) (await effect)?.()
   assert.equal(rows.length, 0)

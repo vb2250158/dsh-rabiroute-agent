@@ -97,7 +97,9 @@ Home-device directories return paged summaries. Start with `/api/agent/xiaomi-ho
 
 Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns persona, memory, plans and messages. The mode provides the three Rabi tools, official web search and fetch, explicit speech and background delegation, and native child discovery, messaging and interruption. Exploration and multi-step execution use complete background work packages. Bounded reads of known objects can run directly.
 
-### Background delegation and speech (0.14.0)
+### Background delegation and speech (0.14.1)
+
+The assistant preset loads `@deepseek-ai/dsh-tool-subagent-control` in its own scope before applying its tool restriction. The Web root tool catalog can omit these controls.
 
 `rabiroute_assistant_delegate` accepts `description`, `prompt` and optional `name` and `cwd`. It calls `ctx.subagents.startActivation()` with parent delivery, returns the accepted `childId`, `name` and available `messageId`, and calls `concludeTurn()`. DSH owns child execution and returns its result through the parent Inbox. Queued user input continues through the existing loop. Failed admission leaves the turn open. Native `list_agents`, `send_message` and `interrupt_agent` handle discovery, corrections and a selected child's interruption.
 

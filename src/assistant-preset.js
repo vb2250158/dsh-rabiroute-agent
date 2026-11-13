@@ -8,6 +8,7 @@ export const rabiAssistantPreset = {
     { id: 'native-tool-executor', name: '@deepseek-ai/dsh-tool-executor-native' },
     { id: 'persona', name: '@deepseek-ai/dsh-persona', config: { prefix: '按 Rabi 当前绑定的人格进行对话。', includeRuntimeContext: false } },
     { id: 'tool-web', name: '@deepseek-ai/dsh-tool-web', config: { search: true, fetch: true, searchTimeoutMs: 60000 } },
+    { id: 'subagent-control', name: '@deepseek-ai/dsh-tool-subagent-control' },
     // Context pressure is owned by the DSH session, including resumed assistant sessions.
     { id: 'compaction', name: 'cordis:group', group: true,
       isolate: { compaction: true, toolResultPruner: true },

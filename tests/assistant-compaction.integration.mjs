@@ -43,13 +43,14 @@ test('assistant preset compacts before model requests, retains original history 
         : path === 'preset/agent-preset-registry' ? { default: 'rabi-assistant' } : {})
     }
     ctx.llm.registerAdapter(['fixture'], new Adapter())
-    await ctx.plugin(await load('packages/subagent/tool-subagent-control/lib/index.js'))
     for (const definition of internals.toolDefinitions({})) ctx.tools.register(definition)
+    for (const name of ['list_agents', 'send_message', 'interrupt_agent']) assert.equal(ctx.tools.get(name), undefined)
     const entries = structuredClone(rabiAssistantPreset.plugins)
     const native = {
       '@deepseek-ai/dsh-tool-executor-native': 'core/tool-executor-native',
       '@deepseek-ai/dsh-persona': 'preset/persona',
       '@deepseek-ai/dsh-tool-web': 'web/tool-web',
+      '@deepseek-ai/dsh-tool-subagent-control': 'subagent/tool-subagent-control',
       '@deepseek-ai/dsh-compaction-basic': 'compaction/compaction-basic',
       '@deepseek-ai/dsh-command-compact': 'compaction/command-compact',
       '@deepseek-ai/dsh-compaction-tool-result-pruner': 'compaction/compaction-tool-result-pruner',
@@ -70,6 +71,9 @@ test('assistant preset compacts before model requests, retains original history 
       setup: (agentCtx) => ctx.agentPresets.mount(agentCtx, 'rabi-assistant').then(() => undefined),
     })
     const agent = handle.agent
+    const catalog = await ctx.systemPrompt.assemble({ scope: agent, agent })
+    assert.equal(catalog.tools.length, 10)
+    for (const name of ['list_agents', 'send_message', 'interrupt_agent']) assert.ok(catalog.tools.some(tool => tool.name === name))
     assert.ok(ctx.commands.list(agent).some(command => command.name === 'compact'))
     const sibling = await ctx.agents.create({ sessionId: SessionId('sibling-fixture') })
     assert.equal(ctx.commands.list(sibling.agent).some(command => command.name === 'compact'), false)

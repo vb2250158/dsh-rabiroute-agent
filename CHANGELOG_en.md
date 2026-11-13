@@ -1,3 +1,8 @@
+## 0.14.1 (2026-11-13)
+
+- Register native subagent controls within the assistant preset so the full Web creation entry exposes all ten tools.
+- Declare the control-plugin peer and verify preset creation and recovery with no root-level control tools.
+
 ## 0.14.0 (2026-11-13)
 
 - Reuse shared SDK coordinate-format detection and check the actual receiver contract only for resized-image coordinate writes, retaining existing receipt state.
