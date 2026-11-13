@@ -1,3 +1,16 @@
+[简体中文](README.md)
+
+Ordinary requests require Manager `health.live=true` and a `healthy` or `degraded` state. `requiredReady` describes declared capability readiness. Each endpoint checks the capabilities needed for its operation.
+
+## Manager image results
+
+The existing three tools read the response's `x-rabiroute-media` declaration. Outer projected `media[]` uses the same source declaration. Declarations use JSON Pointer, for example `[{"path":"/data/capture","type":"image"}]`, selecting an object with `mimeType` and canonical Base64 `data`. Ordinary business JSON keeps its existing text output.
+
+Images enter model content through the public DSH attachment service, which decodes and validates their format and dimensions. `media[].status=prepared` records a prepared attachment. The host sends the model request. Missing attachments or storage failures produce `unavailable` while preserving the original business outcome and uncertainty. Text contains valid declared images' metadata. Invalid declarations preserve the original business fields and report `mediaErrors`. Code Mode uses the host's existing image-result handling.
+After the host resizes a whole capture, `source.imageView.width/height` records the image dimensions presented to the model. Use these dimensions for input, static annotation and initial tracking boxes, and return the complete `source` unchanged. The original `source.width/height`, `frameId`, `imageItemId` and `bounds` retain cached capture identity. Media summaries and compact bodies receive matching source metadata, image dimensions and composed transforms. When public model-preview APIs are available, the plugin reuses the current route’s `imageRequestTarget` and `readImageRequest` to obtain the actual request dimensions. Earlier hosts use the saved attachment dimensions. The original attachment reference remains available to official message rendering and caching. The official host owns model image capability and projection for explicitly text-only models. Attachment preparation remains available. Coordinate operations require a desktop resource supporting `imageViewVersion=1`.
+
+Only input and annotation coordinates that depend on a resized image check the receiver’s computer operation contract. A legacy receiver without an explicit `source.imageView` declaration returns a format error for the current dispatch, with guidance to capture again or update the receiver. Query existing receipts using their original IDs. Contracts are cached by receiver identity and `apiTransport.metadataRevision`, and read again when revision information is absent. Ordinary text, keys, equal-size views and recovery retain their existing call flow. Format detection uses an exact generated copy of the same Rabi Agent SDK module, with its MIT license included.
+
 ## Rabi source metadata on official messages (0.13.58)
 
 The plugin uses the official `uiConversation.userText` and `conversation.user.text.node` extension points only for validated source and reply metadata. It does not replace user-message nodes or rows. Ordinary text, Rabi bodies, images/files, timestamps and Copy remain official; Copy still receives the complete original text. Submission echoes, pending, durable and steering messages share the official presentation.
@@ -82,7 +95,17 @@ Home-device directories return paged summaries. Start with `/api/agent/xiaomi-ho
 
 ## Rabi assistant mode (0.13.19)
 
-Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns the persona, memory, plans and messages. Only the three Rabi tools are visible and executable; foreign and subsequently registered tools are denied. The persona session handles messages and plans and prefers independent sessions for other work while retaining access to every Rabi API.
+Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns persona, memory, plans and messages. The mode provides the three Rabi tools, official web search and fetch, explicit speech and background delegation, and native child discovery, messaging and interruption. Exploration and multi-step execution use complete background work packages. Bounded reads of known objects can run directly.
+
+### Background delegation and speech (0.14.0)
+
+`rabiroute_assistant_delegate` accepts `description`, `prompt` and optional `name` and `cwd`. It calls `ctx.subagents.startActivation()` with parent delivery, returns the accepted `childId`, `name` and available `messageId`, and calls `concludeTurn()`. DSH owns child execution and returns its result through the parent Inbox. Queued user input continues through the existing loop. Failed admission leaves the turn open. Native `list_agents`, `send_message` and `interrupt_agent` handle discovery, corrections and a selected child's interruption.
+
+The mode's `subagentProvider` defaults to `spawn` and `workerPreset` to `standard`. The provider, preset registry and Host depth setting own execution validation. Work packages include the goal, context, input locations, authority, acceptance criteria, evidence, committed side effects, remaining work and next action. Independent business tasks retain their Rabi thread and formal return path. A thread `create` or `send` with `responsePolicy: required` concludes the turn only after HTTP 200, business success and `delivery.status: accepted`. Unconfirmed outcomes retain their original receipt identity for reconciliation.
+
+`rabiroute_assistant_say` accepts the complete `text` and persists it through ordinary tool call and successful result records. DS Bot displays those results as complete chat bubbles and retains execution text in task details. Each assistant Session records an ignorable `rabiroute/assistant-mode` event with `{ "version": 1 }` once. Earlier replies remain readable, and subsequent chat is reconstructed from explicit speech. Live, refreshed and paged history use the same durable records. Upgrade DS Bot together with the assistant plugin to enable this presentation.
+
+For source validation, set `DSH_SOURCE_ROOT` to the current built DSH checkout and run `npm test`. The test resolver uses that Host's public tools and schema dependencies, or installed peers when the variable is omitted. Run `node --import ./tests/assistant-source-resolve.mjs --test tests/assistant-loop.integration.mjs` for isolated parent/child runtime acceptance.
 
 Select the preset in Rabi's DSH settings. New sessions use it at creation; blank sessions use the official DSH selection API. Started sessions refuse preset changes, requiring an explicitly selected new session. Manager failure does not enable file caches or other tools. Standard sessions remain unaffected.
 

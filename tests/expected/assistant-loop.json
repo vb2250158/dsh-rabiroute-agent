@@ -1,0 +1,17 @@
+{
+  "receipt": { "childId": "<childId>", "name": "worker", "messageId": "<messageId>" },
+  "marker": { "version": 1 },
+  "say": {
+    "output": { "text": "PARENT-ANSWERED-NEW-INPUT" },
+    "meta": { "kind": "rabi-assistant-say", "text": "PARENT-ANSWERED-NEW-INPUT" },
+    "isError": false
+  },
+  "originalTaskRetained": true,
+  "correctionConsumed": true,
+  "distinctResultsConsumed": 2,
+  "originalChildResumed": true,
+  "pendingInputRecorded": true,
+  "targetedInterruptStopped": true,
+  "newInputAfterInterrupt": true,
+  "interruptedChildResumed": true
+}

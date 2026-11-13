@@ -19,10 +19,12 @@ for (const [label, mode, names] of [['message', message, RABIROUTE_AGENT_TOOL_NA
     try {
       await ctx.plugin(SystemPrompt)
       await ctx.plugin(Tools)
+      ctx.provide('subagents', { resolveMaxDepth: () => 1, startActivation: async () => { throw new Error('No child execution in catalog fixture') } })
       // Another preset's executor must not override this preset's explicit selection.
       await ctx.plugin(Object.assign(inner => inner.tools.setExecutor({ describe: () => ({ schemas: [] }), execute: () => { throw new Error('sibling executor must not run') } }), { inject: ['tools'] }))
       let preset, child
-      const presetKey = { id: 'preset' }, agent = { id: 'agent', session: { id: 'test-session', header: { cwd: 'C:/fixture' } } }
+      const events = []
+      const presetKey = { id: 'preset' }, agent = { id: 'agent', session: { id: 'test-session', header: { cwd: 'C:/fixture' }, snapshotEvents: () => events, append: (type, data) => events.push({ type, data }) } }
       await ctx.plugin(Object.assign(inner => { preset = createScope(inner, presetKey); child = createScope(inner, agent) }, { inject: ['tools', 'systemPrompt'] }))
       bindScopeParent(agent, presetKey)
       agent.ctx = child.ctx

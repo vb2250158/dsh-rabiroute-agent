@@ -1,3 +1,4 @@
+import { managerMediaSchema, prepareManagerMedia, renderManagerMedia } from './media-output.js'
 import { createWorkspacePlans, createWorkspacePlansHandler, WORKSPACE_PLANS_PATH } from './workspace-plans.js'
 import { createPlanAdvanceHost, PLAN_ADVANCE_PATH } from './plan-advance.js'
 import { installPlanContext } from './plan-context.js'
@@ -54,7 +55,7 @@ export const Config = z.object({
 })
 export const RABIROUTE_AGENT_PLUGIN_ID = 'rabiroute-agent'
 export const RABIROUTE_AGENT_PLUGIN_NAME = 'RabiRoute Agent'
-export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.13.58'
+export const RABIROUTE_AGENT_PLUGIN_VERSION = '0.14.0'
 export const RABIROUTE_AGENT_TOOL_NAMES = Object.freeze(['rabiroute_agent_threads', 'rabiroute_agent_send', 'rabiroute_manager_api'])
 export const RABIROUTE_API_DISCOVERY_PROMPT = '接口合同默认逐层轻量发现。先 GET /api/agent/categories 查看分类，再 GET /api/agent/operations?category=<分类>&query=<URL编码关键词>&limit=10&cursor=<游标> 查询相关短页，并按响应游标继续。定位 operationId 后，GET /api/agent/operations/<编码operationId>?view=input 读取单项输入合同。需要结果说明或完整合同时，再按需使用 view=result 或 view=full。仅当旧 Manager 的发现端点明确返回 HTTP 404 时，按需 GET /api/agent/help 读取兼容合同。'
 const THREADS_PATH = '/api/agent/threads'
@@ -115,11 +116,13 @@ const output = {
   schema: { type: 'object', properties: {
     statusCode: { type: 'number' }, ok: { type: 'boolean' }, body: { type: 'string' }, etag: { type: 'string' }, uncertain: { type: 'boolean' }, localUnrestricted: { type: 'boolean' },
     headers: { type: 'object', additionalProperties: true },
+    media: managerMediaSchema,
+    mediaErrors: { type: 'array', items: { type: 'object', additionalProperties: true } },
     identity: { type: 'object', properties: { applicationGenerationId: { type: 'string' }, managerInstanceId: { type: 'string' } }, required: ['applicationGenerationId', 'managerInstanceId'], additionalProperties: false },
     error: { type: 'object', properties: { kind: { type: 'string' }, message: { type: 'string' }, code: { type: 'string' } }, required: ['kind', 'message'], additionalProperties: false },
     diagnostic: { type: 'object', properties: { timeoutMs: { type: 'number' }, reason: { type: 'string' }, stage: { type: 'array', items: { type: 'string' } }, requestId: { type: 'string' } }, required: ['timeoutMs', 'reason', 'stage'], additionalProperties: false },
   }, required: ['statusCode', 'ok', 'body'], additionalProperties: false },
-  render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
+  render: renderManagerMedia,
 }
 function toolDefinitions(config, dependencies = {}) {
   const timeoutMs = timeoutBudget(config.requestTimeoutMs) + 1000
@@ -160,7 +163,11 @@ function toolDefinitions(config, dependencies = {}) {
         return managerRequest(config, pathname, { method, headers, ...(body !== undefined ? { body } : {}) }, exec.signal, dependencies)
       } },
   ]
-  return definitions.map(definition => ({ ...definition, output, timeoutMs }))
+  return definitions.map(definition => ({ ...definition, output, timeoutMs,
+    async execute(args, exec) {
+      return prepareManagerMedia(await definition.execute(args, exec), exec, dependencies)
+    },
+  }))
 }
 function promptText(config) {
   return [
@@ -229,7 +236,7 @@ export function apply(ctx, config = {}) {
   })
   ctx.inject(['tools', 'systemPrompt'], runtime => {
     runtime.systemPrompt.section({ name: 'rabiroute:agent-contract', order: 25, text: promptText(resolved) })
-    for (const definition of toolDefinitions(resolved)) runtime.tools.register(definition)
+    for (const definition of toolDefinitions(resolved, { resolveAttachments: () => runtime.get?.('attachments'), resolveLlm: () => runtime.get?.('llm') })) runtime.tools.register(definition)
     if (resolved.enforceAgentCommunication) runtime.on('tools/pre-execute', (exec, next) => {
       if (!SHELL_TOOLS.has(exec.name)) return next()
       if (/\/api\/agent\/(?:threads|send)|session\.prompt/i.test(JSON.stringify(exec.arguments || {}))) return Promise.resolve({ kind: 'deny', reason: 'Use the RabiRoute plugin tools for Agent communication and external sending.' })

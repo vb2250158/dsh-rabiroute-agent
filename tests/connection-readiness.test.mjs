@@ -51,22 +51,22 @@ test('Hook timing separates transport checks and bounded server steps without co
   assert.deepEqual(failed.at(-1).path, ['manager-request'])
 })
 
-test('degraded required-ready Manager accepts business reads, writes and UI discovery', async () => {
-  for (const method of ['GET', 'POST']) {
+test('live degraded Manager accepts independent business requests with missing declared capabilities', async () => {
+  for (const [method, requiredReady] of [['GET', false], ['POST', false], ['GET', undefined], ['POST', undefined]]) {
     let business = 0
-    const deps = { fetch: async url => url.endsWith('/meta') ? response(meta()) : (business++, response({ code: 0 })) }
+    const deps = { fetch: async url => url.endsWith('/meta') ? response(meta({ requiredReady })) : (business++, response({ code: 0 })) }
     const result = await managerRequest(config, '/api/agent/threads', { method }, undefined, deps)
     assert.equal(result.ok, true); assert.equal(result.uncertain, false); assert.equal(business, 1)
     assert.equal(await resolveManagerBase(config, undefined, deps), config.managerBaseUrl)
   }
 })
 test('ordinary requests and UI discovery fail closed on invalid readiness', async () => {
-  for (const health of [{ live: false }, { live: undefined }, { requiredReady: false }, { requiredReady: undefined }, { state: 'unknown' }, { state: undefined }]) {
+  for (const health of [{ live: false }, { live: undefined }, { state: 'unknown' }, { state: undefined }]) {
     let business = 0
     const deps = { fetch: async url => url.endsWith('/meta') ? response(meta(health)) : (business++, response({})) }
     const result = await managerRequest(config, '/business', { method: 'POST' }, undefined, deps)
     assert.equal(result.ok, false); assert.equal(result.uncertain, false); assert.equal(business, 0)
-    await assert.rejects(resolveManagerBase(config, undefined, deps), /not live and required-ready/)
+    await assert.rejects(resolveManagerBase(config, undefined, deps), /not live/)
   }
 })
 test('exact diagnostic GET reuses one identity-checked meta response regardless of readiness', async () => {

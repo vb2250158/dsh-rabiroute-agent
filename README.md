@@ -1,3 +1,16 @@
+[English](README_en.md)
+
+普通业务请求核对 Manager 的 `health.live=true` 与 `healthy` 或 `degraded` 状态。`requiredReady` 记录声明能力的齐备情况，目标接口负责判断本次请求所需的能力。
+
+## Manager 图片结果
+
+现有三个工具会读取响应中的 `x-rabiroute-media` 声明，外层已投影的 `media[]` 通过同一来源声明接入。声明使用 JSON Pointer，例如 `[{"path":"/data/capture","type":"image"}]`，对应对象提供 `mimeType` 和标准 Base64 `data`。普通业务 JSON 保持原有文本输出。
+
+图片通过 DSH 公开附件服务进入模型内容，尺寸与格式由附件服务实际解码并校验。`media[].status=prepared` 表示附件已准备，模型输入仍由宿主发送。附件或保存失败时，状态为 `unavailable`，原业务成功与不确定性保留。文本只保留有效声明图片的元数据。声明无效时保留原业务字段并回报 `mediaErrors`。Code Mode 沿用宿主已有的图片结果处理。
+宿主缩放整张截图后，`source.imageView.width/height` 记录模型实际看到的图片尺寸。输入、静态标注和跟踪初始框均按这个尺寸填写坐标，并原样回传完整 `source`。原 `source.width/height`、`frameId`、`imageItemId` 和 `bounds` 继续标识缓存截图。摘要与正文中的 `source`、图片尺寸和缩放变换同步更新。宿主具备公开模型预览接口时，插件复用当前路由的 `imageRequestTarget` 和 `readImageRequest` 获取实际发送尺寸；较早宿主使用附件保存尺寸。附件引用继续交给官方消息呈现与缓存。图片能力和显式纯文本模型的投影由正式宿主统一处理，插件准备附件时保持可用。坐标消费需要支持 `imageViewVersion=1` 的桌面资源。
+
+只有依赖缩放图片坐标的输入与标注会核对接收端的电脑操作合同。旧接收端未声明 `source.imageView` 时，本次派发返回格式错误，并提示重新截图或更新接收端。已有请求的回执仍按原 ID 查询。合同按接收端身份与 `apiTransport.metadataRevision` 缓存，缺少修订信息时重新读取。普通文字、按键、等尺寸图片和状态恢复沿用原调用流程。格式判断来自 Rabi Agent SDK 的同一模块，构建使用附带 MIT 许可的精确生成副本。
+
 ## 官方消息上的 Rabi 来源标记（0.13.58）
 
 只通过官方 `uiConversation.userText` 和 `conversation.user.text.node` 标记合法投递封套的来源与回传元数据，不再接管整条用户消息或消息行。普通消息、Rabi 正文、图片/文件、时间和复制按钮保留官方实现；复制仍取得完整原文。发送占位、待处理、正式消息与插话均沿同一官方入口展示。
@@ -348,7 +361,17 @@ The plugin list shows **RabiRoute integration** in English and **RabiRoute 接�
 The icon uses a centered 36 × 36 viewBox to leave more space around the artwork inside the plugin icon frame.
 ## Rabi助手模式（0.13.19）
 
-安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供；开放三个 Rabi 工具，以及官方 `web_search` 联网搜索和 `web_fetch` 网页读取。助手预设在自己的作用域装配联网工具，在每个 Agent 创建或恢复后、首次上下文组装前筛选工具目录；通用终端、文件、浏览器控制、Skill 和其他工具仍被隐藏并在执行入口拒绝。支持正常人格对话，消息和计划以外的业务优先安排独立任务。
+安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供。模式提供三个 Rabi 工具、官方 `web_search` 与 `web_fetch`、后台委派与交流动作，以及原生子 Agent 的发现、消息与中断工具。每个 Agent 创建或恢复后、首次上下文组装前筛选工具目录。支持正常人格对话，探索型搜索和连续工具操作提交后台工作包，已知对象的有界读取可直接执行。
+
+### 后台委派与交流（0.14.0）
+
+`rabiroute_assistant_delegate` 接收 `description`、`prompt` 及可选 `name`、`cwd`，通过 `ctx.subagents.startActivation()` 提交工作，使用 `delivery: parent`。返回真实 `childId`、`name` 和可用的 `messageId` 后调用 `concludeTurn()`。工作由 DSH 运行时持有，完成后经父会话 Inbox 回流，主人格继续原任务。受理失败保留本轮处理，已到达的新输入沿原 Inbox 消费。`list_agents`、`send_message` 与 `interrupt_agent` 分别复用发现、范围修订和指定子任务中断入口。
+
+助手模式配置 `subagentProvider` 默认为 `spawn`，`workerPreset` 默认为 `standard`，由对应 DSH provider、preset 和宿主深度设置校验并提供工作能力。工作包写明目标、背景、输入位置、授权、验收标准、证据、已发生副作用、缺口和下一步。独立业务任务沿原 Rabi thread bridge 和正式回报处理。`create` 或 `send` 带 `responsePolicy: required` 且获得 HTTP 200、业务成功及 `delivery.status: accepted` 时结束本轮，待确认回执继续保留原身份核对。
+
+`rabiroute_assistant_say` 接收完整 `text`，其调用和成功结果进入普通 DSH 工具记录。DS Bot 根据成功结果显示完整聊天气泡，普通执行文本和过程在任务详情读取。每个助手 Session 首次启用时记录可忽略事件 `rabiroute/assistant-mode`，载荷为 `{ "version": 1 }`。事件前的历史回复继续可读，事件后的聊天从显式交流动作重建。刷新、分页和实时展示读取同一批持久记录。升级时同时加载支持该事件和交流工具的 DS Bot 版本。
+
+源码验证时设置 `DSH_SOURCE_ROOT` 为当前已构建的 DSH 源码目录后执行 `npm test`。测试解析器从该宿主读取公开工具与 Schema 依赖，未设置时使用已安装的 peer dependencies。`node --import ./tests/assistant-source-resolve.mjs --test tests/assistant-loop.integration.mjs` 运行隔离父子会话验收。
 
 在 Rabi 的 DSH 设置中选择这个会话模式并保存。新会话按所选模式创建，空白会话通过 DSH 的正式选择接口同步；已经开始过对话的会话不能切换模式，需要明确选择新的会话。Rabi 不可用时报告连接问题；联网搜索仍可查公开资料，但不能替代 Rabi 人格、记忆和计划真源。标准会话不受限制。
 

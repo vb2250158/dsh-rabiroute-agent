@@ -1,3 +1,18 @@
+## 0.14.0 (2026-11-13)
+
+- Reuse shared SDK coordinate-format detection and check the actual receiver contract only for resized-image coordinate writes, retaining existing receipt state.
+- Leave model image capability and explicit text-only projection to the official host and prepare attachments through its public service.
+- Carry actual host-normalized and model-preview dimensions in `source.imageView`, compact bodies and composed transforms while preserving cached capture identity and official attachment references.
+- Preserve complete display, region and coordinate source objects in image attachment summaries while retaining string sources.
+- Convert explicitly declared Manager image results into DSH attachments and image content using the host's format, dimension and batch limits.
+- Report image preparation failures separately while retaining the business receipt, version conditions and uncertainty.
+
+- Dispatch ordinary requests for a live Manager with a valid health state and let each endpoint report its capability dependencies. Verify the shared SDK consistently across Git and Windows newlines.
+
+- Delegate assistant work through managed DSH background subagents, conclude after acceptance and continue the parent task when results arrive.
+- Enable native child discovery, corrections and interruption. Confirmed Rabi thread delegation with a formal return path also yields the turn.
+- Add explicit speech and a durable activation cutoff. DS Bot displays complete successful speech while preserving earlier replies. Requires the matching DS Bot update.
+
 ## 0.13.58 (2026-11-11)
 
 - Remove complete user-message/node replacements; add Rabi source metadata through official text extension points.

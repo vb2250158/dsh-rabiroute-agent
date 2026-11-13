@@ -35,6 +35,7 @@ test('assistant preset compacts before model requests, retains original history 
       ['core/system-prompt', ''], ['core/tools', ''], ['core/agent', ''],
       ['interaction/commands', ''], ['core/agent-loop', ''], ['llm/token-meter', ''],
       ['web/web', ''], ['preset/agent-preset-registry', ''],
+      ['fs/fs-local', ''], ['session/working-directory', ''], ['subagent/subagent', ''],
     ]
     for (const [path] of plugins) {
       const plugin = (await load(`packages/${path}/lib/index.js`)).default
@@ -42,9 +43,11 @@ test('assistant preset compacts before model requests, retains original history 
         : path === 'preset/agent-preset-registry' ? { default: 'rabi-assistant' } : {})
     }
     ctx.llm.registerAdapter(['fixture'], new Adapter())
+    await ctx.plugin(await load('packages/subagent/tool-subagent-control/lib/index.js'))
     for (const definition of internals.toolDefinitions({})) ctx.tools.register(definition)
     const entries = structuredClone(rabiAssistantPreset.plugins)
     const native = {
+      '@deepseek-ai/dsh-tool-executor-native': 'core/tool-executor-native',
       '@deepseek-ai/dsh-persona': 'preset/persona',
       '@deepseek-ai/dsh-tool-web': 'web/tool-web',
       '@deepseek-ai/dsh-compaction-basic': 'compaction/compaction-basic',

@@ -17,14 +17,17 @@ function backend(reply = status, synth = () => new Response('RIFF0000WAVE', { he
 }
 const play = dependencies => synthesizeRabiSpeech({}, input, new AbortController().signal, dependencies)
 
-test('speech tolerates unrelated degradation but still rejects unready or mismatched Manager identity', async () => {
+test('speech tolerates unrelated missing capabilities and rejects stopped or mismatched Manager identity', async () => {
   const meta = { health: { state: 'degraded', live: true, requiredReady: true }, applicationGenerationId: 'generation', managerInstanceId: 'manager' }
   const deps = { hostStatus: async () => ({ ...meta, managerBaseUrl: 'http://rabi.test' }), fetch: async () => Response.json(meta) }
   const signal = new AbortController().signal
   assert.equal(await resolveManagerBase({}, signal, deps), 'http://rabi.test')
   assert.equal(await resolveManagerBase({}, signal, deps, { allowDegraded: true }), 'http://rabi.test')
   meta.health.requiredReady = false
-  await assert.rejects(resolveManagerBase({}, signal, deps, { allowDegraded: true }), /not live and required-ready/)
+  assert.equal(await resolveManagerBase({}, signal, deps, { allowDegraded: true }), 'http://rabi.test')
+  meta.health.live = false
+  await assert.rejects(resolveManagerBase({}, signal, deps, { allowDegraded: true }), /not live/)
+  meta.health.live = true
   meta.health.requiredReady = true
   deps.hostStatus = async () => ({ ...meta, managerBaseUrl: 'http://rabi.test', managerInstanceId: 'other' })
   await assert.rejects(resolveManagerBase({}, signal, deps, { allowDegraded: true }), /identities do not match/)
