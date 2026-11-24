@@ -350,3 +350,63 @@ test('live Hook progress and timeout diagnostics remain visible in the durable S
     assert.ok(f.records().every(x => x.ignorable === true))
   } finally { release(); await f.dispose() }
 })
+
+test('paired hooks use the configured instance once, enforce its veto and apply Stop continuation', async t => {
+  const f = await fixture(() => assert.fail('must not send a second local request'));
+  t.after(f.dispose);
+  const inputs = [];
+  f.ctx.get = name => name === 'rabiDshHookTransport' && {
+    hasConfiguredRoute: () => true, async request(input) {
+      inputs.push(input);
+      if (input.eventName === 'PreToolUse') return { toolDecision: { permissionDecision: 'deny', reason: 'instance policy' } };
+      if (input.eventName === 'Stop') return { followup: { decision: 'block', reason: 'keep working' } };
+      return {};
+    },
+  };
+  assert.equal(f.hooks.supportsCompanionTransport, true);
+  await step(f);
+  const result = await f.handlers.get('tools/pre-execute')({ agent: f.agent, name: 'shell' }, () => assert.fail('cannot execute'));
+  assert.deepEqual(result, { kind: 'deny', reason: 'instance policy' });
+  await f.handlers.get('agent/turn-stopping')({ agent: f.agent, turn: 1 });
+  assert.match(f.steered[0].content[0].text, /keep working/);
+  assert.deepEqual(inputs.map(input => input.eventName), ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'Stop']);
+  assert.ok(inputs.every(input => input.sessionId === f.session.id));
+  assert.equal(f.requests.length, 0);
+});
+
+test('paired hooks on the default local route retain the companion tool veto', async t => {
+  const f = await fixture(() => ({ ok: true, statusCode: 200, localUnrestricted: true,
+    body: JSON.stringify({ code: 0, data: { toolDecision: { permissionDecision: 'deny', reason: 'local rule' } } }) }),
+    { config: { localAgentUnrestricted: true } });
+  t.after(f.dispose);
+  f.ctx.get = name => name === 'rabiDshHookTransport' && { hasConfiguredRoute: () => false };
+  const result = await f.handlers.get('tools/pre-execute')({ agent: f.agent, name: 'shell' }, () => assert.fail('cannot execute'));
+  assert.deepEqual(result, { kind: 'deny', reason: 'local rule' });
+  assert.equal(f.requests.length, 1);
+});
+
+test('an unresolved instance hook is never replayed against the local Manager', async t => {
+  const f = await fixture(() => assert.fail('must not fall back to local Manager'));
+  t.after(f.dispose);
+  let calls = 0;
+  f.ctx.get = name => name === 'rabiDshHookTransport' && {
+    hasConfiguredRoute: () => true,
+    async request() { calls++; throw new Error('connection lost'); },
+  };
+  f.hooks.requireBinding(f.session.id, 'fixture');
+  await assert.rejects(step(f), error => error.uncertain === true);
+  assert.equal(calls, 1);
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.records().at(-1).data.uncertain, true);
+});
+
+test('an instance discovery failure records that the business hook was never sent', async t => {
+  const f = await fixture(() => assert.fail('must not replay on local Manager'));
+  t.after(f.dispose);
+  f.ctx.get = name => name === 'rabiDshHookTransport' && { hasConfiguredRoute: () => true,
+    async request() { throw Object.assign(new Error('no Manager metadata'), { uncertain: false }); } };
+  await step(f);
+  const results = f.records().filter(event => event.type.endsWith('hook-result'));
+  assert.ok(results.length === 2 && results.every(e => e.data.outcome === 'failed' && !e.data.uncertain));
+  assert.equal(f.requests.length, 0);
+});

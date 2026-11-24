@@ -92,6 +92,46 @@ export async function readHostStatus(config, signal, dependencies = {}) {
   return { ...descriptor, hostExecutable: location.executable, locationRemembered }
 }
 
+/** Share only fallback Host probes. Endpoint hints are read afresh by each Manager request. */
+export function createHostDiscovery(probe = readHostStatus, now = Date.now) {
+  const entries = new WeakMap()
+  return async (config, signal) => {
+    signal?.throwIfAborted()
+    let entry = entries.get(config)
+    if (entry?.error && now() < entry.retryAt) throw entry.error
+    if (!entry?.operation) {
+      const controller = new AbortController()
+      entry = { controller, waiters: 0 }
+      entries.set(config, entry)
+      entry.operation = Promise.resolve().then(() => probe(config, controller.signal)).catch(error => {
+        if (entries.get(config) === entry && !controller.signal.aborted &&
+          ['host-status-unavailable', 'host-not-found', 'host-location-missing'].includes(error.kind)) {
+          entries.set(config, { error, retryAt: now() + (config.hostDiscoveryRetryMs ?? 10000) })
+        }
+        throw error
+      }).finally(() => {
+        if (entries.get(config) === entry) entries.delete(config)
+      })
+    }
+    entry.waiters++
+    let abort
+    try {
+      if (!signal) return await entry.operation
+      const cancelled = new Promise((_, reject) => {
+        abort = () => reject(signal.reason)
+        signal.addEventListener('abort', abort, { once: true })
+      })
+      return await Promise.race([entry.operation, cancelled])
+    } finally {
+      if (abort) signal.removeEventListener('abort', abort)
+      if (--entry.waiters === 0 && entries.get(config) === entry) {
+        entries.delete(config)
+        entry.controller.abort()
+      }
+    }
+  }
+}
+
 function launch(executable) {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, ['--command', 'activate'], { cwd: path.dirname(executable), windowsHide: true, detached: true, stdio: 'ignore' })

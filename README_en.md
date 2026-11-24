@@ -101,13 +101,13 @@ Installing the plugin registers `rabi-assistant` in the session picker. Rabi own
 
 The assistant preset loads `@deepseek-ai/dsh-tool-subagent-control` in its own scope before applying its tool restriction. The Web root tool catalog can omit these controls.
 
-`rabiroute_assistant_delegate` accepts `description`, `prompt` and optional `name` and `cwd`. It calls `ctx.subagents.startActivation()` with parent delivery, returns the accepted `childId`, `name` and available `messageId`, and calls `concludeTurn()`. DSH owns child execution and returns its result through the parent Inbox. Queued user input continues through the existing loop. Failed admission leaves the turn open. Native `list_agents`, `send_message` and `interrupt_agent` handle discovery, corrections and a selected child's interruption.
-
-The mode's `subagentProvider` defaults to `spawn` and `workerPreset` to `standard`. The provider, preset registry and Host depth setting own execution validation. Work packages include the goal, context, input locations, authority, acceptance criteria, evidence, committed side effects, remaining work and next action. Independent business tasks retain their Rabi thread and formal return path. A thread `create` or `send` with `responsePolicy: required` concludes the turn only after HTTP 200, business success and `delivery.status: accepted`. Unconfirmed outcomes retain their original receipt identity for reconciliation.
-
 For a direct user message, the assistant can make quick lookups and uses `rabiroute_assistant_say` to reply in the original chat. At most one unified or web search can run before that reply. Work starts after a brief acknowledgment. Further updates cover results that change the next step, blockers that need the user's help, and completion. Tool calls, recoverable retries and individual child notices stay in task details. When a turn stops with only ordinary text, the host prompts once for a visible reply. Intentional silence in roleplay can end the turn with `{ "text": "", "staySilent": true }`.
 
 Scheduled assistant turns run the task and report its outcome, confirmed handoff, or blocker in the original chat. If the turn omitted that reply, it has one speech-only repair step. If there is still no reply, the host emits the ignorable `rabiroute/assistant-schedule-reply` event with `{ turn, text }` and directs the user to the run history. The task’s conditions for sending to external channels still apply.
+
+`rabiroute_assistant_delegate` accepts `description`, `prompt` and optional `name` and `cwd`. It calls `ctx.subagents.startActivation()` with parent delivery, returns the accepted `childId`, `name` and available `messageId`, and calls `concludeTurn()`. DSH owns child execution and returns its result through the parent Inbox. Queued user input continues through the existing loop. Failed admission leaves the turn open. Native `list_agents`, `send_message` and `interrupt_agent` handle discovery, corrections and a selected child's interruption.
+
+The mode's `subagentProvider` defaults to `spawn` and `workerPreset` to `standard`. The provider, preset registry and Host depth setting own execution validation. Work packages include the goal, context, input locations, authority, acceptance criteria, evidence, committed side effects, remaining work and next action. Independent business tasks retain their Rabi thread and formal return path. A thread `create` or `send` with `responsePolicy: required` concludes the turn only after HTTP 200, business success and `delivery.status: accepted`. Unconfirmed outcomes retain their original receipt identity for reconciliation.
 
 `rabiroute_assistant_say` accepts the complete `text` and persists it through ordinary tool call and successful result records. DS Bot displays those results as complete chat bubbles and retains execution text in task details. Each assistant Session records an ignorable `rabiroute/assistant-mode` event with `{ "version": 1 }` once. Earlier replies remain readable, and subsequent chat is reconstructed from explicit speech. Live, refreshed and paged history use the same durable records. Upgrade DS Bot together with the assistant plugin to enable this presentation.
 
@@ -131,6 +131,8 @@ Context assembly shares the sidebar's event-invalidated TTL cache and never wait
 # dsh-rabiroute-agent
 
 The `rabiHost` service exposes `inspect(signal)` and `start(signal)` for actual local lifecycle status and explicit activation. States are `ready`, `stopped`, `starting`, `not-found` and `unavailable`; launch acceptance does not imply Manager readiness. Discovery checks `hostExecutable`, `DSH_RABI_HOST_EXECUTABLE`, remembered paths, the standard Windows installation and the exact running Host process, without scanning disks. Verified paths are cached only in local `$DSH_HOME/plugins/dsh-rabiroute-agent/host-location.json`; `hostHistoryFile` overrides that location and `hostStatusTimeoutMs` controls status queries (default 3000). Existing Manager requests share this discovery and retain Host/Manager identity checks. Inspection never starts the Host; explicit startup uses official `--command activate` and does not restart, install or replace a running instance.
+
+Concurrent Manager requests from one plugin configuration share an in-flight fallback Host probe. After a discovery failure, `hostDiscoveryRetryMs` controls when to run the Host status command again (default 10000 ms, 0 disables backoff). Requests still check for a newly published endpoint first. Explicit Host inspection always probes immediately.
 
 ## Plan resource archiving (0.10.0)
 
@@ -411,3 +413,5 @@ Unrestricted local transport also bypasses extra Rabi tool denials and records t
 The `hook-progress` event records endpoint discovery, waiting for response headers and reading the response body. `hook-result.diagnostic` records the actual timeout budget, timeout or cancellation reason, deepest failing stage and any received request ID. These records omit prompts, replies and credentials and do not add duplicate chart durations. Missing historical steps are not reconstructed.
 
 Unrestricted local panel discovery skips `/meta`; local writes no longer parse or attach identity fences. No permission checks, retries or alternate delivery paths are added.
+
+When both Rabi DSH hook plugins support shared dispatch, dsh-rabiroute-agent sends each lifecycle event once. Enrolled Rabi Agent instances and explicit bridge endpoints keep their own transport. Manager tool vetoes and Stop continuation decisions are applied to the same session.

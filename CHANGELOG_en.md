@@ -4,6 +4,8 @@
 
 - Recognize current Markdown deliveries alongside historical messages, retaining the source, body and original text.
 
+- Share Host discovery across concurrent requests with the same configuration. Configured or enrolled Hook instances retain their transport and session decisions. Uncertain outcomes retain the original receipt.
+
 ## 0.14.1 (2026-11-13)
 
 - Register native subagent controls within the assistant preset so the full Web creation entry exposes all ten tools.

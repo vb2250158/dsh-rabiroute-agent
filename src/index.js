@@ -30,6 +30,7 @@ export const Config = z.object({
   hostExecutable: z.string().default(''),
   hostHistoryFile: z.string().default(''),
   hostStatusTimeoutMs: z.number().min(1000).max(120000).step(1).default(3000),
+  hostDiscoveryRetryMs: z.number().min(0).max(60000).step(1).default(10000),
   enforceAgentCommunication: z.boolean().default(true),
   requestTimeoutMs: z.number().default(60000),
   workspaceSkillsEnabled: z.boolean().default(true),

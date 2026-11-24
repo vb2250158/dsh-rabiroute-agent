@@ -91,6 +91,8 @@ Manager 拒绝请求时保留具体原因；计划恢复明确返回 `commitStat
 
 `rabiHost` 服务提供 `inspect(signal)` 与 `start(signal)`，分别读取真实状态和显式激活已发现的本机 Host。状态包括 `ready`、`stopped`、`starting`、`not-found` 与 `unavailable`；启动受理不表示 Manager 已就绪。适配器使用配置 `hostExecutable`、环境变量 `DSH_RABI_HOST_EXECUTABLE`、已记住的位置、Windows 标准安装位置和同名运行进程发现程序，不遍历磁盘。验证过的路径缓存在本机 `$DSH_HOME/plugins/dsh-rabiroute-agent/host-location.json`，不进入共享配置；`hostHistoryFile` 可覆盖缓存位置，`hostStatusTimeoutMs`（默认 3000）控制状态查询。现有 Manager 请求复用同一发现实现，每次仍核对 Host 与 Manager 身份。打开设置只读取状态，只有用户明确启动才调用官方 `--command activate`；不自动重启、安装或替换运行实例。
 
+同一插件配置的并发 Manager 请求共享正在执行的 Host 状态发现。明确失败后由 `hostDiscoveryRetryMs` 控制再次启动 Host 状态命令的间隔（默认 10000 毫秒，0 关闭退避）。Manager 请求仍优先读取 Host 新发布的端点，显式检查 Host 状态可立即刷新。
+
 普通回答通过可选 `proactive-answer.message` Component Factory 显示为提问回答卡片。来源封套仍由本插件处理；Factory 缺席或文本不匹配时保留原消息展示。
 
 Rabi助手模式装配 DSH 官方自动压缩、`/compact` 和工具结果裁剪，已开始的原会话在更新并重启后恢复这些能力。模型输入和输出预留共同计入上下文预算；摘要与替换沿用宿主持久事件，完整历史仍可读取。压缩只整理 DSH 会话上下文，Rabi 仍持有人格、计划、记忆与陪伴状态。
@@ -369,13 +371,13 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 
 助手预置自行加载 `@deepseek-ai/dsh-tool-subagent-control`，与工具筛选处于同一预置作用域。Web 根工具目录无需提供子任务控制工具。
 
-`rabiroute_assistant_delegate` 接收 `description`、`prompt` 及可选 `name`、`cwd`，通过 `ctx.subagents.startActivation()` 提交工作，使用 `delivery: parent`。返回真实 `childId`、`name` 和可用的 `messageId` 后调用 `concludeTurn()`。工作由 DSH 运行时持有，完成后经父会话 Inbox 回流，主人格继续原任务。受理失败保留本轮处理，已到达的新输入沿原 Inbox 消费。`list_agents`、`send_message` 与 `interrupt_agent` 分别复用发现、范围修订和指定子任务中断入口。
-
-助手模式配置 `subagentProvider` 默认为 `spawn`，`workerPreset` 默认为 `standard`，由对应 DSH provider、preset 和宿主深度设置校验并提供工作能力。工作包写明目标、背景、输入位置、授权、验收标准、证据、已发生副作用、缺口和下一步。独立业务任务沿原 Rabi thread bridge 和正式回报处理。`create` 或 `send` 带 `responsePolicy: required` 且获得 HTTP 200、业务成功及 `delivery.status: accepted` 时结束本轮，待确认回执继续保留原身份核对。
-
 直接收到用户消息时，助手按需快速查询，再用 `rabiroute_assistant_say` 在原聊天回复。首条回复前最多调用一次统一搜索或网页搜索。工作在开展前给一条简短说明，后续在有影响下一步的结果、需用户处理的阻碍或完成时更新。工具调用、可自行重试的报错和子任务逐条回执留在任务详情。普通文本结束时宿主会补一次可见回复提示。角色有意沉默时可传 `{ "text": "", "staySilent": true }` 结束当轮。
 
 助手的定时轮次照计划执行，结束前在原聊天报告一句实际结果、已受理的交接或具体阻碍。若缺少发言，只开放一次单工具补发，补发不能重跑操作。若仍缺少可见回复，宿主记录可忽略事件 `rabiroute/assistant-schedule-reply`，载荷为 `{ turn, text }`，以明确提示查看执行记录。定时轮次继续遵守任务对外部渠道的通知条件。
+
+`rabiroute_assistant_delegate` 接收 `description`、`prompt` 及可选 `name`、`cwd`，通过 `ctx.subagents.startActivation()` 提交工作，使用 `delivery: parent`。返回真实 `childId`、`name` 和可用的 `messageId` 后调用 `concludeTurn()`。工作由 DSH 运行时持有，完成后经父会话 Inbox 回流，主人格继续原任务。受理失败保留本轮处理，已到达的新输入沿原 Inbox 消费。`list_agents`、`send_message` 与 `interrupt_agent` 分别复用发现、范围修订和指定子任务中断入口。
+
+助手模式配置 `subagentProvider` 默认为 `spawn`，`workerPreset` 默认为 `standard`，由对应 DSH provider、preset 和宿主深度设置校验并提供工作能力。工作包写明目标、背景、输入位置、授权、验收标准、证据、已发生副作用、缺口和下一步。独立业务任务沿原 Rabi thread bridge 和正式回报处理。`create` 或 `send` 带 `responsePolicy: required` 且获得 HTTP 200、业务成功及 `delivery.status: accepted` 时结束本轮，待确认回执继续保留原身份核对。
 
 `rabiroute_assistant_say` 接收完整 `text`，其调用和成功结果进入普通 DSH 工具记录。DS Bot 根据成功结果显示完整聊天气泡，普通执行文本和过程在任务详情读取。每个助手 Session 首次启用时记录可忽略事件 `rabiroute/assistant-mode`，载荷为 `{ "version": 1 }`。事件前的历史回复继续可读，事件后的聊天从显式交流动作重建。刷新、分页和实时展示读取同一批持久记录。升级时同时加载支持该事件和交流工具的 DS Bot 版本。
 
@@ -413,3 +415,5 @@ rc.2 文本通过公开 conversation.user.text Factory 渲染；旧宿主继续�
 钩子通过 `hook-progress` 事件记录正在读取地址、等待响应头或读取响应正文；`hook-result.diagnostic` 记录实际超时上限、超时或取消原因、最后失败阶段与已取得的请求 ID。记录不含提示词、回复或凭据，连接进度不重复计入耗时图。旧记录没有采集的步骤不会补算。
 
 本地直连的面板地址发现不请求 `/meta`，业务写入不再解析或附带身份围栏；不增加权限检查、重试或备用投递。
+
+两个钩子插件均支持协作时，由 dsh-rabiroute-agent 统一派发各生命周期事件。已登记的 Rabi Agent 实例与显式指定的桥接端点保留各自的传输路径。Manager 返回的工具拒绝和 Stop 续轮决定在原会话生效。
