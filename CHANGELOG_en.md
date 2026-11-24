@@ -1,3 +1,7 @@
+## Unreleased
+
+- Recognize current Markdown deliveries alongside historical messages, retaining the source, body and original text.
+
 ## 0.14.1 (2026-11-13)
 
 - Register native subagent controls within the assistant preset so the full Web creation entry exposes all ten tools.

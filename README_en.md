@@ -202,11 +202,13 @@ This plugin owns tool registration, request/result conversion, connection verifi
 
 Each new requirement must identify why Rabi cannot perform it directly, DSH's minimum local responsibility, authoritative business state, the shared cross-Agent contract, behavior without optional enhancements and acceptance evidence. Shared capabilities must not require Codex to reproduce DSH UI or make this plugin's installation a prerequisite for Rabi base session discovery and delivery. Describe tool integration, Hook integration and real business acceptance separately; API names are not DSH-owned business features.
 
-## Chat message presentation (Unreleased, installed acceptance pending)
+## Chat message presentation
 
-The enhancement recognizes a leading `[消息源]` envelope when chat loads or historical messages render, shows a source row above the body, and offers a "View original message" menu item. Recognition is display-only: session logs, model input, source identity and reply parameters remain unchanged, and the original stays accessible. Source text is a message claim, not authenticated sender evidence; reply JSON must never execute automatically.
+The parser accepts both the current Markdown source and content headings and the older bracketed form. DS Bot can use the Agent source metadata to present a message notice with the body and original delivery available on demand.
 
-Each source kind adds only its metadata: Agent names its sender and offers locate; Plan and System name their own objects. Every body remains visible through official text, references and message actions. Unknown or ambiguous formats contribute no extension node.
+The plugin recognizes either leading source heading when chat loads or historical messages render, shows a source row above the body, and offers a "View original message" menu item. Recognition is display-only: session logs, model input, source identity and reply parameters remain unchanged, and the original stays accessible. Source text is a message claim, not authenticated sender evidence; reply JSON must never execute automatically.
+
+Each source kind adds only its metadata: Agent names its sender and offers locate; Plan and System name their own objects. The native client shows the body through its usual text, references and message actions. Unknown or ambiguous formats contribute no extension node.
 
 The parser source is `src/message-envelope.js`, bundled by the browser build; the Host tool entry does not load it. It accepts current/legacy field names and LF/CRLF, preserves the original string and body whitespace, and separates only a valid terminal reply JSON block. Duplicate fields, unknown header fields, fields mixed from another source kind, a half-written source identity, ambiguous reply JSON or conflicting delivery IDs return `null`; callers must display the original. `消息端` has no presentation yet and, like unknown context blocks, receives no business interpretation.
 

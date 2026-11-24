@@ -21,6 +21,24 @@ test('current envelope projects sender, exact raw, body and inert reply JSON', (
   assert.deepEqual(Object.keys(result).sort(), ['body', 'raw', 'replyParameters', 'sender', 'sentAt', 'sourceType'])
 })
 
+test('the Markdown delivery format projects the same source, body and reply', () => {
+  for (const eol of ['\n', '\r\n']) {
+    const body = ['第一段', '', '## 普通标题', '> [回传参数]'].join(eol)
+    const header = ['## 消息源', ...current.map(line => '- ' + line), '', '## 消息内容'].join(eol)
+    const raw = header + eol + body + suffix(reply, eol)
+    const result = parseRabiMessageParts(raw)
+    assert.equal(result.envelope.sender.sessionName, 'example-session')
+    assert.equal(result.envelope.body, body)
+    assert.equal(result.envelope.raw, raw)
+    assert.equal(raw.slice(result.prefixEnd, result.bodyEnd), body)
+    assert.equal(rabiMessageMetadataRule.match(raw, 0).data.part, 'source')
+    assert.equal(parse(raw.replace('## 消息内容', '[消息内容]')), null)
+    assert.equal(parse(raw.replace('- 会话：', '会话：')), null)
+    const withCode = ['~~~json', '{}', '~~~'].join(eol)
+    assert.equal(parse(header + eol + withCode + suffix(reply, eol)).body, withCode)
+  }
+})
+
 test('metadata ranges leave the exact original body to the official text owner', () => {
   const headers = [current,
     ['消息源类型：计划', '计划名称：test', '计划 ID：plan-1', '消息包发送时间：2000-01-02'],
