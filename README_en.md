@@ -97,13 +97,17 @@ Home-device directories return paged summaries. Start with `/api/agent/xiaomi-ho
 
 Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns persona, memory, plans and messages. The mode provides the three Rabi tools, official web search and fetch, explicit speech and background delegation, and native child discovery, messaging and interruption. Exploration and multi-step execution use complete background work packages. Bounded reads of known objects can run directly.
 
-### Background delegation and speech (0.14.1)
+### Background delegation and speech (0.14.2)
 
 The assistant preset loads `@deepseek-ai/dsh-tool-subagent-control` in its own scope before applying its tool restriction. The Web root tool catalog can omit these controls.
 
 `rabiroute_assistant_delegate` accepts `description`, `prompt` and optional `name` and `cwd`. It calls `ctx.subagents.startActivation()` with parent delivery, returns the accepted `childId`, `name` and available `messageId`, and calls `concludeTurn()`. DSH owns child execution and returns its result through the parent Inbox. Queued user input continues through the existing loop. Failed admission leaves the turn open. Native `list_agents`, `send_message` and `interrupt_agent` handle discovery, corrections and a selected child's interruption.
 
 The mode's `subagentProvider` defaults to `spawn` and `workerPreset` to `standard`. The provider, preset registry and Host depth setting own execution validation. Work packages include the goal, context, input locations, authority, acceptance criteria, evidence, committed side effects, remaining work and next action. Independent business tasks retain their Rabi thread and formal return path. A thread `create` or `send` with `responsePolicy: required` concludes the turn only after HTTP 200, business success and `delivery.status: accepted`. Unconfirmed outcomes retain their original receipt identity for reconciliation.
+
+For a direct user message, the assistant can make quick lookups and uses `rabiroute_assistant_say` to reply in the original chat. At most one unified or web search can run before that reply. Work starts after a brief acknowledgment. Further updates cover results that change the next step, blockers that need the user's help, and completion. Tool calls, recoverable retries and individual child notices stay in task details. When a turn stops with only ordinary text, the host prompts once for a visible reply. Intentional silence in roleplay can end the turn with `{ "text": "", "staySilent": true }`.
+
+Scheduled assistant turns run the task and report its outcome, confirmed handoff, or blocker in the original chat. If the turn omitted that reply, it has one speech-only repair step. If there is still no reply, the host emits the ignorable `rabiroute/assistant-schedule-reply` event with `{ turn, text }` and directs the user to the run history. The task’s conditions for sending to external channels still apply.
 
 `rabiroute_assistant_say` accepts the complete `text` and persists it through ordinary tool call and successful result records. DS Bot displays those results as complete chat bubbles and retains execution text in task details. Each assistant Session records an ignorable `rabiroute/assistant-mode` event with `{ "version": 1 }` once. Earlier replies remain readable, and subsequent chat is reconstructed from explicit speech. Live, refreshed and paged history use the same durable records. Upgrade DS Bot together with the assistant plugin to enable this presentation.
 

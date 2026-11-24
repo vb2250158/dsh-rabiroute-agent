@@ -31,7 +31,7 @@ test('assistant preserves web search and fetch while denying unrelated tools', (
     register() {},
     get: name => ({ name, execute: async () => ({ ok: true }) }),
   }
-  apply({ tools, on: (name, listener) => { assert.equal(name, 'agent/created'); seen.created = listener },
+  apply({ tools, on: (name, listener) => { if (name === 'agent/created') seen.created = listener },
     effect: fn => fn(),
     systemPrompt: { section: value => { seen.promptOrder = value.order; seen.prompt = value.text({ agent: { session: { id: 'session-test' } } }) } } })
   const events = []
@@ -52,6 +52,48 @@ test('assistant preserves web search and fetch while denying unrelated tools', (
   assert.doesNotMatch(seen.prompt, /所有具体业务工作都交给其他 Agent/)
   assert.match(assistantModePrompt(), /不能猜测身份/)
   assert.throws(() => apply({ tools: {} }), /请先更新宿主/)
+})
+
+test('direct user input allows one search and requires a visible reply before dispatch', async () => {
+  const events = new Map()
+  let guard
+  const tools = {
+    guard: listener => { guard = listener },
+    restrict() {},
+    register() {},
+    get: name => ({ name, execute() {} }),
+  }
+  apply({ tools, on: (name, listener) => events.set(name, listener), systemPrompt: { section() {} } })
+  const agent = {}
+  const enter = (turn, kind) => events.get('agent/pre-step')({ agent, turn }, async () => ({
+    kind: 'enter', messages: kind === undefined ? [] : [{ source: { kind } }],
+  }))
+  const toolSet = {}
+  const call = (name, args) => guard({ agent, toolSet, name, arguments: args })
+  const send = { requestJson: '{"action":"send","responsePolicy":"required"}' }
+  const search = { method: 'GET', path: '/api/search?q=fixture' }
+  await enter(1, 'user')
+  assert.equal(call('rabiroute_manager_api', search), undefined)
+  assert.match(call('web_search'), /先用 rabiroute_assistant_say/)
+  assert.equal(call('rabiroute_manager_api', { method: 'GET', path: '/api/personas' }), undefined)
+  assert.equal(call('rabiroute_agent_threads', { requestJson: '{"action":"read"}' }), undefined)
+  assert.match(call('rabiroute_agent_threads', send), /先用 rabiroute_assistant_say/)
+  assert.match(call('rabiroute_manager_api', { method: 'POST', path: '/api/agent/threads' }), /先用 rabiroute_assistant_say/)
+  assert.match(call('rabiroute_assistant_delegate'), /先用 rabiroute_assistant_say/)
+  const speech = { agent, toolSet, name: 'rabiroute_assistant_say' }
+  events.get('tools/result')(speech, { isError: true })
+  await enter(1)
+  assert.match(call('rabiroute_assistant_delegate'), /先用 rabiroute_assistant_say/)
+  events.get('tools/result')(speech, { isError: false, value: { text: '我来查一下。' } })
+  assert.match(call('rabiroute_assistant_delegate'), /先用 rabiroute_assistant_say/)
+  await enter(1)
+  assert.equal(call('rabiroute_assistant_delegate'), undefined)
+  assert.equal(call('rabiroute_agent_threads', send), undefined)
+  await enter(1, 'user')
+  assert.equal(call('web_search'), undefined)
+  assert.match(call('rabiroute_manager_api', search), /先用 rabiroute_assistant_say/)
+  await enter(2, 'subagent-settled')
+  assert.equal(call('rabiroute_assistant_delegate'), undefined)
 })
 
 test('business delegation yields only on confirmed acceptance with a formal return path', () => {
@@ -98,6 +140,10 @@ test('failed admission keeps the current turn and speech returns complete replay
   assert.deepEqual(value, { text })
   assert.deepEqual(JSON.parse(definitions[0].output.render({}, value)[0].text), { text })
   assert.deepEqual(definitions[0].output.presentationMeta({}, value), { kind: 'rabi-assistant-say', text })
+  const silent = await definitions[0].execute({ text: '', staySilent: true }, { concludeTurn: () => { concludes++ } })
+  assert.deepEqual(silent, { text: '', staySilent: true })
+  assert.deepEqual(definitions[0].output.presentationMeta({}, silent), { kind: 'rabi-assistant-silence' })
+  assert.equal(concludes, 1)
 })
 
 test('assistant mode shares staged discovery instructions with the host prompt and packaged source', async () => {
@@ -110,4 +156,50 @@ test('assistant mode shares staged discovery instructions with the host prompt a
   for (const name of ['index.js', 'assistant-mode.js']) {
     assert.equal(await readFile(new URL('../src/' + name, import.meta.url), 'utf8'), await readFile(new URL('../lib/' + name, import.meta.url), 'utf8'))
   }
+})
+
+test('new user steering takes precedence over a pending schedule repair', async () => {
+  const listeners = new Map()
+  const guards = []
+  const events = []
+  const notices = []
+  const ctx = {
+    tools: { restrict() {}, guard: handler => guards.push(handler), register() {}, get: name => ({ name }) },
+    on: (name, handler) => listeners.set(name, [...(listeners.get(name) ?? []), handler]),
+    systemPrompt: { section() {} },
+  }
+  apply(ctx)
+  const agent = {
+    steer: message => notices.push(message),
+    session: {
+      append: (type, data, options) => events.push({ type, data, ...options }),
+      snapshotEvents: () => events,
+    },
+  }
+  const enter = (turn, messages) => listeners.get('agent/pre-step').reduceRight(
+    (next, handler) => () => handler({ agent, turn, messages }, next),
+    async () => ({ kind: 'enter', messages }),
+  )()
+  const stopping = (turn, signal) => {
+    for (const handler of listeners.get('agent/turn-stopping')) handler({ agent, turn, signal })
+  }
+  const trigger = { id: 'schedule', source: { kind: 'schedule' } }
+  const user = { id: 'new-input', source: { kind: 'user' } }
+  const signal = new AbortController().signal
+  await enter(1, [trigger])
+  stopping(1, signal)
+  assert.equal(notices.length, 1)
+  const admitted = await enter(1, [notices[0], user])
+  assert.deepEqual(admitted.messages, [user])
+  assert.deepEqual(events.map(({ type, data }) => [type, data.turn]), [['rabiroute/assistant-schedule-reply', 1]])
+  assert.equal(guards[0]({ agent, toolSet: {}, name: 'rabiroute_manager_api' }), undefined)
+  await enter(2, [user])
+  assert.equal(guards[0]({ agent, toolSet: {}, name: 'rabiroute_assistant_say', arguments: { text: '', staySilent: true } }), undefined)
+  const aborted = new AbortController()
+  await enter(3, [trigger])
+  aborted.abort()
+  stopping(3, aborted.signal)
+  assert.equal(notices.length, 1)
+  for (const handler of listeners.get('agent/status')) handler({ agent, status: 'idle' })
+  assert.equal(events.length, 1)
 })

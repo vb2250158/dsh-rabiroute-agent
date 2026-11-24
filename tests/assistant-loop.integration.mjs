@@ -14,6 +14,7 @@ const { default: Loader } = await load('vendor/loader/lib/index.js')
 const { LlmAdapter, createUserMessage } = await load('packages/llm/llm/lib/index.js')
 const { SessionId } = await load('packages/core/session/lib/index.js')
 const modeUrl = new URL('../lib/assistant-mode.js', import.meta.url).href
+const scheduleReply = 'rabiroute/assistant-schedule-reply'
 const waitFor = async (predicate, label) => {
   const until = Date.now() + 15000
   while (!predicate()) {
@@ -49,12 +50,32 @@ test('delegation accepts before child finishes, accepts new input and resumes on
   let thirdAborted = false
   let fourthEntered = false
   let fourthAborted = false
+  let scheduledExecutions = 0
   class Adapter extends LlmAdapter {
     async resolveModel(provider, model) { return { provider, id: model, name: model } }
     async *stream(options) {
       const messages = JSON.stringify(options.messages)
       requests.push(messages)
-      if (messages.includes('WORKER4-GATED') && !messages.includes('ORIGINAL-TASK')) {
+      if (messages.includes('SCHEDULE-FIXTURE')) {
+        const repairing = messages.includes('定时执行部分已结束')
+        if (repairing) {
+          if (messages.includes('REPORT-RESULT')) {
+            yield* toolChunks('schedule-say', 'rabiroute_assistant_say', { text: '核对完成，有一处变化。' })
+          } else if (messages.includes('TRY-RERUN')) {
+            yield* toolChunks('schedule-replay', 'rabiroute_manager_api', { method: 'POST', path: '/api/fixture-once' })
+          } else {
+            yield* textChunks('UNPUBLISHED REPAIR TEXT')
+          }
+        } else if (!messages.includes('schedule-action')) {
+          yield* toolChunks('schedule-action', 'rabiroute_manager_api', { method: 'POST', path: '/api/fixture-once' })
+        } else if (messages.includes('ALREADY-SPOKEN') && !messages.includes('schedule-say')) {
+          yield* toolChunks('schedule-say', 'rabiroute_assistant_say', { text: '已记录结果。' })
+        } else if (messages.includes('TRY-SILENCE') && !messages.includes('schedule-silence')) {
+          yield* toolChunks('schedule-silence', 'rabiroute_assistant_say', { text: '', staySilent: true })
+        } else {
+          yield* textChunks('UNPUBLISHED ORDINARY TEXT')
+        }
+      } else if (messages.includes('WORKER4-GATED') && !messages.includes('ORIGINAL-TASK')) {
         if (messages.includes('RESUME-WORK4')) {
           yield* textChunks('WORKER4-RECOVERED')
         } else {
@@ -83,18 +104,38 @@ test('delegation accepts before child finishes, accepts new input and resumes on
           childReleased = true
           yield* textChunks('WORKER-DRAFT')
         }
+      } else if (messages.includes('ROLEPLAY-SILENCE')) {
+        if (messages.includes('intentional-silence')) {
+          yield* textChunks('')
+        } else {
+          yield* toolChunks('intentional-silence', 'rabiroute_assistant_say', { text: '', staySilent: true })
+        }
       } else if (messages.includes('AFTER-INTERRUPT')) {
-        yield* textChunks('ANSWER-AFTER-INTERRUPT')
+        if (messages.includes('ANSWER-AFTER-INTERRUPT')) {
+          yield* textChunks('')
+        } else if (messages.includes('本轮还没有用户可见的回复')) {
+          yield* toolChunks('recovered-say', 'rabiroute_assistant_say', { text: 'ANSWER-AFTER-INTERRUPT' })
+        } else {
+          yield* textChunks('This ordinary text is only in task details.')
+        }
       } else if (messages.includes('WORKER-RESULT') && messages.includes('WORKER2-RESULT')) {
-        yield* textChunks('PARENT-CONTINUED')
+        if (messages.includes('PARENT-CONTINUED')) {
+          yield* textChunks('')
+        } else {
+          yield* toolChunks('completed-say', 'rabiroute_assistant_say', { text: 'PARENT-CONTINUED' })
+        }
       } else if (messages.includes('WORKER-RESULT') || messages.includes('WORKER2-RESULT')) {
         yield* textChunks('PARENT-PARTIAL')
       } else if (messages.includes('PARENT-ANSWERED-NEW-INPUT')) {
         yield* textChunks('PARENT-SPOKE')
       } else if (messages.includes('NEW-INPUT')) {
         yield* toolChunks('say-call', 'rabiroute_assistant_say', { text: 'PARENT-ANSWERED-NEW-INPUT' })
-      } else {
+      } else if (messages.includes('OPENED-WORK')) {
         yield* toolChunks('delegate-call', 'rabiroute_assistant_delegate', { description: 'fixture work', prompt: 'WORKER-GATED', name: 'worker' })
+      } else if (messages.includes('early-delegate')) {
+        yield* toolChunks('opened-say', 'rabiroute_assistant_say', { text: 'OPENED-WORK' })
+      } else {
+        yield* toolChunks('early-delegate', 'rabiroute_assistant_delegate', { description: 'fixture work', prompt: 'WORKER-GATED', name: 'worker' })
       }
     }
   }
@@ -116,14 +157,20 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     await ctx.plugin((await load('packages/subagent/subagent/lib/index.js')).default)
     await ctx.plugin(await load('packages/subagent/subagent-spawn-in-process/lib/index.js'), { providerName: 'spawn' })
     ctx.on('tools/post-execute', async (exec, _result, next) => {
-      if (exec.name === 'rabiroute_assistant_delegate') {
+      if (exec.callId === 'delegate-call') {
         admissionReached.resolve()
         await admissionGate.promise
       }
       return next()
     })
     ctx.llm.registerAdapter(['fixture'], new Adapter())
-    for (const definition of internals.toolDefinitions({})) ctx.tools.register(definition)
+    for (const definition of internals.toolDefinitions({})) {
+      ctx.tools.register(definition.name === 'rabiroute_manager_api' ? { ...definition, execute: args => {
+        assert.equal(args.path, '/api/fixture-once')
+        scheduledExecutions += 1
+        return { ok: false, error: 'synthetic fixture' }
+      } } : definition)
+    }
     await ctx.agentPresets.register({ id: 'standard', plugins: [] })
     await ctx.agentPresets.register({ id: 'assistant-test', plugins: [
       { id: 'web', name: pathToFileURL(resolve(root, 'packages/web/tool-web/lib/index.js')).href, config: { search: true, fetch: true, searchTimeoutMs: 60000 } },
@@ -148,6 +195,11 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     assert.equal(first.filter(event => event.type === 'rabiroute/assistant-mode').length, 1)
     const receiptEvent = first.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'delegate-call')
     assert.equal(receiptEvent.data.message.isError, false)
+    const early = first.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'early-delegate')
+    assert.equal(early.data.message.isError, true)
+    const opening = first.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'opened-say')
+    assert.deepEqual(opening.data.meta, { kind: 'rabi-assistant-say', text: 'OPENED-WORK' })
+    assert.ok(early.seq < opening.seq && opening.seq < receiptEvent.seq)
     const receipt = JSON.parse(receiptEvent.data.message.content[0].text)
     assert.ok(receipt.childId && receipt.messageId)
     assert.equal(receipt.name, 'worker')
@@ -179,7 +231,8 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     await waitFor(() => secondEntered, 'second child entered')
     childGate.resolve()
     secondGate.resolve()
-    await waitFor(() => JSON.stringify(parent.session.snapshotEvents()).includes('PARENT-CONTINUED'), 'parent continues after child result')
+    await waitFor(() => parent.session.snapshotEvents().some(event => event.type === 'tool/result' &&
+      event.data.meta?.text === 'PARENT-CONTINUED'), 'parent sends a visible result after child completion')
     const events = parent.session.snapshotEvents()
     assert.ok(JSON.stringify(events).includes('WORKER-RESULT'))
     assert.ok(JSON.stringify(events).includes('WORKER2-RESULT'))
@@ -242,7 +295,9 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     assert.equal(stopped.results[0].result.isError, false)
     await waitFor(() => thirdAborted && ctx.agents.get(thirdReceipt.childId) === undefined, 'selected child stopped')
     resumed.followup(user('AFTER-INTERRUPT'))
-    await waitFor(() => JSON.stringify(resumed.session.snapshotEvents()).includes('ANSWER-AFTER-INTERRUPT'), 'parent remains responsive after interrupt')
+    await waitFor(() => resumed.session.snapshotEvents().some(event => event.type === 'tool/result' &&
+      event.data.meta?.text === 'ANSWER-AFTER-INTERRUPT'), 'parent turns its ordinary answer into visible speech')
+    await resumed.whenIdle()
     const fourth = await ctx.tools.execute({
       agent: resumed, signal: new AbortController().signal,
       calls: [{ type: 'tool-call', id: 'delegate-fourth', name: 'rabiroute_assistant_delegate', arguments: JSON.stringify({ description: 'restart work', prompt: 'WORKER4-GATED', name: 'worker4' }) }],
@@ -266,7 +321,51 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     assert.equal(recover.results[0].result.isError, false)
     await waitFor(() => requests.some(request => request.includes('RESUME-WORK4') && !request.includes('ORIGINAL-TASK')), 'interrupted original child resumes')
     await waitFor(() => JSON.stringify(restarted.session.snapshotEvents()).includes('WORKER4-RECOVERED'), 'recovered child reports to parent')
+    await restarted.whenIdle()
+    const beforeSilence = restarted.session.snapshotEvents().length
+    restarted.followup(user('ROLEPLAY-SILENCE'))
+    await restarted.whenIdle()
+    const silence = restarted.session.snapshotEvents().slice(beforeSilence)
+    const silentResult = silence.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'intentional-silence')
+    assert.equal(silentResult.data.message.isError, false)
+    assert.deepEqual(silentResult.data.meta, { kind: 'rabi-assistant-silence' })
+    assert.equal(silence.filter(event => event.type === 'step/start').length, 1)
+    assert.equal(silence.find(event => event.type === 'turn/end').data.reason.kind, 'completed')
     await restartedHandle.dispose()
+    for (const kind of ['REPORT-RESULT', 'DROP-REPLY', 'TRY-RERUN', 'TRY-SILENCE', 'ALREADY-SPOKEN']) {
+      const handle = await ctx.agents.create({ sessionId: SessionId('schedule-' + kind),
+        agentOptions: { provider: 'fixture', model: 'fixture' },
+        setup: scope => ctx.agentPresets.mount(scope, 'assistant-test').then(() => undefined),
+      })
+      const agent = handle.agent
+      const before = scheduledExecutions
+      agent.followup(createUserMessage({ content: [{ type: 'text', text: 'SCHEDULE-FIXTURE ' + kind }], source: { kind: 'schedule' } }))
+      await agent.whenIdle()
+      const events = agent.session.snapshotEvents()
+      const spoken = events.filter(event => event.type === 'tool/result' && event.data.meta?.kind === 'rabi-assistant-say')
+      const fallback = events.filter(event => event.type === scheduleReply)
+      const end = events.find(event => event.type === 'turn/end')
+      assert.ok(end, kind)
+      assert.equal(scheduledExecutions - before, 1, kind)
+      assert.equal(spoken.length + fallback.length, 1, kind)
+      if (kind === 'REPORT-RESULT' || kind === 'ALREADY-SPOKEN') {
+        assert.equal(spoken.length, 1, kind)
+        assert.equal(end.data.reason.kind, 'completed', kind)
+      } else {
+        assert.equal(fallback[0].data.turn, end.data.turn, kind)
+        assert.ok(fallback[0].seq < end.seq, kind)
+        assert.match(fallback[0].data.text, /没有给出可确认的结果/, kind)
+      }
+      if (kind === 'TRY-RERUN') {
+        const denied = events.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'schedule-replay')
+        assert.ok(denied.data.message.isError, kind)
+      }
+      if (kind === 'TRY-SILENCE') {
+        const denied = events.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'schedule-silence')
+        assert.ok(denied.data.message.isError, kind)
+      }
+      await handle.dispose()
+    }
     Object.assign(normalized, { correctionConsumed: true, distinctResultsConsumed: 2, originalChildResumed: true,
       pendingInputRecorded: true, targetedInterruptStopped: true, newInputAfterInterrupt: true,
       interruptedChildResumed: true })

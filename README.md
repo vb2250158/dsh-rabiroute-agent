@@ -365,13 +365,17 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 
 安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供。模式提供三个 Rabi 工具、官方 `web_search` 与 `web_fetch`、后台委派与交流动作，以及原生子 Agent 的发现、消息与中断工具。每个 Agent 创建或恢复后、首次上下文组装前筛选工具目录。支持正常人格对话，探索型搜索和连续工具操作提交后台工作包，已知对象的有界读取可直接执行。
 
-### 后台委派与交流（0.14.1）
+### 后台委派与交流（0.14.2）
 
 助手预置自行加载 `@deepseek-ai/dsh-tool-subagent-control`，与工具筛选处于同一预置作用域。Web 根工具目录无需提供子任务控制工具。
 
 `rabiroute_assistant_delegate` 接收 `description`、`prompt` 及可选 `name`、`cwd`，通过 `ctx.subagents.startActivation()` 提交工作，使用 `delivery: parent`。返回真实 `childId`、`name` 和可用的 `messageId` 后调用 `concludeTurn()`。工作由 DSH 运行时持有，完成后经父会话 Inbox 回流，主人格继续原任务。受理失败保留本轮处理，已到达的新输入沿原 Inbox 消费。`list_agents`、`send_message` 与 `interrupt_agent` 分别复用发现、范围修订和指定子任务中断入口。
 
 助手模式配置 `subagentProvider` 默认为 `spawn`，`workerPreset` 默认为 `standard`，由对应 DSH provider、preset 和宿主深度设置校验并提供工作能力。工作包写明目标、背景、输入位置、授权、验收标准、证据、已发生副作用、缺口和下一步。独立业务任务沿原 Rabi thread bridge 和正式回报处理。`create` 或 `send` 带 `responsePolicy: required` 且获得 HTTP 200、业务成功及 `delivery.status: accepted` 时结束本轮，待确认回执继续保留原身份核对。
+
+直接收到用户消息时，助手按需快速查询，再用 `rabiroute_assistant_say` 在原聊天回复。首条回复前最多调用一次统一搜索或网页搜索。工作在开展前给一条简短说明，后续在有影响下一步的结果、需用户处理的阻碍或完成时更新。工具调用、可自行重试的报错和子任务逐条回执留在任务详情。普通文本结束时宿主会补一次可见回复提示。角色有意沉默时可传 `{ "text": "", "staySilent": true }` 结束当轮。
+
+助手的定时轮次照计划执行，结束前在原聊天报告一句实际结果、已受理的交接或具体阻碍。若缺少发言，只开放一次单工具补发，补发不能重跑操作。若仍缺少可见回复，宿主记录可忽略事件 `rabiroute/assistant-schedule-reply`，载荷为 `{ turn, text }`，以明确提示查看执行记录。定时轮次继续遵守任务对外部渠道的通知条件。
 
 `rabiroute_assistant_say` 接收完整 `text`，其调用和成功结果进入普通 DSH 工具记录。DS Bot 根据成功结果显示完整聊天气泡，普通执行文本和过程在任务详情读取。每个助手 Session 首次启用时记录可忽略事件 `rabiroute/assistant-mode`，载荷为 `{ "version": 1 }`。事件前的历史回复继续可读，事件后的聊天从显式交流动作重建。刷新、分页和实时展示读取同一批持久记录。升级时同时加载支持该事件和交流工具的 DS Bot 版本。
 

@@ -1,4 +1,6 @@
-## Unreleased
+## 0.14.2 (2026-11-24)
+
+- Give scheduled assistant turns one speech-only attempt to report their outcome. Preserve external notification conditions and emit a visible status when there is no result.
 
 - Recognize current Markdown deliveries alongside historical messages, retaining the source, body and original text.
 
