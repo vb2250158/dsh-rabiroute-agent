@@ -24,6 +24,7 @@ const waitFor = async (predicate, label) => {
 }
 const textChunks = text => [
   { type: 'block-start', index: 0, blockType: 'text' },
+  { type: 'text-delta', index: 0, text },
   { type: 'block-end', index: 0, block: { type: 'text', text } },
   { type: 'finish', reason: { kind: 'stop' } },
 ]
@@ -51,12 +52,28 @@ test('delegation accepts before child finishes, accepts new input and resumes on
   let fourthEntered = false
   let fourthAborted = false
   let scheduledExecutions = 0
+  let directExecutions = 0
+  let firstDirectTextSeen = false
   class Adapter extends LlmAdapter {
     async resolveModel(provider, model) { return { provider, id: model, name: model } }
     async *stream(options) {
       const messages = JSON.stringify(options.messages)
       requests.push(messages)
-      if (messages.includes('SCHEDULE-FIXTURE')) {
+      if (messages.includes('DIRECT-RABI-FIXTURE')) {
+        if (messages.includes('direct-action')) {
+          yield* textChunks('DIRECT-COMPLETE')
+        } else {
+          yield* textChunks('DIRECT-ACK').slice(0, -1)
+          yield* toolChunks('direct-action', 'rabiroute_manager_api', {
+            method: 'POST', path: '/api/lan-agent/instances/fixture/computer', bodyJson: JSON.stringify({
+              action: 'input.perform', inputMode: 'shared', requestId: 'fixture-perform',
+              actions: [{ type: 'press', x: 12, y: 18 }, { type: 'wait', durationMs: 80 },
+                { type: 'move', x: 80, y: 18, durationMs: 100 }, { type: 'release' }],
+            }),
+          })
+            .map(chunk => 'index' in chunk ? { ...chunk, index: 1 } : chunk)
+        }
+      } else if (messages.includes('SCHEDULE-FIXTURE')) {
         const repairing = messages.includes('定时执行部分已结束')
         if (repairing) {
           if (messages.includes('REPORT-RESULT')) {
@@ -111,13 +128,7 @@ test('delegation accepts before child finishes, accepts new input and resumes on
           yield* toolChunks('intentional-silence', 'rabiroute_assistant_say', { text: '', staySilent: true })
         }
       } else if (messages.includes('AFTER-INTERRUPT')) {
-        if (messages.includes('ANSWER-AFTER-INTERRUPT')) {
-          yield* textChunks('')
-        } else if (messages.includes('本轮还没有用户可见的回复')) {
-          yield* toolChunks('recovered-say', 'rabiroute_assistant_say', { text: 'ANSWER-AFTER-INTERRUPT' })
-        } else {
-          yield* textChunks('This ordinary text is only in task details.')
-        }
+        yield* textChunks('ANSWER-AFTER-INTERRUPT')
       } else if (messages.includes('WORKER-RESULT') && messages.includes('WORKER2-RESULT')) {
         if (messages.includes('PARENT-CONTINUED')) {
           yield* textChunks('')
@@ -130,12 +141,10 @@ test('delegation accepts before child finishes, accepts new input and resumes on
         yield* textChunks('PARENT-SPOKE')
       } else if (messages.includes('NEW-INPUT')) {
         yield* toolChunks('say-call', 'rabiroute_assistant_say', { text: 'PARENT-ANSWERED-NEW-INPUT' })
-      } else if (messages.includes('OPENED-WORK')) {
-        yield* toolChunks('delegate-call', 'rabiroute_assistant_delegate', { description: 'fixture work', prompt: 'WORKER-GATED', name: 'worker' })
-      } else if (messages.includes('early-delegate')) {
-        yield* toolChunks('opened-say', 'rabiroute_assistant_say', { text: 'OPENED-WORK' })
       } else {
-        yield* toolChunks('early-delegate', 'rabiroute_assistant_delegate', { description: 'fixture work', prompt: 'WORKER-GATED', name: 'worker' })
+        yield* textChunks('OPENED-WORK').slice(0, -1)
+        yield* toolChunks('delegate-call', 'rabiroute_assistant_delegate', { description: 'fixture work', prompt: 'WORKER-GATED', name: 'worker' })
+          .map(chunk => 'index' in chunk ? { ...chunk, index: 1 } : chunk)
       }
     }
   }
@@ -163,9 +172,21 @@ test('delegation accepts before child finishes, accepts new input and resumes on
       }
       return next()
     })
+    ctx.on('agent/assistant-stream', ({ frame }) => {
+      if (frame.type === 'chunk' && frame.chunk.type === 'text-delta' && frame.chunk.text === 'DIRECT-ACK') firstDirectTextSeen = true
+    })
     ctx.llm.registerAdapter(['fixture'], new Adapter())
     for (const definition of internals.toolDefinitions({})) {
       ctx.tools.register(definition.name === 'rabiroute_manager_api' ? { ...definition, execute: args => {
+        if (args.path === '/api/lan-agent/instances/fixture/computer') {
+          const body = JSON.parse(args.bodyJson)
+          assert.equal(body.action, 'input.perform')
+          assert.equal(body.inputMode, 'shared')
+          assert.deepEqual(body.actions.map(action => action.type), ['press', 'wait', 'move', 'release'])
+          assert.equal(firstDirectTextSeen, true, 'native text arrives while the direct tool has yet to execute')
+          directExecutions += 1
+          return { ok: true, statusCode: 200, body: '{}' }
+        }
         assert.equal(args.path, '/api/fixture-once')
         scheduledExecutions += 1
         return { ok: false, error: 'synthetic fixture' }
@@ -195,11 +216,10 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     assert.equal(first.filter(event => event.type === 'rabiroute/assistant-mode').length, 1)
     const receiptEvent = first.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'delegate-call')
     assert.equal(receiptEvent.data.message.isError, false)
-    const early = first.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'early-delegate')
-    assert.equal(early.data.message.isError, true)
-    const opening = first.find(event => event.type === 'tool/result' && event.data.message.toolCallId === 'opened-say')
-    assert.deepEqual(opening.data.meta, { kind: 'rabi-assistant-say', text: 'OPENED-WORK' })
-    assert.ok(early.seq < opening.seq && opening.seq < receiptEvent.seq)
+    const opening = first.find(event => event.type === 'assistant/message' && event.data.message.content.some(block => block.text === 'OPENED-WORK'))
+    const native = first.find(event => event.type === 'rabiroute/assistant-native-reply')
+    assert.deepEqual(native.data, { turn: opening.data.turn, step: opening.data.step })
+    assert.ok(native.seq < opening.seq && opening.seq < receiptEvent.seq)
     const receipt = JSON.parse(receiptEvent.data.message.content[0].text)
     assert.ok(receipt.childId && receipt.messageId)
     assert.equal(receipt.name, 'worker')
@@ -295,8 +315,8 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     assert.equal(stopped.results[0].result.isError, false)
     await waitFor(() => thirdAborted && ctx.agents.get(thirdReceipt.childId) === undefined, 'selected child stopped')
     resumed.followup(user('AFTER-INTERRUPT'))
-    await waitFor(() => resumed.session.snapshotEvents().some(event => event.type === 'tool/result' &&
-      event.data.meta?.text === 'ANSWER-AFTER-INTERRUPT'), 'parent turns its ordinary answer into visible speech')
+    await waitFor(() => resumed.session.snapshotEvents().some(event => event.type === 'assistant/message' &&
+      event.data.message.content.some(block => block.text === 'ANSWER-AFTER-INTERRUPT')), 'parent answers through native text')
     await resumed.whenIdle()
     const fourth = await ctx.tools.execute({
       agent: resumed, signal: new AbortController().signal,
@@ -332,6 +352,20 @@ test('delegation accepts before child finishes, accepts new input and resumes on
     assert.equal(silence.filter(event => event.type === 'step/start').length, 1)
     assert.equal(silence.find(event => event.type === 'turn/end').data.reason.kind, 'completed')
     await restartedHandle.dispose()
+    const directHandle = await ctx.agents.create({ sessionId: SessionId('direct-rabi'),
+      agentOptions: { provider: 'fixture', model: 'fixture' },
+      setup: scope => ctx.agentPresets.mount(scope, 'assistant-test').then(() => undefined),
+    })
+    const directAgent = directHandle.agent
+    directAgent.followup(user('DIRECT-RABI-FIXTURE'))
+    await directAgent.whenIdle()
+    const direct = directAgent.session.snapshotEvents()
+    assert.equal(directExecutions, 1)
+    assert.equal(direct.filter(event => event.type === 'step/start').length, 2)
+    assert.deepEqual(direct.filter(event => event.type === 'tool/call').map(event => event.data.name), ['rabiroute_manager_api'])
+    assert.equal(direct.find(event => event.type === 'tool/result').data.message.isError, false)
+    assert.equal(direct.filter(event => event.type === 'rabiroute/assistant-native-reply').length, 1)
+    await directHandle.dispose()
     for (const kind of ['REPORT-RESULT', 'DROP-REPLY', 'TRY-RERUN', 'TRY-SILENCE', 'ALREADY-SPOKEN']) {
       const handle = await ctx.agents.create({ sessionId: SessionId('schedule-' + kind),
         agentOptions: { provider: 'fixture', model: 'fixture' },

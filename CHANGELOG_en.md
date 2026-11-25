@@ -1,3 +1,7 @@
+## 0.14.3 (2026-11-25)
+
+- Show the native assistant stream in DS Bot when the user sends a direct message. The model can continue with tool calls in the same response. Preserve historical rendering, scheduled replies and explicit speech.
+
 ## 0.14.2 (2026-11-24)
 
 - Give scheduled assistant turns one speech-only attempt to report their outcome. Preserve external notification conditions and emit a visible status when there is no result.

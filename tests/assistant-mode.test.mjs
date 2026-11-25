@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { apply, assistantModePrompt, assistantToolDefinitions, acceptedBackgroundThread, ASSISTANT_MODE_EVENT, RABI_ASSISTANT_TOOL_NAMES } from '../lib/assistant-mode.js'
+import { apply, assistantModePrompt, assistantToolDefinitions, acceptedBackgroundThread, ASSISTANT_MODE_EVENT, ASSISTANT_NATIVE_REPLY_EVENT, RABI_ASSISTANT_TOOL_NAMES } from '../lib/assistant-mode.js'
 import { apply as hostApply, RABIROUTE_AGENT_TOOL_NAMES } from '../lib/index.js'
 import { rabiAssistantPreset } from '../lib/assistant-preset.js'
 
@@ -34,11 +34,12 @@ test('assistant preserves web search and fetch while denying unrelated tools', (
   apply({ tools, on: (name, listener) => { if (name === 'agent/created') seen.created = listener },
     effect: fn => fn(),
     systemPrompt: { section: value => { seen.promptOrder = value.order; seen.prompt = value.text({ agent: { session: { id: 'session-test' } } }) } } })
-  const events = []
+  const v1 = { type: ASSISTANT_MODE_EVENT, data: { version: 1 }, ignorable: true }
+  const events = [v1]
   const session = { snapshotEvents: () => events, append: (type, data, options) => events.push({ type, data, ...options }) }
   seen.created({ agent: { ctx: { tools }, session } })
   seen.created({ agent: { ctx: { tools }, session } })
-  assert.deepEqual(events, [{ type: ASSISTANT_MODE_EVENT, data: { version: 1 }, ignorable: true }])
+  assert.deepEqual(events, [v1, { type: ASSISTANT_MODE_EVENT, data: { version: 2 }, ignorable: true }])
   assert.deepEqual(seen.allow, RABI_ASSISTANT_TOOL_NAMES)
   for (const name of ['web_search', 'web_fetch']) assert.equal(seen.guard({ name, arguments: {} }), undefined)
   for (const name of ['pwsh', 'read_file', 'write_file', 'browser', 'skill', 'run_code', 'subagent', 'future_tool', 'rabiroute_fake']) {
@@ -54,46 +55,33 @@ test('assistant preserves web search and fetch while denying unrelated tools', (
   assert.throws(() => apply({ tools: {} }), /请先更新宿主/)
 })
 
-test('direct user input allows one search and requires a visible reply before dispatch', async () => {
-  const events = new Map()
-  let guard
+test('direct user input marks its reply step and can call Rabi without explicit speech', async () => {
+  const listeners = []
+  const guards = []
   const tools = {
-    guard: listener => { guard = listener },
+    guard: listener => guards.push(listener),
     restrict() {},
     register() {},
     get: name => ({ name, execute() {} }),
   }
-  apply({ tools, on: (name, listener) => events.set(name, listener), systemPrompt: { section() {} } })
-  const agent = {}
-  const enter = (turn, kind) => events.get('agent/pre-step')({ agent, turn }, async () => ({
-    kind: 'enter', messages: kind === undefined ? [] : [{ source: { kind } }],
-  }))
-  const toolSet = {}
-  const call = (name, args) => guard({ agent, toolSet, name, arguments: args })
-  const send = { requestJson: '{"action":"send","responsePolicy":"required"}' }
-  const search = { method: 'GET', path: '/api/search?q=fixture' }
+  apply({ tools, on: (name, listener) => { if (name === 'agent/pre-step') listeners.push(listener) }, systemPrompt: { section() {} } })
+  const events = []
+  const agent = { session: { append: (...event) => events.push(event) } }
+  const enter = async (step, kind) => {
+    const messages = kind === undefined ? [] : [{ source: { kind } }]
+    const context = { agent, turn: 1, step, messages }
+    return listeners.reduceRight((next, listener) => () => listener(context, next), async () => ({ kind: 'enter', messages }))()
+  }
   await enter(1, 'user')
-  assert.equal(call('rabiroute_manager_api', search), undefined)
-  assert.match(call('web_search'), /先用 rabiroute_assistant_say/)
-  assert.equal(call('rabiroute_manager_api', { method: 'GET', path: '/api/personas' }), undefined)
-  assert.equal(call('rabiroute_agent_threads', { requestJson: '{"action":"read"}' }), undefined)
-  assert.match(call('rabiroute_agent_threads', send), /先用 rabiroute_assistant_say/)
-  assert.match(call('rabiroute_manager_api', { method: 'POST', path: '/api/agent/threads' }), /先用 rabiroute_assistant_say/)
-  assert.match(call('rabiroute_assistant_delegate'), /先用 rabiroute_assistant_say/)
-  const speech = { agent, toolSet, name: 'rabiroute_assistant_say' }
-  events.get('tools/result')(speech, { isError: true })
-  await enter(1)
-  assert.match(call('rabiroute_assistant_delegate'), /先用 rabiroute_assistant_say/)
-  events.get('tools/result')(speech, { isError: false, value: { text: '我来查一下。' } })
-  assert.match(call('rabiroute_assistant_delegate'), /先用 rabiroute_assistant_say/)
-  await enter(1)
-  assert.equal(call('rabiroute_assistant_delegate'), undefined)
-  assert.equal(call('rabiroute_agent_threads', send), undefined)
-  await enter(1, 'user')
-  assert.equal(call('web_search'), undefined)
-  assert.match(call('rabiroute_manager_api', search), /先用 rabiroute_assistant_say/)
-  await enter(2, 'subagent-settled')
-  assert.equal(call('rabiroute_assistant_delegate'), undefined)
+  await enter(2)
+  await enter(3, 'user')
+  assert.deepEqual(events, [1, 3].map(step => [ASSISTANT_NATIVE_REPLY_EVENT, { turn: 1, step }, { ignorable: true }]))
+  for (const [name, args] of [
+    ['web_search', {}],
+    ['rabiroute_manager_api', { method: 'GET', path: '/api/search?q=fixture' }],
+    ['rabiroute_manager_api', { method: 'POST', path: '/api/fixture' }],
+    ['rabiroute_assistant_delegate', {}],
+  ]) for (const guard of guards) assert.equal(guard({ agent, toolSet: {}, name, arguments: args }), undefined)
 })
 
 test('business delegation yields only on confirmed acceptance with a formal return path', () => {
@@ -176,8 +164,8 @@ test('new user steering takes precedence over a pending schedule repair', async 
       snapshotEvents: () => events,
     },
   }
-  const enter = (turn, messages) => listeners.get('agent/pre-step').reduceRight(
-    (next, handler) => () => handler({ agent, turn, messages }, next),
+  const enter = (turn, messages, step = 1) => listeners.get('agent/pre-step').reduceRight(
+    (next, handler) => () => handler({ agent, turn, step, messages }, next),
     async () => ({ kind: 'enter', messages }),
   )()
   const stopping = (turn, signal) => {
@@ -189,9 +177,10 @@ test('new user steering takes precedence over a pending schedule repair', async 
   await enter(1, [trigger])
   stopping(1, signal)
   assert.equal(notices.length, 1)
-  const admitted = await enter(1, [notices[0], user])
+  const admitted = await enter(1, [notices[0], user], 2)
   assert.deepEqual(admitted.messages, [user])
-  assert.deepEqual(events.map(({ type, data }) => [type, data.turn]), [['rabiroute/assistant-schedule-reply', 1]])
+  assert.deepEqual(events.find(event => event.type === ASSISTANT_NATIVE_REPLY_EVENT)?.data, { turn: 1, step: 2 })
+  assert.deepEqual(events.filter(event => event.type === 'rabiroute/assistant-schedule-reply').map(event => event.data.turn), [1])
   assert.equal(guards[0]({ agent, toolSet: {}, name: 'rabiroute_manager_api' }), undefined)
   await enter(2, [user])
   assert.equal(guards[0]({ agent, toolSet: {}, name: 'rabiroute_assistant_say', arguments: { text: '', staySilent: true } }), undefined)
@@ -201,5 +190,6 @@ test('new user steering takes precedence over a pending schedule repair', async 
   stopping(3, aborted.signal)
   assert.equal(notices.length, 1)
   for (const handler of listeners.get('agent/status')) handler({ agent, status: 'idle' })
-  assert.equal(events.length, 1)
+  assert.equal(events.filter(event => event.type === 'rabiroute/assistant-schedule-reply').length, 1)
+
 })

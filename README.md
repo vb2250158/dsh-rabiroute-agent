@@ -367,7 +367,7 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 
 安装插件后自动注册 `rabi-assistant`，会话菜单显示“Rabi助手模式”。人格、记忆、计划和消息由 Rabi 提供。模式提供三个 Rabi 工具、官方 `web_search` 与 `web_fetch`、后台委派与交流动作，以及原生子 Agent 的发现、消息与中断工具。每个 Agent 创建或恢复后、首次上下文组装前筛选工具目录。支持正常人格对话，探索型搜索和连续工具操作提交后台工作包，已知对象的有界读取可直接执行。
 
-### 后台委派与交流（0.14.2）
+### 后台委派与交流（0.14.3）
 
 助手预置自行加载 `@deepseek-ai/dsh-tool-subagent-control`，与工具筛选处于同一预置作用域。Web 根工具目录无需提供子任务控制工具。
 
@@ -379,7 +379,7 @@ The icon uses a centered 36 × 36 viewBox to leave more space around the artwork
 
 助手模式配置 `subagentProvider` 默认为 `spawn`，`workerPreset` 默认为 `standard`，由对应 DSH provider、preset 和宿主深度设置校验并提供工作能力。工作包写明目标、背景、输入位置、授权、验收标准、证据、已发生副作用、缺口和下一步。独立业务任务沿原 Rabi thread bridge 和正式回报处理。`create` 或 `send` 带 `responsePolicy: required` 且获得 HTTP 200、业务成功及 `delivery.status: accepted` 时结束本轮，待确认回执继续保留原身份核对。
 
-`rabiroute_assistant_say` 接收完整 `text`，其调用和成功结果进入普通 DSH 工具记录。DS Bot 根据成功结果显示完整聊天气泡，普通执行文本和过程在任务详情读取。每个助手 Session 首次启用时记录可忽略事件 `rabiroute/assistant-mode`，载荷为 `{ "version": 1 }`。事件前的历史回复继续可读，事件后的聊天从显式交流动作重建。刷新、分页和实时展示读取同一批持久记录。升级时同时加载支持该事件和交流工具的 DS Bot 版本。
+Rabi 助手 Session 升级后首次加载会记录可忽略事件 `rabiroute/assistant-mode`，载荷为 `{ "version": 2 }`。DS Bot 流式显示直接用户输入后的首步回复，并从原生助手消息显示最终答复。同一次模型输出可接着调用 Rabi API。中间工具步骤留在任务详情，旧聊天沿用原有展示规则。`rabiroute_assistant_say` 继续用于定时结果和显式更新。升级时配套更新助手插件和 DS Bot。 在支持 `input.perform` 的 Rabi 中，助手可以直接提交共用鼠标或键盘的完整短动作批次。
 
 源码验证时设置 `DSH_SOURCE_ROOT` 为当前已构建的 DSH 源码目录后执行 `npm test`。测试解析器从该宿主读取公开工具与 Schema 依赖，未设置时使用已安装的 peer dependencies。`node --import ./tests/assistant-source-resolve.mjs --test tests/assistant-loop.integration.mjs` 运行隔离父子会话验收。
 

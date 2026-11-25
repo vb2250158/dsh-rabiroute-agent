@@ -97,7 +97,7 @@ Home-device directories return paged summaries. Start with `/api/agent/xiaomi-ho
 
 Installing the plugin registers `rabi-assistant` in the session picker. Rabi owns persona, memory, plans and messages. The mode provides the three Rabi tools, official web search and fetch, explicit speech and background delegation, and native child discovery, messaging and interruption. Exploration and multi-step execution use complete background work packages. Bounded reads of known objects can run directly.
 
-### Background delegation and speech (0.14.2)
+### Background delegation and speech (0.14.3)
 
 The assistant preset loads `@deepseek-ai/dsh-tool-subagent-control` in its own scope before applying its tool restriction. The Web root tool catalog can omit these controls.
 
@@ -109,7 +109,7 @@ Scheduled assistant turns run the task and report its outcome, confirmed handoff
 
 The mode's `subagentProvider` defaults to `spawn` and `workerPreset` to `standard`. The provider, preset registry and Host depth setting own execution validation. Work packages include the goal, context, input locations, authority, acceptance criteria, evidence, committed side effects, remaining work and next action. Independent business tasks retain their Rabi thread and formal return path. A thread `create` or `send` with `responsePolicy: required` concludes the turn only after HTTP 200, business success and `delivery.status: accepted`. Unconfirmed outcomes retain their original receipt identity for reconciliation.
 
-`rabiroute_assistant_say` accepts the complete `text` and persists it through ordinary tool call and successful result records. DS Bot displays those results as complete chat bubbles and retains execution text in task details. Each assistant Session records an ignorable `rabiroute/assistant-mode` event with `{ "version": 1 }` once. Earlier replies remain readable, and subsequent chat is reconstructed from explicit speech. Live, refreshed and paged history use the same durable records. Upgrade DS Bot together with the assistant plugin to enable this presentation.
+Assistant Sessions append an ignorable `rabiroute/assistant-mode` marker with `{ "version": 2 }` on first load after the upgrade. DS Bot streams the first reply to direct user input and displays the final answer from native assistant messages. The same model output can start a Rabi API call. Intermediate tool steps stay in task details, and earlier chat keeps its original presentation. The `rabiroute_assistant_say` tool still supports scheduled results and explicit updates. Upgrade the assistant plugin and DS Bot together. With Rabi support for `input.perform`, the assistant can submit one short shared mouse or keyboard batch directly.
 
 For source validation, set `DSH_SOURCE_ROOT` to the current built DSH checkout and run `npm test`. The test resolver uses that Host's public tools and schema dependencies, or installed peers when the variable is omitted. Run `node --import ./tests/assistant-source-resolve.mjs --test tests/assistant-loop.integration.mjs` for isolated parent/child runtime acceptance.
 
